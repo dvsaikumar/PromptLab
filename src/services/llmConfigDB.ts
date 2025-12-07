@@ -1,5 +1,5 @@
 import { LLMConfig } from '@/types';
-import { securityManager } from '@/utils/security';
+import { securityManager } from '../utils/security';
 
 /**
  * IndexedDB storage for LLM configurations

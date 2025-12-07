@@ -42,6 +42,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
             'glm': 'GLM',
             'mistral': 'Mistral AI',
             'grok': 'Grok (xAI)',
+            'local': 'Local LLM',
             'custom': 'Custom'
         };
         return providers[providerId] || providerId;

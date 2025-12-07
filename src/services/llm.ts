@@ -298,6 +298,72 @@ export class GrokProvider extends OpenAICompatibleProvider {
     }
 }
 
+export class LocalProvider extends OpenAICompatibleProvider {
+    async generateCompletion(payload: CompletionPayload): Promise<string> {
+        // Relax API key requirement for local LLMs
+        const { config, systemPrompt, userPrompt, temperature } = payload;
+        const baseUrl = config.baseUrl || 'http://localhost:11434/v1';
+        const cleanBase = this.cleanUrl(baseUrl);
+
+        const messages = [];
+        if (systemPrompt) messages.push({ role: 'system', content: systemPrompt });
+        messages.push({ role: 'user', content: userPrompt });
+
+        try {
+            const headers: Record<string, string> = {
+                'Content-Type': 'application/json'
+            };
+            if (config.apiKey) {
+                headers['Authorization'] = `Bearer ${config.apiKey}`;
+            }
+
+            const response = await fetch(`${cleanBase}/chat/completions`, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({
+                    model: config.model,
+                    messages,
+                    temperature: temperature ?? 0.7,
+                    max_tokens: 4096,
+                    stream: false
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(`Local LLM Error ${response.status}: ${errorData.error?.message || response.statusText}`);
+            }
+
+            const data = await response.json();
+            return data.choices?.[0]?.message?.content || '';
+        } catch (error: any) {
+            if (error.message === 'Failed to fetch') {
+                throw new Error('Network error: Is your Local LLM running? (e.g. Ollama, LM Studio)');
+            }
+            throw error;
+        }
+    }
+
+    async listModels(config: LLMConfig): Promise<string[]> {
+        const baseUrl = config.baseUrl || 'http://localhost:11434/v1';
+        const cleanBase = this.cleanUrl(baseUrl);
+        try {
+            const headers: Record<string, string> = {};
+            if (config.apiKey) headers['Authorization'] = `Bearer ${config.apiKey}`;
+
+            const response = await fetch(`${cleanBase}/models`, { headers });
+            if (!response.ok) return [];
+            const data = await response.json();
+            // Ollama returns { models: [...] }, OpenAI returns { data: [...] }
+            if (data.models) return data.models.map((m: any) => m.name || m.id);
+            if (data.data) return data.data.map((m: any) => m.id);
+            return [];
+        } catch (e) {
+            return [];
+        }
+    }
+}
+
 // Factory/Service
 export class LLMService {
     private static instance: LLMService;
@@ -311,7 +377,9 @@ export class LLMService {
         this.providers.set('openai', new OpenAIProvider());
         this.providers.set('gemini', new GeminiProvider());
         this.providers.set('mistral', new MistralProvider());
+        this.providers.set('mistral', new MistralProvider());
         this.providers.set('grok', new GrokProvider());
+        this.providers.set('local', new LocalProvider());
         this.providers.set('custom', new OpenAICompatibleProvider()); // Generic fallback
     }
 

@@ -2,7 +2,7 @@
     "name": "dstudioslab",
     "private": true,
     "description": "Professional Prompt Engineering Studio",
-    "author": "DStudiosLab",
+    "author": "DStudiosLab <support@dstudioslab.com>",
     "version": "1.0.0",
     "type": "module",
     "main": "electron-dist/main.js",
@@ -29,8 +29,7 @@
         ],
         "linux": {
             "target": [
-                "AppImage",
-                "rpm"
+                "AppImage"
             ],
             "category": "Development"
         },

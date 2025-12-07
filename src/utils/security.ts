@@ -72,6 +72,8 @@ class SecurityManager {
         valid: boolean;
         error?: string;
     } {
+        if (provider === 'local') return { valid: true };
+
         if (!apiKey || apiKey.trim() === '') {
             return { valid: false, error: 'API key is required' };
         }
@@ -108,6 +110,10 @@ class SecurityManager {
             grok: {
                 pattern: /^xai-[a-zA-Z0-9-]{32,}$/,
                 example: 'xai-...'
+            },
+            local: {
+                pattern: /.*/,
+                example: 'optional'
             },
             custom: {
                 pattern: /.+/, // Accept any non-empty string for custom
@@ -165,6 +171,7 @@ class SecurityManager {
             glm: import.meta.env.VITE_GLM_API_KEY,
             mistral: import.meta.env.VITE_MISTRAL_API_KEY,
             grok: import.meta.env.VITE_GROK_API_KEY,
+            local: import.meta.env.VITE_LOCAL_API_KEY,
             custom: import.meta.env.VITE_CUSTOM_API_KEY
         };
 
@@ -184,6 +191,7 @@ class SecurityManager {
             import.meta.env.VITE_GLM_API_KEY ||
             import.meta.env.VITE_MISTRAL_API_KEY ||
             import.meta.env.VITE_GROK_API_KEY ||
+            import.meta.env.VITE_LOCAL_API_KEY ||
             import.meta.env.VITE_CUSTOM_API_KEY
         );
     }

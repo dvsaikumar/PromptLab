@@ -84,6 +84,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
             'glm': 'GLM',
             'mistral': 'Mistral AI',
             'grok': 'Grok (xAI)',
+            'local': 'Local LLM',
             'custom': 'Custom'
         };
 
@@ -138,6 +139,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                 'glm': 'GLM',
                 'mistral': 'Mistral AI',
                 'grok': 'Grok (xAI)',
+                'local': 'Local LLM',
                 'custom': 'Custom'
             };
 
@@ -203,6 +205,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
             } else if (pid === 'grok') {
                 setModel('grok-beta');
                 setBaseUrl('https://api.x.ai/v1');
+            } else if (pid === 'local') {
+                setModel('llama3');
+                setBaseUrl('http://localhost:11434/v1');
             } else if (pid === 'custom') {
                 setModel('');
                 setBaseUrl('');
@@ -221,6 +226,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
         'glm': '⚡',
         'mistral': '🌊',
         'grok': '🚀',
+        'local': '🏠',
         'custom': '⚙️'
     };
 
@@ -266,7 +272,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                                         Configured Providers ({savedConfigs.size})
                                     </label>
                                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                        {(['openai', 'anthropic', 'gemini', 'grok', 'deepseek', 'kimi', 'glm', 'mistral', 'custom'] as LLMProviderId[])
+                                        {(['openai', 'anthropic', 'gemini', 'grok', 'deepseek', 'kimi', 'glm', 'mistral', 'local', 'custom'] as LLMProviderId[])
                                             .filter(pid => savedConfigs.has(pid))
                                             .map((pid) => (
                                                 <button
@@ -290,7 +296,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                                                                             pid === 'glm' ? 'GLM' :
                                                                                 pid === 'mistral' ? 'Mistral' :
                                                                                     pid === 'grok' ? 'Grok' :
-                                                                                        'Custom'}
+                                                                                        pid === 'local' ? 'Local' :
+                                                                                            'Custom'}
                                                     </div>
                                                 </button>
                                             ))}
@@ -305,7 +312,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                                     Available Providers
                                 </label>
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                    {(['openai', 'anthropic', 'gemini', 'grok', 'deepseek', 'kimi', 'glm', 'mistral', 'custom'] as LLMProviderId[])
+                                    {(['openai', 'anthropic', 'gemini', 'grok', 'deepseek', 'kimi', 'glm', 'mistral', 'local', 'custom'] as LLMProviderId[])
                                         .filter(pid => !savedConfigs.has(pid))
                                         .map((pid) => (
                                             <button
@@ -326,7 +333,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                                                                         pid === 'glm' ? 'GLM' :
                                                                             pid === 'mistral' ? 'Mistral' :
                                                                                 pid === 'grok' ? 'Grok' :
-                                                                                    'Custom'}
+                                                                                    pid === 'local' ? 'Local' :
+                                                                                        'Custom'}
                                                 </div>
                                             </button>
                                         ))}
@@ -459,7 +467,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                 <div className="px-8 py-6 bg-slate-50 border-t border-slate-200 flex justify-between items-center gap-4 flex-shrink-0">
                     <button
                         onClick={handleTest}
-                        disabled={isTesting || !apiKey}
+                        disabled={isTesting || (!apiKey && providerId !== 'local')}
                         className={`flex items-center gap-3 px-6 py-3 border-2 rounded-xl text-base font-bold transition-all ${testStatus === 'success'
                             ? 'border-emerald-200 bg-emerald-50 text-emerald-700 shadow-lg shadow-emerald-500/20' :
                             testStatus === 'error'
