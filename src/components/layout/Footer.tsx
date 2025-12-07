@@ -1,6 +1,7 @@
 import React from 'react';
 {/* import { Heart } from 'lucide-react';*/ }
 import { clsx } from 'clsx';
+import dLogo from '@/assets/d-logo.png';
 
 interface FooterProps {
     isSidebarOpen: boolean;
@@ -23,7 +24,7 @@ export const Footer: React.FC<FooterProps> = ({ isSidebarOpen }) => {
                 {/* Center: Logo */}
                 <div className="absolute left-1/2 transform -translate-x-1/2">
                     <img
-                        src="/d-logo.png"
+                        src={dLogo}
                         alt="D Studio Logo"
                         className="h-10 w-auto object-contain"
                     />
