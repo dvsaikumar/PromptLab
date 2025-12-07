@@ -76,6 +76,8 @@ export abstract class LLMProvider {
             if (cleaned.includes('generativelanguage.googleapis.com')) return cleaned.replace('https://generativelanguage.googleapis.com', '/api/gemini');
             if (cleaned.includes('api.mistral.ai')) return cleaned.replace('https://api.mistral.ai', '/api/mistral');
             if (cleaned.includes('api.x.ai')) return cleaned.replace('https://api.x.ai', '/api/grok');
+            if (cleaned.includes('dashscope.aliyuncs.com')) return cleaned.replace('https://dashscope.aliyuncs.com/compatible-mode/v1', '/api/qwen');
+            if (cleaned.includes('openrouter.ai')) return cleaned.replace('https://openrouter.ai/api/v1', '/api/openrouter');
         }
 
         return cleaned;
@@ -298,6 +300,31 @@ export class GrokProvider extends OpenAICompatibleProvider {
     }
 }
 
+
+export class QwenProvider extends OpenAICompatibleProvider {
+    async listModels(config: LLMConfig): Promise<string[]> {
+        try {
+            const models = await super.listModels(config);
+            if (models.length > 0) return models;
+        } catch (e) {
+            // ignore
+        }
+        return ['qwen-max', 'qwen-plus', 'qwen-turbo', 'qwen-long'];
+    }
+}
+
+export class OpenRouterProvider extends OpenAICompatibleProvider {
+    async listModels(config: LLMConfig): Promise<string[]> {
+        try {
+            const models = await super.listModels(config);
+            if (models.length > 0) return models;
+        } catch (e) {
+            // ignore
+        }
+        return ['openai/gpt-3.5-turbo', 'openai/gpt-4o', 'anthropic/claude-3-5-sonnet', 'google/gemini-pro-1.5', 'meta-llama/llama-3-8b-instruct:free'];
+    }
+}
+
 export class LocalProvider extends OpenAICompatibleProvider {
     async generateCompletion(payload: CompletionPayload): Promise<string> {
         // Relax API key requirement for local LLMs
@@ -377,8 +404,9 @@ export class LLMService {
         this.providers.set('openai', new OpenAIProvider());
         this.providers.set('gemini', new GeminiProvider());
         this.providers.set('mistral', new MistralProvider());
-        this.providers.set('mistral', new MistralProvider());
         this.providers.set('grok', new GrokProvider());
+        this.providers.set('qwen', new QwenProvider());
+        this.providers.set('openrouter', new OpenRouterProvider());
         this.providers.set('local', new LocalProvider());
         this.providers.set('custom', new OpenAICompatibleProvider()); // Generic fallback
     }

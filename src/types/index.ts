@@ -35,7 +35,7 @@ export interface QualityScore {
     improvements: string[];
 }
 
-export type LLMProviderId = 'deepseek' | 'kimi' | 'glm' | 'anthropic' | 'openai' | 'gemini' | 'mistral' | 'grok' | 'local' | 'custom';
+export type LLMProviderId = 'deepseek' | 'kimi' | 'glm' | 'anthropic' | 'openai' | 'gemini' | 'mistral' | 'grok' | 'qwen' | 'openrouter' | 'local' | 'custom';
 
 export interface LLMConfig {
     providerId: LLMProviderId;

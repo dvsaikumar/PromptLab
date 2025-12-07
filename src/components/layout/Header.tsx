@@ -42,6 +42,8 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
             'glm': 'GLM',
             'mistral': 'Mistral AI',
             'grok': 'Grok (xAI)',
+            'qwen': 'Qwen (DashScope)',
+            'openrouter': 'OpenRouter',
             'local': 'Local LLM',
             'custom': 'Custom'
         };

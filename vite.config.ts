@@ -61,6 +61,16 @@ export default defineConfig({
                 target: 'https://api.x.ai',
                 changeOrigin: true,
                 rewrite: (path) => path.replace(/^\/api\/grok/, ''),
+            },
+            '/api/qwen': {
+                target: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+                changeOrigin: true,
+                rewrite: (path) => path.replace(/^\/api\/qwen/, ''),
+            },
+            '/api/openrouter': {
+                target: 'https://openrouter.ai/api/v1',
+                changeOrigin: true,
+                rewrite: (path) => path.replace(/^\/api\/openrouter/, ''),
             }
         }
     },

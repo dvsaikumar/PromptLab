@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, AlertCircle, RefreshCw, Check, Activity, Sparkles, Settings, Database, Eye, EyeOff } from 'lucide-react';
+import { X, Save, AlertCircle, RefreshCw, Check, Activity, Sparkles, Settings, Database, Eye, EyeOff, Search } from 'lucide-react';
 import { usePrompt } from '@/contexts/PromptContext';
 import { LLMProviderId } from '@/types';
 import { LLMService } from '@/services/llm';
@@ -26,6 +26,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
     const [testStatus, setTestStatus] = useState<'idle' | 'success' | 'error'>('idle');
     const [fetchedModels, setFetchedModels] = useState<string[]>([]);
     const [showModelList, setShowModelList] = useState(false);
+    const [modelSearch, setModelSearch] = useState('');
+    const [isListHovered, setIsListHovered] = useState(false);
     const [showApiKey, setShowApiKey] = useState(false);
     const [savedConfigs, setSavedConfigs] = useState<Map<LLMProviderId, any>>(new Map());
 
@@ -84,6 +86,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
             'glm': 'GLM',
             'mistral': 'Mistral AI',
             'grok': 'Grok (xAI)',
+            'qwen': 'Qwen (DashScope)',
+            'openrouter': 'OpenRouter',
             'local': 'Local LLM',
             'custom': 'Custom'
         };
@@ -139,6 +143,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                 'glm': 'GLM',
                 'mistral': 'Mistral AI',
                 'grok': 'Grok (xAI)',
+                'qwen': 'Qwen (DashScope)',
+                'openrouter': 'OpenRouter',
                 'local': 'Local LLM',
                 'custom': 'Custom'
             };
@@ -205,6 +211,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
             } else if (pid === 'grok') {
                 setModel('grok-beta');
                 setBaseUrl('https://api.x.ai/v1');
+            } else if (pid === 'qwen') {
+                setModel('qwen-max');
+                setBaseUrl('https://dashscope.aliyuncs.com/compatible-mode/v1');
+            } else if (pid === 'openrouter') {
+                setModel('openai/gpt-3.5-turbo');
+                setBaseUrl('https://openrouter.ai/api/v1');
             } else if (pid === 'local') {
                 setModel('llama3');
                 setBaseUrl('http://localhost:11434/v1');
@@ -226,6 +238,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
         'glm': '⚡',
         'mistral': '🌊',
         'grok': '🚀',
+        'qwen': '🐉',
+        'openrouter': '🔗',
         'local': '🏠',
         'custom': '⚙️'
     };
@@ -272,7 +286,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                                         Configured Providers ({savedConfigs.size})
                                     </label>
                                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                        {(['openai', 'anthropic', 'gemini', 'grok', 'deepseek', 'kimi', 'glm', 'mistral', 'local', 'custom'] as LLMProviderId[])
+                                        {(['openai', 'anthropic', 'gemini', 'grok', 'qwen', 'openrouter', 'deepseek', 'kimi', 'glm', 'mistral', 'local', 'custom'] as LLMProviderId[])
                                             .filter(pid => savedConfigs.has(pid))
                                             .map((pid) => (
                                                 <button
@@ -296,8 +310,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                                                                             pid === 'glm' ? 'GLM' :
                                                                                 pid === 'mistral' ? 'Mistral' :
                                                                                     pid === 'grok' ? 'Grok' :
-                                                                                        pid === 'local' ? 'Local' :
-                                                                                            'Custom'}
+                                                                                        pid === 'qwen' ? 'Qwen' :
+                                                                                            pid === 'openrouter' ? 'OpenRouter' :
+                                                                                                pid === 'local' ? 'Local' :
+                                                                                                    'Custom'}
                                                     </div>
                                                 </button>
                                             ))}
@@ -312,7 +328,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                                     Available Providers
                                 </label>
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                    {(['openai', 'anthropic', 'gemini', 'grok', 'deepseek', 'kimi', 'glm', 'mistral', 'local', 'custom'] as LLMProviderId[])
+                                    {(['openai', 'anthropic', 'gemini', 'grok', 'qwen', 'openrouter', 'deepseek', 'kimi', 'glm', 'mistral', 'local', 'custom'] as LLMProviderId[])
                                         .filter(pid => !savedConfigs.has(pid))
                                         .map((pid) => (
                                             <button
@@ -333,8 +349,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                                                                         pid === 'glm' ? 'GLM' :
                                                                             pid === 'mistral' ? 'Mistral' :
                                                                                 pid === 'grok' ? 'Grok' :
-                                                                                    pid === 'local' ? 'Local' :
-                                                                                        'Custom'}
+                                                                                    pid === 'qwen' ? 'Qwen' :
+                                                                                        pid === 'openrouter' ? 'OpenRouter' :
+                                                                                            pid === 'local' ? 'Local' :
+                                                                                                'Custom'}
                                                 </div>
                                             </button>
                                         ))}
@@ -348,7 +366,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                         {/* API Key */}
                         <div>
                             <label className="block text-sm font-bold text-slate-900 mb-2">
-                                API Key
+                                API Key {providerId === 'local' && <span className="text-slate-400 font-normal">(Optional)</span>}
                             </label>
                             <div className="relative">
                                 <input
@@ -361,7 +379,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                                         }
                                     }}
                                     onFocus={() => setShowApiKey(true)}
-                                    placeholder="sk-..."
+                                    placeholder={providerId === 'local' ? "Optional for local LLMs" : "sk-..."}
                                     className="w-full rounded-xl border-2 border-slate-200 px-4 py-3 pr-12 text-base focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all font-mono bg-white"
                                 />
                                 <button
@@ -424,24 +442,46 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                                         value={model}
                                         onChange={(e) => setModel(e.target.value)}
                                         onFocus={() => { if (fetchedModels.length) setShowModelList(true); }}
-                                        onBlur={() => setTimeout(() => setShowModelList(false), 200)}
+                                        onBlur={(e) => {
+                                            if (isListHovered) return;
+                                            if (e.relatedTarget && (e.relatedTarget as HTMLElement).closest('.model-list-container')) return;
+                                            setTimeout(() => setShowModelList(false), 200);
+                                        }}
                                         className="w-full rounded-xl border-2 border-slate-200 px-4 py-3 text-base focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
                                         placeholder="e.g., gpt-4o"
                                     />
                                     {showModelList && fetchedModels.length > 0 && (
-                                        <div className="absolute top-full left-0 w-full mt-2 bg-white border-2 border-slate-200 rounded-xl shadow-xl max-h-60 overflow-y-auto z-10">
-                                            {fetchedModels.map(m => (
-                                                <div
-                                                    key={m}
-                                                    onMouseDown={() => {
-                                                        setModel(m);
-                                                        setShowModelList(false);
-                                                    }}
-                                                    className="px-4 py-3 text-sm hover:bg-indigo-50 cursor-pointer text-slate-700 border-b border-slate-100 last:border-0"
-                                                >
-                                                    {m}
+                                        <div
+                                            className="model-list-container absolute top-full left-0 w-full mt-2 bg-white border-2 border-slate-200 rounded-xl shadow-xl max-h-60 overflow-y-auto z-10"
+                                            onMouseEnter={() => setIsListHovered(true)}
+                                            onMouseLeave={() => setIsListHovered(false)}
+                                        >
+                                            <div className="sticky top-0 bg-white p-2 border-b border-slate-100 z-20">
+                                                <div className="relative">
+                                                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Search models..."
+                                                        value={modelSearch}
+                                                        onChange={(e) => setModelSearch(e.target.value)}
+                                                        className="w-full pl-9 pr-3 py-1.5 text-sm bg-slate-50 border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                                                    />
                                                 </div>
-                                            ))}
+                                            </div>
+                                            {fetchedModels
+                                                .filter(m => m.toLowerCase().includes(modelSearch.toLowerCase()))
+                                                .map(m => (
+                                                    <div
+                                                        key={m}
+                                                        onMouseDown={() => {
+                                                            setModel(m);
+                                                            setShowModelList(false);
+                                                        }}
+                                                        className="px-4 py-3 text-sm hover:bg-indigo-50 cursor-pointer text-slate-700 border-b border-slate-100 last:border-0"
+                                                    >
+                                                        {m}
+                                                    </div>
+                                                ))}
                                         </div>
                                     )}
                                 </div>

@@ -111,6 +111,14 @@ class SecurityManager {
                 pattern: /^xai-[a-zA-Z0-9-]{32,}$/,
                 example: 'xai-...'
             },
+            qwen: {
+                pattern: /^sk-[a-zA-Z0-9]{32,}$/,
+                example: 'sk-...'
+            },
+            openrouter: {
+                pattern: /^sk-or-v1-[a-zA-Z0-9]{32,}$/,
+                example: 'sk-or-v1-...'
+            },
             local: {
                 pattern: /.*/,
                 example: 'optional'
@@ -171,6 +179,8 @@ class SecurityManager {
             glm: import.meta.env.VITE_GLM_API_KEY,
             mistral: import.meta.env.VITE_MISTRAL_API_KEY,
             grok: import.meta.env.VITE_GROK_API_KEY,
+            qwen: import.meta.env.VITE_QWEN_API_KEY,
+            openrouter: import.meta.env.VITE_OPENROUTER_API_KEY,
             local: import.meta.env.VITE_LOCAL_API_KEY,
             custom: import.meta.env.VITE_CUSTOM_API_KEY
         };
@@ -191,6 +201,8 @@ class SecurityManager {
             import.meta.env.VITE_GLM_API_KEY ||
             import.meta.env.VITE_MISTRAL_API_KEY ||
             import.meta.env.VITE_GROK_API_KEY ||
+            import.meta.env.VITE_QWEN_API_KEY ||
+            import.meta.env.VITE_OPENROUTER_API_KEY ||
             import.meta.env.VITE_LOCAL_API_KEY ||
             import.meta.env.VITE_CUSTOM_API_KEY
         );
