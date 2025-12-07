@@ -7,3 +7,13 @@ release
 *.local
 .vscode
 coverage
+
+# Installers
+installers/*.dmg
+installers/*.exe
+installers/*.AppImage
+installers/*.zip
+installers/*.blockmap
+
+# Vite temp
+.vite/
