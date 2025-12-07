@@ -1,0 +1,342 @@
+import React, { useState, useEffect } from 'react';
+import { Search, Trash2, Clock, BookOpen, X, FileText, FolderOpen, Edit } from 'lucide-react';
+import { promptDB, SavedPrompt } from '@/services/database';
+import { FRAMEWORKS, TONES, INDUSTRY_TEMPLATES, ROLE_PRESETS } from '@/constants';
+import toast from 'react-hot-toast';
+import { Card } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import { Badge } from '@/components/ui/Badge';
+import { PageTemplate } from '@/components/ui/PageTemplate';
+import { usePrompt } from '@/contexts/PromptContext';
+import { ResultToolbar } from '@/components/ui/ResultToolbar';
+import { TextStats } from '@/components/ui/TextStats';
+
+interface SavedPromptsLibraryProps {
+    isSidebarOpen?: boolean;
+}
+
+interface SavedPromptsLibraryPropsExtended extends SavedPromptsLibraryProps {
+    onNavigate?: (page: string, section?: string) => void;
+}
+
+export const SavedPromptsLibrary: React.FC<SavedPromptsLibraryPropsExtended> = ({ isSidebarOpen = false, onNavigate }) => {
+    const [savedPrompts, setSavedPrompts] = useState<SavedPrompt[]>([]);
+    const [allPrompts, setAllPrompts] = useState<SavedPrompt[]>([]);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [selectedPrompt, setSelectedPrompt] = useState<SavedPrompt | null>(null);
+
+    const { loadPrompt } = usePrompt();
+
+    useEffect(() => {
+        loadPrompts();
+    }, []);
+
+    const loadPrompts = async () => {
+        const prompts = await promptDB.getAllPrompts();
+        setAllPrompts(prompts);
+        setSavedPrompts(prompts);
+    };
+
+    const handleSearch = (query: string) => {
+        setSearchQuery(query);
+        const term = query.toLowerCase().trim();
+
+        if (!term) {
+            setSavedPrompts(allPrompts);
+            return;
+        }
+
+        const filtered = allPrompts.filter(p => {
+            const matches = (text?: string) => text?.toLowerCase().includes(term);
+
+            // Lookup labels for better search (so searching "Healthcare" finds the industry even if ID is 'healthcare')
+            const frameworkName = FRAMEWORKS.find(f => f.id === p.framework)?.name;
+            const industryLabel = INDUSTRY_TEMPLATES.find(t => t.id === p.industry)?.label;
+            const roleLabel = ROLE_PRESETS.find(t => t.id === p.role)?.label;
+
+            let toneKeywords = '';
+            try {
+                const tones = JSON.parse(p.tones || '[]');
+                if (Array.isArray(tones)) {
+                    toneKeywords = tones.map((t: string) => {
+                        const obj = TONES.find(ref => ref.value === t);
+                        return (obj?.label || t) + ' ' + (obj?.value || '');
+                    }).join(' ');
+                }
+            } catch (e) { }
+
+            return (
+                matches(p.title) ||
+                matches(p.prompt) ||
+                matches(p.framework) ||
+                matches(frameworkName) ||
+                matches(p.industry) ||
+                matches(industryLabel) ||
+                matches(p.role) ||
+                matches(roleLabel) ||
+                matches(toneKeywords)
+            );
+        });
+        setSavedPrompts(filtered);
+    };
+
+    const handleDeletePrompt = async (id: number) => {
+        if (!confirm('Are you sure you want to delete this prompt?')) return;
+
+        try {
+            await promptDB.deletePrompt(id);
+            toast.success('Prompt deleted');
+            loadPrompts();
+            if (selectedPrompt?.id === id) {
+                setSelectedPrompt(null);
+            }
+        } catch (error) {
+            toast.error('Failed to delete prompt');
+            console.error(error);
+        }
+    };
+
+    const handleEdit = async (savedPrompt: SavedPrompt, e: React.MouseEvent) => {
+        e.stopPropagation();
+        try {
+            await loadPrompt(savedPrompt);
+            if (onNavigate) {
+                onNavigate('prompt-lab', 'quick-start');
+            }
+            toast.success('Prompt loaded into editor');
+        } catch (error) {
+            toast.error('Failed to load prompt');
+            console.error(error);
+        }
+    };
+
+
+
+    const handleExport = (prompt: SavedPrompt, format: 'md' | 'txt' | 'json') => {
+        let content = '';
+        let mime = '';
+        let filename = prompt.title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+
+        if (format === 'md') {
+            content = `# ${prompt.title}\n\n**Framework:** ${getFrameworkName(prompt.framework)}\n\n**Created:** ${formatDate(prompt.createdAt)}\n\n## Prompt\n\n${prompt.prompt}`;
+            mime = 'text/markdown';
+        } else if (format === 'txt') {
+            content = prompt.prompt;
+            mime = 'text/plain';
+        } else if (format === 'json') {
+            content = JSON.stringify({
+                title: prompt.title,
+                framework: prompt.framework,
+                prompt: prompt.prompt,
+                fields: JSON.parse(prompt.fields),
+                tones: JSON.parse(prompt.tones),
+                createdAt: prompt.createdAt
+            }, null, 2);
+            mime = 'application/json';
+        }
+
+        const blob = new Blob([content], { type: mime });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${filename}.${format}`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        toast.success(`Downloaded as ${format.toUpperCase()}`);
+    };
+
+    const formatDate = (dateString: string) => {
+        const date = new Date(dateString);
+        return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    };
+
+    const getFrameworkName = (frameworkId: string) => {
+        return FRAMEWORKS.find(f => f.id === frameworkId)?.name || frameworkId;
+    };
+
+    // Search Bar as right content for header
+    const SearchBar = (
+        <div className="relative w-80">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+            <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => handleSearch(e.target.value)}
+                placeholder="Search prompts..."
+                className="w-full pl-11 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all bg-slate-50"
+            />
+        </div>
+    );
+
+    return (
+        <>
+            <PageTemplate
+                title="Saved Prompts"
+                subtitle="Manage and export your prompt library"
+                icon={FolderOpen}
+                iconGradient="from-emerald-500 to-teal-600"
+                shadowColor="shadow-emerald-500/30"
+                rightContent={SearchBar}
+                isSidebarOpen={isSidebarOpen}
+            >
+                {savedPrompts.length === 0 ? (
+                    <Card className="text-center py-16">
+                        <FileText size={56} className="mx-auto text-slate-300 mb-4" />
+                        <h3 className="text-xl font-bold text-slate-700 mb-2">No saved prompts yet</h3>
+                        <p className="text-slate-500">Generate a prompt and save it from the Output section</p>
+                    </Card>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {savedPrompts.map((savedPrompt) => (
+                            <Card
+                                key={savedPrompt.id}
+                                className={`cursor-pointer transition-all hover:shadow-xl hover:-translate-y-1 ${selectedPrompt?.id === savedPrompt.id ? 'ring-2 ring-emerald-500 shadow-lg' : ''
+                                    }`}
+                                onClick={() => setSelectedPrompt(savedPrompt)}
+                            >
+                                <div className="flex items-start justify-between mb-3">
+                                    <h3 className="font-bold text-slate-900 text-lg line-clamp-1">{savedPrompt.title}</h3>
+                                    <div className="flex items-center gap-1">
+                                        <button
+                                            onClick={(e) => handleEdit(savedPrompt, e)}
+                                            className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                                            title="Edit prompt"
+                                        >
+                                            <Edit size={16} />
+                                        </button>
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleDeletePrompt(savedPrompt.id!);
+                                            }}
+                                            className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                            title="Delete prompt"
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="flex flex-wrap items-center gap-2 mb-3">
+                                    <Badge variant="purple" className="gap-1">
+                                        <BookOpen size={10} />
+                                        {getFrameworkName(savedPrompt.framework)}
+                                    </Badge>
+                                    {savedPrompt.industry && (
+                                        <Badge variant="blue" className="gap-1">
+                                            {INDUSTRY_TEMPLATES.find(t => t.id === savedPrompt.industry)?.label || savedPrompt.industry}
+                                        </Badge>
+                                    )}
+                                    {savedPrompt.role && (
+                                        <Badge variant="pink" className="gap-1">
+                                            {ROLE_PRESETS.find(t => t.id === savedPrompt.role)?.label || savedPrompt.role}
+                                        </Badge>
+                                    )}
+                                </div>
+
+                                <p className="text-sm text-slate-600 line-clamp-3 mb-4">{savedPrompt.prompt}</p>
+
+                                <div className="flex items-center justify-between pt-3 border-t border-slate-100 mt-auto">
+                                    <div className="flex items-center gap-2">
+                                        {savedPrompt.qualityScore && (
+                                            <Badge variant="default" className="bg-emerald-500 h-5 px-1.5 text-[10px]">
+                                                {savedPrompt.qualityScore}/100
+                                            </Badge>
+                                        )}
+                                    </div>
+                                    <div className="flex items-center gap-1.5 text-xs text-slate-400">
+                                        <Clock size={12} />
+                                        {formatDate(savedPrompt.createdAt)}
+                                    </div>
+                                </div>
+                            </Card>
+                        ))}
+                    </div>
+                )}
+            </PageTemplate>
+
+            {/* Detail Modal */}
+            {selectedPrompt && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-6" onClick={() => setSelectedPrompt(null)}>
+                    <Card
+                        className="max-w-3xl w-full max-h-[85vh] overflow-hidden flex flex-col shadow-2xl"
+                        noPadding
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Modal Header */}
+                        <div className="flex items-center justify-between p-6 border-b border-slate-200 bg-slate-50">
+                            <div>
+                                <h3 className="text-2xl font-bold text-slate-900">{selectedPrompt.title}</h3>
+                                <div className="flex flex-wrap items-center gap-2 mt-2">
+                                    <Badge variant="purple" className="gap-1">
+                                        <BookOpen size={10} />
+                                        {getFrameworkName(selectedPrompt.framework)}
+                                    </Badge>
+
+                                    {selectedPrompt.industry && (
+                                        <Badge variant="blue" className="gap-1">
+                                            {INDUSTRY_TEMPLATES.find(t => t.id === selectedPrompt.industry)?.label || selectedPrompt.industry}
+                                        </Badge>
+                                    )}
+
+                                    {selectedPrompt.role && (
+                                        <Badge variant="pink" className="gap-1">
+                                            {ROLE_PRESETS.find(t => t.id === selectedPrompt.role)?.label || selectedPrompt.role}
+                                        </Badge>
+                                    )}
+
+                                    {(() => {
+                                        try {
+                                            const tones = JSON.parse(selectedPrompt.tones || '[]');
+                                            return Array.isArray(tones) && tones.map((tone: string) => {
+                                                const toneObj = TONES.find(t => t.value === tone);
+                                                return (
+                                                    <Badge key={tone} variant="orange" className="opacity-90">
+                                                        {toneObj?.label || tone}
+                                                    </Badge>
+                                                );
+                                            });
+                                        } catch (e) {
+                                            return null;
+                                        }
+                                    })()}
+
+                                    <span className="text-xs text-slate-400 ml-1">{formatDate(selectedPrompt.createdAt)}</span>
+                                </div>
+                            </div>
+                            <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => setSelectedPrompt(null)}
+                            >
+                                <X size={20} />
+                            </Button>
+                        </div>
+
+                        {/* Modal Body */}
+                        <div className="flex-1 overflow-y-auto p-6 custom-scrollbar relative bg-slate-50/50">
+                            <textarea
+                                readOnly
+                                value={selectedPrompt.prompt}
+                                className="w-full h-full p-5 pb-10 bg-slate-50 rounded-xl border border-slate-100 text-slate-800 text-base leading-relaxed resize-none focus:outline-none shadow-sm custom-scrollbar"
+                                style={{ minHeight: '400px' }}
+                            />
+                            <TextStats text={selectedPrompt.prompt} className="bottom-8 left-8 border-slate-200/50 bg-white/80" />
+                        </div>
+
+                        {/* Modal Footer */}
+                        <div className="p-6 border-t border-slate-200 bg-slate-50 flex justify-center">
+                            <ResultToolbar
+                                onExport={(format) => handleExport(selectedPrompt, format)}
+                                contentToCopy={selectedPrompt.prompt}
+                                className="shadow-none border-0 bg-transparent"
+                            />
+                        </div>
+                    </Card>
+                </div>
+            )}
+        </>
+    );
+};
