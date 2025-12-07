@@ -13,6 +13,8 @@ export interface SavedPrompt {
     qualityScoreDetails?: string; // JSON stringified { overallScore, strengths, weaknesses }
     createdAt: string;
     updatedAt: string;
+    providerId?: string;
+    model?: string;
 }
 
 interface ElectronDB {

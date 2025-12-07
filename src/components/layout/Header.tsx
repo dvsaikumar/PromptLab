@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Cpu, ChevronDown, Check, Trash2, AlertTriangle } from 'lucide-react';
+import { Cpu, ChevronDown, Check, Trash2, AlertTriangle, Search } from 'lucide-react';
 import { usePrompt } from '@/contexts/PromptContext';
 import { LLMConfig } from '@/types';
 import { llmConfigDB } from '@/services/llmConfigDB';
@@ -15,6 +15,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
     const [savedConfigs, setSavedConfigs] = useState<LLMConfig[]>([]);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [configToDelete, setConfigToDelete] = useState<LLMConfig | null>(null);
+    const [searchQuery, setSearchQuery] = useState('');
 
     // Load saved LLM configurations from IndexedDB
     useEffect(() => {
@@ -183,46 +184,61 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
                                 {/* Dropdown Panel */}
                                 <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-xl border border-slate-200 z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                                     <div className="px-4 py-3 border-b border-slate-100 bg-slate-50">
-                                        <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Select LLM Provider</h3>
+                                        <div className="relative">
+                                            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                                            <input
+                                                type="text"
+                                                placeholder="Search providers..."
+                                                value={searchQuery}
+                                                onChange={(e) => setSearchQuery(e.target.value)}
+                                                className="w-full pl-9 pr-3 py-1.5 text-sm bg-white border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                                                autoFocus
+                                            />
+                                        </div>
                                     </div>
                                     <div className="max-h-80 overflow-y-auto custom-scrollbar">
-                                        {savedConfigs.map((config, index) => {
-                                            const isActive = config.providerId === llmConfig.providerId && config.model === llmConfig.model;
-                                            return (
-                                                <div
-                                                    key={index}
-                                                    className={`group flex items-center gap-3 transition-colors ${isActive
-                                                        ? 'bg-indigo-50 border-l-4 border-l-indigo-600'
-                                                        : 'hover:bg-slate-50 border-l-4 border-l-transparent'
-                                                        }`}
-                                                >
-                                                    <button
-                                                        onClick={() => handleSelectConfig(config)}
-                                                        className="flex-1 px-4 py-3 flex items-center gap-3"
+                                        {savedConfigs
+                                            .filter(config =>
+                                                getProviderDisplay(config.providerId).toLowerCase().includes(searchQuery.toLowerCase()) ||
+                                                config.model.toLowerCase().includes(searchQuery.toLowerCase())
+                                            )
+                                            .map((config, index) => {
+                                                const isActive = config.providerId === llmConfig.providerId && config.model === llmConfig.model;
+                                                return (
+                                                    <div
+                                                        key={index}
+                                                        className={`group flex items-center gap-3 transition-colors ${isActive
+                                                            ? 'bg-indigo-50 border-l-4 border-l-indigo-600'
+                                                            : 'hover:bg-slate-50 border-l-4 border-l-transparent'
+                                                            }`}
                                                     >
-                                                        <Cpu size={16} className={isActive ? 'text-indigo-600' : 'text-slate-400'} />
-                                                        <div className="flex-1 text-left">
-                                                            <div className={`text-sm font-semibold ${isActive ? 'text-indigo-900' : 'text-slate-900'}`}>
-                                                                {getProviderDisplay(config.providerId)}
+                                                        <button
+                                                            onClick={() => handleSelectConfig(config)}
+                                                            className="flex-1 px-4 py-3 flex items-center gap-3"
+                                                        >
+                                                            <Cpu size={16} className={isActive ? 'text-indigo-600' : 'text-slate-400'} />
+                                                            <div className="flex-1 text-left">
+                                                                <div className={`text-sm font-semibold ${isActive ? 'text-indigo-900' : 'text-slate-900'}`}>
+                                                                    {getProviderDisplay(config.providerId)}
+                                                                </div>
+                                                                <div className="text-xs text-slate-500">
+                                                                    {getModelDisplay(config.model)}
+                                                                </div>
                                                             </div>
-                                                            <div className="text-xs text-slate-500">
-                                                                {getModelDisplay(config.model)}
-                                                            </div>
-                                                        </div>
-                                                        {isActive && (
-                                                            <Check size={16} className="text-indigo-600" />
-                                                        )}
-                                                    </button>
-                                                    <button
-                                                        onClick={(e) => handleDeleteClick(config, e)}
-                                                        className="px-3 py-3 opacity-0 group-hover:opacity-100 hover:bg-red-50 transition-all"
-                                                        title="Delete configuration"
-                                                    >
-                                                        <Trash2 size={16} className="text-red-500" />
-                                                    </button>
-                                                </div>
-                                            );
-                                        })}
+                                                            {isActive && (
+                                                                <Check size={16} className="text-indigo-600" />
+                                                            )}
+                                                        </button>
+                                                        <button
+                                                            onClick={(e) => handleDeleteClick(config, e)}
+                                                            className="px-3 py-3 opacity-0 group-hover:opacity-100 hover:bg-red-50 transition-all"
+                                                            title="Delete configuration"
+                                                        >
+                                                            <Trash2 size={16} className="text-red-500" />
+                                                        </button>
+                                                    </div>
+                                                );
+                                            })}
                                     </div>
                                     <div className="px-4 py-3 border-t border-slate-100 bg-slate-50">
                                         <button

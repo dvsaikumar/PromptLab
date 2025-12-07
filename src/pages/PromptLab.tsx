@@ -41,7 +41,7 @@ export const PromptLab: React.FC<PromptLabProps> = ({ isSidebarOpen = false }) =
         generatedPrompt, improvePrompt, isImproving,
         activeIndustry, activeRole, selectedTones, toggleTone, clearIndustry, clearRole,
         requestChainOfThought, toggleChainOfThought, simpleIdea, expandIdea, isExpanding,
-        resetAll, complexity, currentPromptId
+        resetAll, complexity, currentPromptId, llmConfig
     } = usePrompt();
 
     const currentFramework = useMemo(() =>
@@ -123,7 +123,9 @@ export const PromptLab: React.FC<PromptLabProps> = ({ isSidebarOpen = false }) =
                 simpleIdea: simpleIdea,
                 qualityScore: qualityScore?.overallScore,
                 qualityScoreDetails: qualityScore ? JSON.stringify(qualityScore) : undefined,
-                updatedAt: new Date().toISOString()
+                updatedAt: new Date().toISOString(),
+                providerId: llmConfig.providerId,
+                model: llmConfig.model
             });
             toast.success('Changes saved!');
         } catch (error) {
@@ -146,7 +148,9 @@ export const PromptLab: React.FC<PromptLabProps> = ({ isSidebarOpen = false }) =
                 qualityScore: qualityScore?.overallScore,
                 qualityScoreDetails: qualityScore ? JSON.stringify(qualityScore) : undefined,
                 createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString()
+                updatedAt: new Date().toISOString(),
+                providerId: llmConfig.providerId,
+                model: llmConfig.model
             });
             toast.success(`✓ "${title}" saved successfully!`);
 

@@ -237,8 +237,13 @@ export const PromptProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
 
     const expandIdea = async () => {
-        if ((!simpleIdea.trim() && !attachments.length) || !llmConfig.apiKey) {
-            toast.error(!llmConfig.apiKey ? 'API Key required' : 'Please enter an idea or upload a file');
+        if (!simpleIdea.trim() && !attachments.length) {
+            toast.error('Please enter an idea or upload a file');
+            return;
+        }
+
+        if (llmConfig.providerId !== 'local' && !llmConfig.apiKey) {
+            toast.error('API Key required');
             return;
         }
 
@@ -338,7 +343,7 @@ export const PromptProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     };
 
     const generatePrompt = async () => {
-        if (!llmConfig.apiKey) {
+        if (llmConfig.providerId !== 'local' && !llmConfig.apiKey) {
             toast.error('API Key required');
             return;
         }
@@ -499,7 +504,7 @@ export const PromptProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     };
 
     const generateSuggestions = async (fieldId: string): Promise<string[]> => {
-        if (!llmConfig.apiKey) return [];
+        if (llmConfig.providerId !== 'local' && !llmConfig.apiKey) return [];
 
         try {
             const framework = getCurrentFramework();
@@ -526,7 +531,7 @@ export const PromptProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
     const autoFillOutputStopping = async () => {
         // Specialized for RTCROS or generic
-        if (!llmConfig.apiKey) return;
+        if (llmConfig.providerId !== 'local' && !llmConfig.apiKey) return;
 
 
         const prompt = `Based on inputs: ${JSON.stringify(fields)}, recommend OUTPUT and STOPPING criteria.

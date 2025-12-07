@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Trash2, Clock, BookOpen, X, FileText, FolderOpen, Edit } from 'lucide-react';
+import { Search, Trash2, Clock, BookOpen, X, FileText, FolderOpen, Edit, Cpu } from 'lucide-react';
 import { promptDB, SavedPrompt } from '@/services/database';
 import { FRAMEWORKS, TONES, INDUSTRY_TEMPLATES, ROLE_PRESETS } from '@/constants';
 import toast from 'react-hot-toast';
@@ -74,7 +74,9 @@ export const SavedPromptsLibrary: React.FC<SavedPromptsLibraryPropsExtended> = (
                 matches(industryLabel) ||
                 matches(p.role) ||
                 matches(roleLabel) ||
-                matches(toneKeywords)
+                matches(toneKeywords) ||
+                matches(p.providerId) ||
+                matches(p.model)
             );
         });
         setSavedPrompts(filtered);
@@ -154,6 +156,20 @@ export const SavedPromptsLibrary: React.FC<SavedPromptsLibraryPropsExtended> = (
 
     const getFrameworkName = (frameworkId: string) => {
         return FRAMEWORKS.find(f => f.id === frameworkId)?.name || frameworkId;
+    };
+
+    const getProviderColor = (providerId?: string) => {
+        switch (providerId) {
+            case 'openai': return 'bg-emerald-600 text-white border-emerald-700';
+            case 'anthropic': return 'bg-amber-600 text-white border-amber-700';
+            case 'gemini': return 'bg-blue-600 text-white border-blue-700';
+            case 'deepseek': return 'bg-violet-600 text-white border-violet-700';
+            case 'grok': return 'bg-slate-900 text-white border-slate-950';
+            case 'local': return 'bg-stone-600 text-white border-stone-700';
+            case 'qwen': return 'bg-purple-600 text-white border-purple-700';
+            case 'openrouter': return 'bg-fuchsia-600 text-white border-fuchsia-700';
+            default: return 'bg-indigo-600 text-white border-indigo-700';
+        }
     };
 
     // Search Bar as right content for header
@@ -240,6 +256,17 @@ export const SavedPromptsLibrary: React.FC<SavedPromptsLibraryPropsExtended> = (
 
                                 <div className="flex items-center justify-between pt-3 border-t border-slate-100 mt-auto">
                                     <div className="flex items-center gap-2">
+                                        {savedPrompt.providerId && (
+                                            <Badge variant="default" className={`${getProviderColor(savedPrompt.providerId)} h-5 px-1.5 text-[10px] border gap-1`}>
+                                                <Cpu size={10} />
+                                                <span className="font-bold uppercase tracking-wider">{savedPrompt.providerId}</span>
+                                                {savedPrompt.model && (
+                                                    <span className="opacity-75 font-normal border-l border-current pl-1 ml-1">
+                                                        {savedPrompt.model.replace('claude-', '').replace('gpt-', '').substring(0, 12)}
+                                                    </span>
+                                                )}
+                                            </Badge>
+                                        )}
                                         {savedPrompt.qualityScore && (
                                             <Badge variant="default" className="bg-emerald-500 h-5 px-1.5 text-[10px]">
                                                 {savedPrompt.qualityScore}/100
