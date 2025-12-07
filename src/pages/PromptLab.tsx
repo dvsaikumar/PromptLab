@@ -124,13 +124,13 @@ export const PromptLab: React.FC<PromptLabProps> = ({ isSidebarOpen = false }) =
                 qualityScore: qualityScore?.overallScore,
                 qualityScoreDetails: qualityScore ? JSON.stringify(qualityScore) : undefined,
                 updatedAt: new Date().toISOString(),
-                providerId: llmConfig.providerId,
-                model: llmConfig.model
+                providerId: llmConfig?.providerId || 'unknown',
+                model: llmConfig?.model || 'unknown'
             });
             toast.success('Changes saved!');
-        } catch (error) {
-            toast.error('Failed to update prompt.');
-            console.error(error);
+        } catch (error: any) {
+            toast.error(error?.message || 'Failed to update prompt.');
+            console.error('Update failed:', error);
         }
     };
 
@@ -149,16 +149,16 @@ export const PromptLab: React.FC<PromptLabProps> = ({ isSidebarOpen = false }) =
                 qualityScoreDetails: qualityScore ? JSON.stringify(qualityScore) : undefined,
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
-                providerId: llmConfig.providerId,
-                model: llmConfig.model
+                providerId: llmConfig?.providerId || 'unknown',
+                model: llmConfig?.model || 'unknown'
             });
             toast.success(`✓ "${title}" saved successfully!`);
 
             // Reset all fields after saving
             resetAll();
-        } catch (error) {
-            toast.error('Failed to save prompt.');
-            console.error(error);
+        } catch (error: any) {
+            toast.error(error?.message || 'Failed to save prompt.');
+            console.error('Save failed:', error);
         }
     };
 
