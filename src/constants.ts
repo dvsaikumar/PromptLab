@@ -5,39 +5,42 @@ export const FRAMEWORKS: Framework[] = [
         id: 'costar',
         name: 'CO-STAR',
         description: 'Context, Objective, Style, Tone, Audience, Response',
+        bestFor: 'Creative writing, marketing, and communications',
         fields: [
-            { id: 'context', label: 'Context', description: 'Background information for the task' },
-            { id: 'objective', label: 'Objective', description: 'Clear goal to achieve' },
-            { id: 'style', label: 'Style', description: 'Writing or response style' },
+            { id: 'context', label: 'Context', description: 'Background information for the task', placeholder: 'e.g., You are writing a marketing email for a tech startup...' },
+            { id: 'objective', label: 'Objective', description: 'Clear goal to achieve', placeholder: 'e.g., Convince the reader to sign up for a trial.' },
+            { id: 'style', label: 'Style', description: 'Writing or response style', placeholder: 'e.g., Professional yet witty.' },
             { id: 'tone', label: 'Tone', description: 'Auto-filled from your tone selection' },
-            { id: 'audience', label: 'Audience', description: 'Target audience characteristics' },
-            { id: 'response', label: 'Response', description: 'Response format and structure' }
+            { id: 'audience', label: 'Audience', description: 'Target audience characteristics', placeholder: 'e.g., CTOs and Engineering Managers.' },
+            { id: 'response', label: 'Response', description: 'Response format and structure', placeholder: 'e.g., A 3-paragraph email with a CTA.' }
         ]
     },
     {
         id: 'scoped',
         name: 'SCOPED',
         description: 'Situation, Complication, Objective, People, Execution, Deliverables',
+        bestFor: 'Business strategy, problem solving, and management',
         fields: [
-            { id: 'situation', label: 'Situation', description: 'Current state or context.' },
-            { id: 'complication', label: 'Complication', description: 'The problem or challenge.' },
-            { id: 'objective', label: 'Objective', description: 'Desired future state.' },
-            { id: 'people', label: 'People', description: 'Who is involved? (Roles/Audience).' },
-            { id: 'execution', label: 'Execution', description: 'Constraints and methods.' },
-            { id: 'deliverables', label: 'Deliverables', description: 'Specific outputs required.' }
+            { id: 'situation', label: 'Situation', description: 'Current state or context.', placeholder: 'e.g., Sales have dropped by 15% Q/Q.' },
+            { id: 'complication', label: 'Complication', description: 'The problem or challenge.', placeholder: 'e.g., Competitors lowered prices.' },
+            { id: 'objective', label: 'Objective', description: 'Desired future state.', placeholder: 'e.g., Restore growth to 5% MoM.' },
+            { id: 'people', label: 'People', description: 'Who is involved? (Roles/Audience).', placeholder: 'e.g., Sales Team and Marketing.' },
+            { id: 'execution', label: 'Execution', description: 'Constraints and methods.', placeholder: 'e.g., Launch a referral program.' },
+            { id: 'deliverables', label: 'Deliverables', description: 'Specific outputs required.', placeholder: 'e.g., A one-page strategy memo.' }
         ]
     },
     {
         id: 'rtcros',
         name: 'RTCROS',
         description: 'Role, Task, Context, Reasoning, Output, Stopping',
+        bestFor: 'Technical tasks, coding, and logical reasoning',
         fields: [
-            { id: 'role', label: 'Role', description: 'Who should the AI act as? (e.g., Expert Blog Writer)' },
-            { id: 'task', label: 'Task', description: 'What specific action do you want performed?' },
-            { id: 'context', label: 'Context', description: 'What background information is relevant?' },
-            { id: 'reasoning', label: 'Reasoning', description: 'How should the AI approach this? What logic should it follow?' },
-            { id: 'output', label: 'Output', description: 'What format do you want? How should it be structured?' },
-            { id: 'stopping', label: 'Stopping', description: 'When should the AI stop? What are the boundaries?' }
+            { id: 'role', label: 'Role', description: 'Who should the AI act as? (e.g., Expert Blog Writer)', placeholder: 'e.g., Senior Python Developer' },
+            { id: 'task', label: 'Task', description: 'What specific action do you want performed?', placeholder: 'e.g., Refactor this function to be O(n).' },
+            { id: 'context', label: 'Context', description: 'What background information is relevant?', placeholder: 'e.g., The current implementation causes memory leaks.' },
+            { id: 'reasoning', label: 'Reasoning', description: 'How should the AI approach this? What logic should it follow?', placeholder: 'e.g., Explain the time complexity trade-offs.' },
+            { id: 'output', label: 'Output', description: 'What format do you want? How should it be structured?', placeholder: 'e.g., Python 3.9+ compatible code block.' },
+            { id: 'stopping', label: 'Stopping', description: 'When should the AI stop? What are the boundaries?', placeholder: 'e.g., Do not include generic advice.' }
         ]
     },
     {

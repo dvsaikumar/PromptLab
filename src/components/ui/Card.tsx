@@ -4,15 +4,17 @@ import { clsx } from 'clsx';
 interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
     noPadding?: boolean;
     glass?: boolean;
+    hoverLift?: boolean;
 }
 
 export const Card = React.forwardRef<HTMLDivElement, CardProps>(
-    ({ className, children, noPadding = false, glass = false, ...props }, ref) => {
+    ({ className, children, noPadding = false, glass = false, hoverLift = false, ...props }, ref) => {
         return (
             <div
                 ref={ref}
                 className={clsx(
-                    "rounded-2xl border border-slate-200 shadow-sm transition-all hover:shadow-md",
+                    "rounded-2xl border border-slate-200 shadow-sm transition-all",
+                    hoverLift ? "hover-lift" : "hover:shadow-md",
                     glass
                         ? "bg-white/80 backdrop-blur-md"
                         : "bg-white",

@@ -13,6 +13,7 @@ export interface Framework {
     id: FrameworkId;
     name: string;
     description: string;
+    bestFor?: string;
     fields: FieldDefinition[];
 }
 

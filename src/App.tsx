@@ -11,6 +11,7 @@ import { MyHub } from '@/pages/MyHub';
 import { PromptLab } from '@/pages/PromptLab';
 import { ToneShifter } from '@/pages/ToneShifter';
 import { SavedPromptsLibrary } from '@/pages/SavedPrompts';
+import { TemplatePage } from '@/pages/TemplatePage';
 import { promptDB } from '@/services/database';
 
 const AppContent: React.FC = () => {
@@ -23,6 +24,17 @@ const AppContent: React.FC = () => {
     useEffect(() => {
         // Force database initialization
         promptDB.getAllPrompts().catch(console.error);
+
+        // Check for page param for hidden routes
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('page') === 'template') {
+            setActivePage('template');
+        }
+
+        // Listen for settings open request
+        const handleOpenSettings = () => setIsSettingsOpen(true);
+        window.addEventListener('open-settings-modal', handleOpenSettings);
+        return () => window.removeEventListener('open-settings-modal', handleOpenSettings);
     }, []);
 
     const toggleSection = (section: string) => {
@@ -50,6 +62,8 @@ const AppContent: React.FC = () => {
                 return <ToneShifter isSidebarOpen={isSidebarOpen} />;
             case 'saved-prompts':
                 return <SavedPromptsLibrary isSidebarOpen={isSidebarOpen} onNavigate={handleNavigateWithSection} />;
+            case 'template':
+                return <TemplatePage isSidebarOpen={isSidebarOpen} />;
             default:
                 return <MyHub isSidebarOpen={isSidebarOpen} />;
         }

@@ -11,6 +11,7 @@ interface SelectionCardProps {
     activeColor?: 'indigo' | 'green' | 'orange' | 'red' | 'blue' | 'purple' | 'pink'; // Add more as needed
     className?: string;
     showActiveIndicator?: boolean;
+    metadata?: string;
 }
 
 export const SelectionCard: React.FC<SelectionCardProps> = ({
@@ -21,7 +22,8 @@ export const SelectionCard: React.FC<SelectionCardProps> = ({
     icon,
     activeColor = 'blue',
     className,
-    showActiveIndicator = false
+    showActiveIndicator = false,
+    metadata
 }) => {
     // Map colors to styling. extending typical Tailwind patterns used in project
     const colorStyles = {
@@ -102,6 +104,12 @@ export const SelectionCard: React.FC<SelectionCardProps> = ({
                     <div className={clsx("text-xs leading-tight", isSelected ? styles.desc : "text-slate-500")}>
                         {description}
                     </div>
+                    {metadata && (
+                        <div className={clsx("mt-2 text-[10px] font-bold uppercase tracking-wider opacity-90", isSelected ? styles.desc : "text-slate-400")}>
+                            <span className="opacity-75 block text-[9px]">Best for</span>
+                            <span className={clsx(isSelected ? "" : "text-slate-600")}>{metadata}</span>
+                        </div>
+                    )}
                 </div>
             </div>
             {isSelected && showActiveIndicator && (

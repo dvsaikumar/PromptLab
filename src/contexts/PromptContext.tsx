@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { FrameworkId, LLMConfig, QualityScore, FieldState, HistoryState, HistoryIndex, Framework, Attachment, Template, ComplexityLevel } from '../types';
 import { FRAMEWORKS, TONES, INDUSTRY_TEMPLATES, ROLE_PRESETS } from '../constants';
 import { LLMService } from '../services/llm';
+import { estimateTokens } from '../utils/tokenEstimator';
 import toast from 'react-hot-toast';
 import { llmConfigDB } from '../services/llmConfigDB';
 
@@ -26,6 +27,9 @@ interface PromptContextType {
     activeIndustry: string | null;
     activeRole: string | null;
     currentPromptId: number | null;
+    executionTime?: number; // In seconds
+    totalInputTokens: number;
+    totalOutputTokens: number;
 
     // Actions
     setField: (fieldId: string, value: string) => void;
@@ -35,6 +39,7 @@ interface PromptContextType {
     setComplexity: (level: ComplexityLevel) => void;
     toggleChainOfThought: () => void;
     setSimpleIdea: (idea: string) => void;
+    setGeneratedPrompt: (prompt: string) => void;
     addAttachment: (file: Attachment) => void;
     removeAttachment: (name: string) => void;
     undoField: (fieldId: string) => void;
@@ -55,6 +60,7 @@ interface PromptContextType {
     generateSuggestions: (fieldId: string) => Promise<string[]>;
     autoFillOutputStopping: () => Promise<void>;
     loadPrompt: (savedPrompt: any) => Promise<void>;
+    assemblePrompt: () => void;
 }
 
 export const PromptContext = createContext<PromptContextType | undefined>(undefined);
@@ -74,6 +80,10 @@ export const PromptProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const [activeIndustry, setActiveIndustry] = useState<string | null>(null);
     const [activeRole, setActiveRole] = useState<string | null>(null);
     const [currentPromptId, setCurrentPromptId] = useState<number | null>(null);
+    const [executionTime, setExecutionTime] = useState<number | undefined>(undefined);
+    const [totalInputTokens, setTotalInputTokens] = useState(0);
+    const [totalOutputTokens, setTotalOutputTokens] = useState(0);
+    const [autoFillTokens, setAutoFillTokens] = useState(0);
 
     // Loading States
     const [isGenerating, setIsGenerating] = useState(false);
@@ -99,6 +109,7 @@ export const PromptProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     // Load config from IndexedDB on mount
     useEffect(() => {
         const loadConfig = async () => {
+            // ... existing code
             try {
                 const saved = await llmConfigDB.getActiveConfig();
                 if (saved) {
@@ -110,6 +121,52 @@ export const PromptProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         };
         loadConfig();
     }, []);
+
+    // Calculate Input Tokens
+    useEffect(() => {
+        const model = llmConfig.model;
+        let total = 0;
+
+        // 1. Simple Idea
+        total += estimateTokens(simpleIdea, model);
+
+        // 2. Attachments
+        attachments.forEach(att => {
+            total += estimateTokens(att.content, model);
+        });
+
+        // 3. Framework Fields
+        Object.values(fields).forEach(val => {
+            total += estimateTokens(val, model);
+        });
+
+        // 4. Tone / Role / Industry (Approx 20 tokens each overhead) + System Prompt Base (~100)
+        if (activeIndustry) total += 20;
+        if (activeRole) total += 20;
+        total += selectedTones.length * 5;
+        total += 100; // System prompt + JSON overhead base
+
+        setTotalInputTokens(total);
+    }, [simpleIdea, fields, attachments, activeIndustry, activeRole, selectedTones, llmConfig.model]);
+
+    // Calculate Output Tokens
+    useEffect(() => {
+        const model = llmConfig.model;
+        let total = 0;
+
+        // 1. Generated Prompt
+        total += estimateTokens(generatedPrompt, model);
+
+        // 2. Quality Score
+        if (qualityScore) {
+            total += estimateTokens(JSON.stringify(qualityScore), model);
+        }
+
+        // 3. Auto-Filled Fields (If present)
+        total += autoFillTokens;
+
+        setTotalOutputTokens(total);
+    }, [generatedPrompt, qualityScore, autoFillTokens, llmConfig.model]);
 
     useEffect(() => {
         // Save to IndexedDB when config changes (happens automatically via SettingsModal)
@@ -202,6 +259,10 @@ export const PromptProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         setActiveRole(null);
         setComplexity('direct');
         setCurrentPromptId(null);
+        setExecutionTime(undefined);
+        setTotalInputTokens(0);
+        setTotalOutputTokens(0);
+        setAutoFillTokens(0);
     };
 
     const selectIndustry = (template: Template) => {
@@ -243,7 +304,20 @@ export const PromptProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         }
 
         if (llmConfig.providerId !== 'local' && !llmConfig.apiKey) {
-            toast.error('API Key required');
+            toast.error((t) => (
+                <span className="flex items-center gap-2">
+                    API Key Required
+                    <button
+                        onClick={() => {
+                            window.dispatchEvent(new Event('open-settings-modal'));
+                            toast.dismiss(t.id);
+                        }}
+                        className="px-2 py-0.5 bg-white text-red-600 rounded text-xs font-bold border border-red-200 shadow-sm hover:bg-red-50"
+                    >
+                        Configure
+                    </button>
+                </span>
+            ), { duration: 5000 });
             return;
         }
 
@@ -332,7 +406,31 @@ export const PromptProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                 temperature: 0.7
             });
 
-            setFields(prev => ({ ...prev, ...result }));
+            // Robust Key Normalization: Handle potential case mismatch (e.g. "Context" vs "context")
+            const normalizedResult: FieldState = {};
+            if (result && typeof result === 'object') {
+                Object.keys(result).forEach(key => {
+                    // 1. Try exact match first
+                    if (framework.fields.some(f => f.id === key)) {
+                        normalizedResult[key] = result[key];
+                        return;
+                    }
+
+                    // 2. Try case-insensitive match
+                    const lowerKey = key.toLowerCase();
+                    const matchingField = framework.fields.find(f => f.id.toLowerCase() === lowerKey);
+                    if (matchingField) {
+                        normalizedResult[matchingField.id] = result[key];
+                    }
+                });
+            }
+
+            setFields(prev => ({ ...prev, ...normalizedResult }));
+
+            // Calculate and set token count for this generation event
+            const tokens = estimateTokens(JSON.stringify(result), llmConfig.model);
+            setAutoFillTokens(tokens);
+
             toast.success('Idea expanded with context!');
         } catch (error: any) {
             toast.error(error.message || 'Failed to expand idea');
@@ -344,27 +442,53 @@ export const PromptProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
     const generatePrompt = async () => {
         if (llmConfig.providerId !== 'local' && !llmConfig.apiKey) {
-            toast.error('API Key required');
+            toast.error((t) => (
+                <span className="flex items-center gap-2">
+                    API Key Required
+                    <button
+                        onClick={() => {
+                            window.dispatchEvent(new Event('open-settings-modal'));
+                            toast.dismiss(t.id);
+                        }}
+                        className="px-2 py-0.5 bg-white text-red-600 rounded text-xs font-bold border border-red-200 shadow-sm hover:bg-red-50"
+                    >
+                        Configure
+                    </button>
+                </span>
+            ), { duration: 5000 });
             return;
         }
 
         setIsGenerating(true);
         setGeneratedPrompt('');
+        setExecutionTime(undefined);
+        const startTime = Date.now();
 
         try {
             const framework = getCurrentFramework();
             const filledFields = framework.fields
                 .filter(f => fields[f.id])
-                .map(f => `**${f.label}:** ${fields[f.id]}`)
+                .map(f => `## ${f.label}\n${fields[f.id]}`) // Use Markdown for clear separation in input
                 .join('\n\n');
 
             const toneLabels = selectedTones.map(t => TONES.find(opt => opt.value === t)?.label).join(', ');
 
-            let systemPrompt = `You are an expert prompt engineer. Create a polished ${framework.name} prompt from user inputs.
-      Tone Requirement: ${toneLabels}.`;
+            // "System Prompt Bible" Architecture
+            let systemPrompt = `You are a Principal Prompt Architect. Your goal is to forge a "System Prompt Bible" — a definitive, authoritative, and comprehensive instruction set for an AI model.
+
+The output must be a single, cohesive System Prompt using the ${framework.name} framework structure.
+
+***CORE PRINCIPLES***
+1. **Authoritative Identity**: The prompt must explicitly define the AI's role, mission, and authority.
+2. **Modular Structure**: Use Markdown headers (e.g., # Identity, ## Rules, ## Workflow) to organize instructions.
+3. **Negative Constraints**: Explicitly state what the AI must NOT do.
+4. **Examples as Truth**: Treat examples as canonical references.
+
+**TONE & STYLE**
+Tone target: ${toneLabels || 'Professional, Precise, and Direct'}.`;
 
             if (requestChainOfThought) {
-                systemPrompt += `\nInclude a "Chain of Thought" or "Reasoning" step in the generated prompt, instructing the model to think step-by-step before answering.`;
+                systemPrompt += `\n**REQUIREMENT**: You MUST include a "Thinking Process" or "Chain of Thought" section in the generated prompt, instructing the model to think step-by-step before executing the task.`;
             }
 
             // Complexity-based constraints for Output Generation
@@ -372,27 +496,34 @@ export const PromptProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             switch (complexity) {
                 case 'direct':
                     outputConstraints = `
-                    OUTPUT CONSTRAINT: The final prompt should encourage the model to be concise. 
-                    - Target output range: 0 - 4096 tokens.
-                    - Add instructions to the generated prompt forcing brevity and directness.`;
+                    **COMPLEXITY: LEAN (Mini-Bible)**
+                    - Keep the System Prompt concise and punchy.
+                    - Focus on the "One True Path" to the solution.
+                    - Maximize content density. Limit to ~1000 tokens of output.
+                    - Use bullet points for speed reading.`;
                     break;
                 case 'contextual':
                     outputConstraints = `
-                    OUTPUT CONSTRAINT: The final prompt should encourage structured and substantial output.
-                    - Target output range: 4096 - 16k tokens.
-                    - Add instructions to the generated prompt ensuring detailed context and logical flow.`;
+                    **COMPLEXITY: STANDARD (The Handbook)**
+                    - Create a balanced System Prompt suitable for production use.
+                    - Include clear "Context" and "Constraint" sections.
+                    - Ensure logical flow between the ${framework.name} components.
+                    - Target ~2000-4000 tokens of thoughtful instruction.`;
                     break;
                 case 'detailed':
                     outputConstraints = `
-                    OUTPUT CONSTRAINT: NO RESTRICTION on output length.
-                    - Encourage maximum detail, comprehensiveness, and depth in the final generated prompt.`;
+                    **COMPLEXITY: COMPREHENSIVE (The Bible)**
+                    - Leave nothing to interpretation. Define every edge case.
+                    - Expand on the "Context" and "Persona" deeply.
+                    - Create distinct sections for "Protocols", "Exceptions", and "Format Reference".
+                    - The output should feel like a technical specification document.`;
                     break;
             }
 
             systemPrompt += `\n${outputConstraints}`;
-            systemPrompt += `\nOutput strictly the final prompt. No preamble.`;
+            systemPrompt += `\n\n**FINAL INSTRUCTION**: Output ONLY the generated System Prompt. Do not include introductory text like "Here is your prompt". Start directly with the content.`;
 
-            const userPrompt = `Components:\n${filledFields}`;
+            const userPrompt = `***INPUT DATA***\nThe user has provided the following components for the ${framework.name} framework:\n\n${filledFields}`;
 
             const result = await getLLMService().generateCompletion({
                 systemPrompt,
@@ -402,6 +533,10 @@ export const PromptProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
             setGeneratedPrompt(result);
 
+            // Calculate execution time
+            const endTime = Date.now();
+            setExecutionTime((endTime - startTime) / 1000); // Store in seconds
+
             // Auto analyze
             await analyzeQuality(result);
 
@@ -409,6 +544,42 @@ export const PromptProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             toast.error(error.message);
         } finally {
             setIsGenerating(false);
+        }
+    };
+
+    const assemblePrompt = () => {
+        const startTime = Date.now();
+        setGeneratedPrompt('');
+
+        try {
+            const framework = getCurrentFramework();
+            const toneLabels = selectedTones.map(t => TONES.find(opt => opt.value === t)?.label).join(', ');
+
+            let assembled = `# ${framework.name} Prompt\n\n`;
+
+            if (toneLabels) {
+                assembled += `**Tone:** ${toneLabels}\n\n`;
+            }
+
+            // Iterate fields
+            framework.fields.forEach(field => {
+                const value = fields[field.id];
+                if (value && value.trim()) {
+                    assembled += `### ${field.label}\n${value.trim()}\n\n`;
+                }
+            });
+
+            // Add standard ending if applicable
+            assembled += `---\nGenerated with PromptForge`;
+
+            setGeneratedPrompt(assembled);
+            setExecutionTime((Date.now() - startTime) / 1000);
+
+            toast.success('Prompt assembled instantly!');
+
+        } catch (error) {
+            console.error('Assembly failed', error);
+            toast.error('Failed to assemble prompt');
         }
     };
 
@@ -421,7 +592,7 @@ export const PromptProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             const analysisPrompt = `Analyze this prompt quality (0-100).
       Prompt: ${prompt}
       
-      Respond JSON:
+      Respond with valid JSON only:
       {
         "overallScore": number,
         "rating": "Poor"|"Fair"|"Good"|"Excellent"|"Outstanding",
@@ -430,8 +601,8 @@ export const PromptProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         "structure": number,
         "completeness": number,
         "actionability": number,
-        "strengths": string[],
-        "improvements": string[]
+        "strengths": ["string"],
+        "improvements": ["string"]
       }`;
 
             const result = await getLLMService().generateJSON<QualityScore>({
@@ -439,9 +610,21 @@ export const PromptProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                 config: llmConfig
             });
 
-            setQualityScore(result);
+            if (result && typeof result.overallScore === 'number') {
+                setQualityScore({
+                    ...result,
+                    strengths: result.strengths || [],
+                    improvements: result.improvements || []
+                });
+            } else {
+                throw new Error('Invalid analysis format');
+            }
         } catch (error) {
             console.error('Analysis failed', error);
+            // Don't toast error on auto-analysis to avoid spam, but finding why it fails is key.
+            // Actually, if user explicitly expects it, we should maybe show a subtle indicator or just let the footer handle the null state.
+            // Let's add a visual toast for now as the user is confused.
+            toast.error('Could not generate quality score');
         } finally {
             setIsAnalyzing(false);
         }
@@ -454,11 +637,19 @@ export const PromptProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         const previousScoreVal = qualityScore?.overallScore || 0;
 
         try {
-            const prompt = `Improve this prompt to score 95+.
-        Current Prompt: ${generatedPrompt}
-        Weaknesses: ${qualityScore?.improvements.join(', ') || 'General improvements'}
+            const prompt = `You are a Principal Prompt Architect.
+            
+            GOAL: Optimize this System Prompt to achieve a perfect 100/100 quality score.
+            
+            **CRITICAL INSTRUCTIONS**
+            1. **Maintain Structure**: Keep the existing "System Prompt Bible" format (Identity, Rules, Workflow).
+            2. **Fix Weaknesses**: Address these specific issues: ${qualityScore?.improvements.join(', ') || 'General refinement'}.
+            3. **Elevate Authority**: Ensure the tone is authoritative and precise.
+            
+            Current Prompt:
+            ${generatedPrompt}
         
-        Output ONLY the improved prompt.`;
+            Output ONLY the improved System Prompt. No commentary.`;
 
             const candidatePrompt = await getLLMService().generateCompletion({
                 userPrompt: prompt,
@@ -469,7 +660,7 @@ export const PromptProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             const analysisPrompt = `Analyze this prompt quality (0-100).
             Prompt: ${candidatePrompt}
             
-            Respond JSON:
+            Respond with valid JSON only:
             {
               "overallScore": number,
               "rating": "Poor"|"Fair"|"Good"|"Excellent"|"Outstanding",
@@ -478,8 +669,8 @@ export const PromptProvider: React.FC<{ children: ReactNode }> = ({ children }) 
               "structure": number,
               "completeness": number,
               "actionability": number,
-              "strengths": string[],
-              "improvements": string[]
+              "strengths": ["string"],
+              "improvements": ["string"]
             }`;
 
             const candidateScore = await getLLMService().generateJSON<QualityScore>({
@@ -489,7 +680,11 @@ export const PromptProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
             if (candidateScore.overallScore >= previousScoreVal) {
                 setGeneratedPrompt(candidatePrompt);
-                setQualityScore(candidateScore);
+                setQualityScore({
+                    ...candidateScore,
+                    strengths: candidateScore.strengths || [],
+                    improvements: candidateScore.improvements || []
+                });
                 toast.success(`Broadened to ${candidateScore.overallScore}/100!`);
             } else {
                 toast.error(`Optimization dropped score (${candidateScore.overallScore}). Retaining original.`);
@@ -580,8 +775,38 @@ export const PromptProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
             // Set quality score if exists
             if (savedPrompt.qualityScoreDetails) {
-                const parsedQuality = JSON.parse(savedPrompt.qualityScoreDetails);
-                setQualityScore(parsedQuality);
+                try {
+                    const parsedQuality = JSON.parse(savedPrompt.qualityScoreDetails);
+                    setQualityScore({
+                        overallScore: parsedQuality.overallScore ?? savedPrompt.qualityScore ?? 0,
+                        rating: parsedQuality.rating ?? 'Good',
+                        clarity: parsedQuality.clarity ?? 0,
+                        specificity: parsedQuality.specificity ?? 0,
+                        structure: parsedQuality.structure ?? 0,
+                        completeness: parsedQuality.completeness ?? 0,
+                        actionability: parsedQuality.actionability ?? 0,
+                        strengths: parsedQuality.strengths ?? [],
+                        improvements: parsedQuality.improvements ?? [],
+                        maxScore: 100
+                    });
+                } catch (err) {
+                    console.warn('Failed to parse quality score details', err);
+                    setQualityScore(null);
+                }
+            } else if (savedPrompt.qualityScore) {
+                // Fallback if only overall score is saved
+                setQualityScore({
+                    overallScore: savedPrompt.qualityScore,
+                    rating: 'Good',
+                    clarity: 0,
+                    specificity: 0,
+                    structure: 0,
+                    completeness: 0,
+                    actionability: 0,
+                    strengths: [],
+                    improvements: [],
+                    maxScore: 100
+                });
             }
         } catch (e) {
             console.error('Failed to load prompt:', e);
@@ -593,13 +818,13 @@ export const PromptProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             fields, activeFramework, selectedTones, simpleIdea, attachments, generatedPrompt,
             isGenerating, isExpanding, isAnalyzing, isImproving, qualityScore, llmConfig,
             fieldHistory, historyIndex, requestChainOfThought,
-            activeIndustry, activeRole, complexity, currentPromptId,
+            activeIndustry, activeRole, complexity, currentPromptId, executionTime,
             setField, setFields, setFramework, toggleTone, setComplexity, toggleChainOfThought, setSimpleIdea,
-            addAttachment, removeAttachment,
+            addAttachment, removeAttachment, setGeneratedPrompt,
             undoField, redoField, updateConfig, resetAll,
             selectIndustry, selectRole, clearIndustry, clearRole,
-            expandIdea, generatePrompt, analyzeQuality, improvePrompt, loadPrompt,
-            generateSuggestions, autoFillOutputStopping
+            expandIdea, generatePrompt, assemblePrompt, analyzeQuality, improvePrompt, loadPrompt,
+            generateSuggestions, autoFillOutputStopping, totalInputTokens, totalOutputTokens
         }}>
             {children}
         </PromptContext.Provider>

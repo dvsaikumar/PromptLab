@@ -12,7 +12,7 @@ interface QualityScoreProps {
 
 export const QualityScore: React.FC<QualityScoreProps> = ({ score, onImprove, isImproving }) => {
     const [showTooltip, setShowTooltip] = useState(false);
-    const [tooltipPos, setTooltipPos] = useState({ top: 0, left: 0, bottom: 0 });
+    const [tooltipPos, setTooltipPos] = useState({ bottom: 0, left: 0 });
     const containerRef = useRef<HTMLDivElement>(null);
 
     const getScoreColor = (val: number) => {
@@ -26,66 +26,92 @@ export const QualityScore: React.FC<QualityScoreProps> = ({ score, onImprove, is
         if (containerRef.current) {
             const rect = containerRef.current.getBoundingClientRect();
             setTooltipPos({
-                top: rect.top,
-                left: rect.right + 12, // 12px offset from right edge
-                bottom: window.innerHeight - rect.bottom // Distance from bottom of viewport
+                bottom: window.innerHeight - rect.top + 10,
+                left: rect.left
             });
             setShowTooltip(true);
         }
     };
 
     const mainColorClass = getScoreColor(score.overallScore);
+    const borderColorClass = mainColorClass.split(' ').find(c => c.startsWith('border-')) || 'border-slate-200';
 
     return (
         <div
             ref={containerRef}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={() => setShowTooltip(false)}
-            className={clsx("rounded-xl border p-4 mb-4 animate-in fade-in zoom-in duration-300 shadow-sm relative cursor-help transition-all hover:shadow-md", mainColorClass)}
+            className={clsx(
+                "h-full w-full flex items-stretch rounded-xl border bg-white relative hover:shadow-md transition-shadow",
+                borderColorClass
+            )}
         >
-            {/* Header & Metrics Compact Row */}
-            <div className="flex flex-col gap-3 mb-3">
-                <div className="flex items-center gap-3 w-full">
-                    <div className="flex flex-col items-center justify-center bg-white/50 rounded-lg w-12 h-12 backdrop-blur-sm border border-black/5 shrink-0">
-                        <span className="text-2xl font-black leading-none tracking-tight">{score.overallScore}</span>
-                    </div>
-                    <div>
-                        <div className="flex items-center gap-1.5 font-bold text-base leading-none mb-1">
-                            <Activity className="w-4 h-4" /> Quality Analysis
-                        </div>
-                        <p className="text-xs opacity-70 font-medium">{score.rating}</p>
-                    </div>
+            {/* Part 1: Score Overview */}
+            <div className="flex-1 min-w-[200px] flex items-center justify-center gap-4 px-6 border-r border-slate-100">
+                <div className="flex flex-col items-center justify-center bg-slate-50 rounded-2xl w-16 h-16 border border-slate-100 shrink-0">
+                    <span className={clsx("text-4xl font-black leading-none tracking-tighter", mainColorClass.split(' ')[0])}>
+                        {score.overallScore}
+                    </span>
                 </div>
+                <div className="flex flex-col justify-center">
+                    <div className="flex items-center gap-2 font-bold text-sm text-slate-800">
+                        <Activity className="w-4 h-4" /> Quality Analysis
+                    </div>
+                    <p className="text-xs opacity-60 font-medium">{score.rating}</p>
+                </div>
+            </div>
 
-                <div className="flex gap-1.5 justify-between w-full">
-                    {[
-                        { label: 'Cle', val: score.clarity },
-                        { label: 'Spe', val: score.specificity },
-                        { label: 'Str', val: score.structure },
-                        { label: 'Com', val: score.completeness },
-                        { label: 'Act', val: score.actionability },
-                    ].map((m) => (
-                        <div key={m.label} className="bg-white/40 rounded-md p-1.5 flex-1 text-center backdrop-blur-sm border border-black/5">
-                            <div className="text-[9px] font-bold uppercase opacity-60 mb-0.5">{m.label}</div>
-                            <div className={`text-xs font-bold leading-none ${getScoreColor(m.val).split(' ')[0]}`}>{m.val}</div>
-                        </div>
-                    ))}
-                </div>
+            {/* Part 2: Detailed Metrics */}
+            <div className="flex-[2] min-w-[400px] grid grid-cols-5 gap-px bg-slate-100/50 border-r border-slate-100">
+                {[
+                    { label: 'Clarity', val: score.clarity },
+                    { label: 'Specificity', val: score.specificity },
+                    { label: 'Structure', val: score.structure },
+                    { label: 'Completeness', val: score.completeness },
+                    { label: 'Actionability', val: score.actionability },
+                ].map((m) => (
+                    <div key={m.label} className="bg-white flex flex-col items-center justify-center text-center p-2 group hover:bg-slate-50 transition-colors">
+                        <div className="text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-1 group-hover:text-slate-600">{m.label}</div>
+                        <div className={`text-xl font-bold leading-none ${getScoreColor(m.val).split(' ')[0]}`}>{m.val}</div>
+                    </div>
+                ))}
+            </div>
+
+            {/* Part 3: Actions */}
+            <div className="flex-1 min-w-[200px] flex items-center justify-center px-6 bg-slate-50/30">
+                {onImprove && score.overallScore < 95 ? (
+                    <button
+                        onClick={onImprove}
+                        disabled={isImproving}
+                        className="w-full flex items-center justify-center gap-2 px-5 py-3 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white rounded-lg text-sm font-bold transition-all shadow-sm hover:shadow-md active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                    >
+                        {isImproving ? (
+                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        ) : (
+                            <Activity size={16} />
+                        )}
+                        {isImproving ? 'Optimizing...' : 'Auto-Improve'}
+                    </button>
+                ) : (
+                    <div className="w-full flex items-center justify-center gap-2 text-green-600 font-bold text-sm bg-green-50 py-3 rounded-lg border border-green-100">
+                        <ThumbsUp size={16} /> Optimized
+                    </div>
+                )}
             </div>
 
             {/* Portal Tooltip */}
             {showTooltip && createPortal(
                 <div
-                    className="fixed w-[600px] bg-white/95 backdrop-blur-xl border border-slate-200 p-6 rounded-xl shadow-2xl z-[100] animate-in fade-in slide-in-from-left-2 duration-200"
+                    className="fixed w-[600px] bg-white/95 backdrop-blur-xl border border-slate-200 p-6 rounded-xl shadow-2xl z-[100] animate-in fade-in slide-in-from-bottom-2 duration-200"
                     style={{
                         bottom: tooltipPos.bottom,
                         left: tooltipPos.left,
                     }}
                 >
-                    <div className="grid grid-cols-2 gap-8 text-xs">
+                    <div className="grid grid-cols-2 gap-8 text-sm">
                         <div className="space-y-3">
                             <div className="font-bold flex items-center gap-2 text-green-700 text-xs uppercase tracking-wide pb-2 border-b border-green-100">
-                                <ThumbsUp size={14} /> Strengths
+                                <ThumbsUp size={16} /> Strengths
                             </div>
                             <ul className="space-y-2">
                                 {score.strengths.map((s, i) => (
@@ -99,7 +125,7 @@ export const QualityScore: React.FC<QualityScoreProps> = ({ score, onImprove, is
 
                         <div className="space-y-3">
                             <div className="font-bold flex items-center gap-2 text-amber-700 text-xs uppercase tracking-wide pb-2 border-b border-amber-100">
-                                <AlertTriangle size={14} /> Improvements
+                                <AlertTriangle size={16} /> Improvements
                             </div>
                             <ul className="space-y-2">
                                 {score.improvements.map((s, i) => (
@@ -113,22 +139,6 @@ export const QualityScore: React.FC<QualityScoreProps> = ({ score, onImprove, is
                     </div>
                 </div>,
                 document.body
-            )}
-
-            {/* Auto-Improve Button */}
-            {onImprove && score.overallScore < 95 && (
-                <button
-                    onClick={onImprove}
-                    disabled={isImproving}
-                    className="w-full mt-1 flex items-center justify-center gap-2 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-lg text-sm font-bold transition-all shadow-md hover:shadow-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed transform hover:-translate-y-0.5"
-                >
-                    {isImproving ? (
-                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    ) : (
-                        <Activity size={14} />
-                    )}
-                    {isImproving ? 'Optimizing Prompt...' : 'Auto-Improve to 95+'}
-                </button>
             )}
         </div>
     );

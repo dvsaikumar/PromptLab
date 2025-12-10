@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, Sparkles, Palette, Settings as SettingsIcon, FileText, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Home, FlaskConical, Palette, Settings as SettingsIcon, ChevronLeft, ChevronRight, FolderOpen } from 'lucide-react';
 import { clsx } from 'clsx';
 
 interface SidebarProps {
@@ -13,13 +13,17 @@ interface SidebarProps {
 
 const menuItems = [
     { id: 'my-hub', label: 'My Hub', icon: Home },
-    { id: 'prompt-lab', label: 'Prompt Lab', icon: Sparkles },
-    { id: 'saved-prompts', label: 'Saved Prompts', icon: FileText },
+    { id: 'prompt-lab', label: 'Prompt Lab', icon: FlaskConical },
+    { id: 'saved-prompts', label: 'Saved Prompts', icon: FolderOpen },
     { id: 'tone-shifter', label: 'Tone Shifter', icon: Palette },
     { id: 'settings', label: 'Settings', icon: SettingsIcon },
 ];
 
+import { usePrompt } from '@/contexts/PromptContext';
+
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, activeSection, onNavigate, onOpenSettings, onToggle }) => {
+    const { resetAll } = usePrompt();
+
     // Icon container size for consistent alignment
     const iconContainerClass = "w-10 h-10 flex items-center justify-center flex-shrink-0";
     const iconSize = 22;
@@ -28,6 +32,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, activeSection
         if (itemId === 'settings') {
             onOpenSettings();
         } else {
+            if (itemId === 'prompt-lab') {
+                resetAll();
+                window.dispatchEvent(new Event('reset-prompt-lab'));
+            }
             onNavigate(itemId);
         }
         if (window.innerWidth < 1024) onClose();

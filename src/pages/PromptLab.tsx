@@ -15,10 +15,10 @@ import { promptDB } from '@/services/database';
 import { SavePromptModal } from '@/components/SavePromptModal';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
-import { PageHeader } from '@/components/ui/PageHeader';
-import { SecondarySidebar } from '@/components/ui/SecondarySidebar';
-import { ContentPanelHeader } from '@/components/ui/ContentPanelHeader';
+import { PageTemplate } from '@/components/ui/PageTemplate';
 import { SectionHeader } from '@/components/ui/SectionHeader';
+import { ResultToolbar } from '@/components/ui/ResultToolbar';
+import { ProviderIcon } from '@/components/ui/ProviderIcon';
 
 interface PromptLabProps {
     activeSection: string | null;
@@ -38,10 +38,11 @@ const outputMenuItem = { id: 'output', label: 'Output', icon: Wand2, color: 'tex
 export const PromptLab: React.FC<PromptLabProps> = ({ isSidebarOpen = false }) => {
     const {
         activeFramework, generatePrompt, isGenerating, fields, qualityScore,
-        generatedPrompt, improvePrompt, isImproving,
+        generatedPrompt, improvePrompt, isImproving, analyzeQuality, isAnalyzing,
         activeIndustry, activeRole, selectedTones, toggleTone, clearIndustry, clearRole,
         requestChainOfThought, toggleChainOfThought, simpleIdea, expandIdea, isExpanding,
-        resetAll, complexity, currentPromptId, llmConfig
+        resetAll, complexity, currentPromptId, llmConfig, totalInputTokens, totalOutputTokens,
+        assemblePrompt
     } = usePrompt();
 
     const currentFramework = useMemo(() =>
@@ -185,6 +186,24 @@ export const PromptLab: React.FC<PromptLabProps> = ({ isSidebarOpen = false }) =
         }
     }, [generatedPrompt]);
 
+    // Listen for manual reset from Sidebar
+    useEffect(() => {
+        const handleReset = () => {
+            setSelectedMenu('quick-start');
+        };
+        window.addEventListener('reset-prompt-lab', handleReset);
+        return () => window.removeEventListener('reset-prompt-lab', handleReset);
+    }, []);
+
+    // Auto-switch to components when auto-fill completes
+    const wasExpanding = React.useRef(false);
+    useEffect(() => {
+        if (wasExpanding.current && !isExpanding) {
+            setSelectedMenu('components');
+        }
+        wasExpanding.current = isExpanding;
+    }, [isExpanding]);
+
     // Check if all mandatory fields are filled
     const isFormValid = useMemo(() => {
         const requiredFields = currentFramework.fields.filter(field =>
@@ -232,6 +251,35 @@ export const PromptLab: React.FC<PromptLabProps> = ({ isSidebarOpen = false }) =
 
 
 
+    // Output section header actions
+    const OutputActions = generatedPrompt ? (
+        <ResultToolbar
+            onExport={handleExport}
+            onSave={currentPromptId ? handleUpdate : handleSaveNew}
+            onSaveAs={currentPromptId ? handleSaveNew : undefined}
+            contentToCopy={generatedPrompt}
+            className="shadow-none border-none bg-transparent"
+        />
+    ) : null;
+
+    // Determine Header Info based on active section
+    const headerInfo = useMemo(() => {
+        switch (selectedMenu) {
+            case 'quick-start':
+                return { title: 'Quick Start', subtitle: 'Start with a simple idea', rightContent: null };
+            case 'frameworks':
+                return { title: 'Frameworks', subtitle: 'Select a structural framework', rightContent: null };
+            case 'tones':
+                return { title: 'Tones', subtitle: 'Adjust the tone of voice', rightContent: null };
+            case 'components':
+                return { title: 'Prompt Components', subtitle: 'Fill in the framework fields', rightContent: ComponentsActions };
+            case 'output':
+                return { title: 'Generated Output', subtitle: 'Your AI-crafted prompt is ready', rightContent: OutputActions };
+            default:
+                return { title: menuItems.find(m => m.id === selectedMenu)?.label || 'Section', subtitle: '', rightContent: null };
+        }
+    }, [selectedMenu, ComponentsActions, OutputActions]);
+
     const renderContent = () => {
         switch (selectedMenu) {
             case 'quick-start':
@@ -242,55 +290,26 @@ export const PromptLab: React.FC<PromptLabProps> = ({ isSidebarOpen = false }) =
                 return <ToneSelector isOpen={true} onToggle={() => { }} isSidebarOpen={isSidebarOpen} />;
             case 'components':
                 return (
-                    <>
-                        <ContentPanelHeader
-                            title="Prompt Components"
-                            subtitle="Fill in the framework fields"
-                            icon={FileText}
-                            iconGradient="from-violet-500 to-purple-500"
-                            shadowColor="shadow-purple-500/20"
-                            rightContent={ComponentsActions}
-                            isSidebarOpen={isSidebarOpen}
-                        />
-                        <div className="fixed top-[232px] bottom-14 right-0 overflow-y-auto pl-10 pr-10 pb-6 pt-4 space-y-4 custom-scrollbar bg-slate-50/50 animate-in fade-in slide-in-from-right-4 duration-300 lg:left-[352px] left-72" style={{ left: isSidebarOpen ? '544px' : undefined }}>
-                            {currentFramework.fields.map((field, index) => (
-                                <div
-                                    key={field.id}
-                                    className="animate-in fade-in slide-in-from-bottom-2"
-                                    style={{ animationDelay: `${index * 50}ms` }}
-                                >
-                                    <InputField
-                                        id={field.id}
-                                        label={field.label}
-                                        description={field.description}
-                                        isReadOnly={activeFramework === 'costar' && field.id === 'tone'}
-                                    />
-                                </div>
-                            ))}
-                        </div>
-                    </>
+                    <div className="px-10 pb-6 pt-4 space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
+                        {currentFramework.fields.map((field, index) => (
+                            <div
+                                key={field.id}
+                                className="animate-in fade-in slide-in-from-bottom-2"
+                                style={{ animationDelay: `${index * 50}ms` }}
+                            >
+                                <InputField
+                                    id={field.id}
+                                    label={field.label}
+                                    description={field.description}
+                                    placeholder={field.placeholder}
+                                    isReadOnly={activeFramework === 'costar' && field.id === 'tone'}
+                                />
+                            </div>
+                        ))}
+                    </div>
                 );
             case 'output':
-                return (
-                    <>
-                        <ContentPanelHeader
-                            title="Generated Output"
-                            subtitle="Your AI-crafted prompt is ready"
-                            icon={Wand2}
-                            iconGradient="from-green-500 to-emerald-500"
-                            shadowColor="shadow-emerald-500/20"
-
-                            isSidebarOpen={isSidebarOpen}
-                        />
-                        <div className="fixed top-[232px] bottom-14 right-0 overflow-y-auto pl-10 pr-10 pb-6 pt-4 custom-scrollbar bg-slate-50/50 animate-in fade-in slide-in-from-right-4 duration-300 lg:left-[352px] left-72" style={{ left: isSidebarOpen ? '544px' : undefined }}>
-                            <PromptOutput
-                                onExport={handleExport}
-                                onSave={currentPromptId ? handleUpdate : handleSaveNew}
-                                onSaveAs={currentPromptId ? handleSaveNew : undefined}
-                            />
-                        </div>
-                    </>
-                );
+                return <PromptOutput />;
             default:
                 return null;
         }
@@ -333,113 +352,205 @@ export const PromptLab: React.FC<PromptLabProps> = ({ isSidebarOpen = false }) =
             {/* Active Context */}
             <div>
                 <SectionHeader title="Active Context" />
-                <div className="flex flex-wrap gap-2">
-                    <Badge
-                        variant={complexity === 'direct' ? 'indigo' : complexity === 'contextual' ? 'orange' : 'pink'}
-                        className="gap-1 capitalize"
-                    >
-                        {complexity === 'direct' && <Zap size={12} />}
-                        {complexity === 'contextual' && <Layers size={12} />}
-                        {complexity === 'detailed' && <Brain size={12} />}
-                        {complexity}
-                    </Badge>
+                <div className="flex flex-col gap-3">
+                    {/* Level 1: Technical Stats (LLM & Tokens) */}
+                    <div className="flex flex-wrap gap-2 items-center w-full pb-3 border-b border-dashed border-slate-200">
+                        {llmConfig && (
+                            <Badge variant="outline" className="gap-1.5 min-w-max border-slate-200 bg-white text-slate-700 shadow-sm">
+                                <ProviderIcon providerId={llmConfig.providerId} size={14} />
+                                <span className="font-semibold capitalize">{llmConfig.providerId}</span>
+                                <span className="text-slate-300">/</span>
+                                <span className="text-xs text-slate-500 max-w-[100px] truncate" title={llmConfig.model}>
+                                    {llmConfig.model}
+                                </span>
+                            </Badge>
+                        )}
 
-                    <Badge variant="purple" className="gap-1">
-                        <BookOpen size={12} />
-                        {currentFramework.name}
-                    </Badge>
-
-                    {activeIndustryLabel && (
-                        <Badge variant="blue" onRemove={clearIndustry} className="gap-1">
-                            <Layout size={12} />
-                            {activeIndustryLabel}
-                        </Badge>
-                    )}
-
-                    {activeRoleLabel && (
-                        <Badge variant="indigo" onRemove={clearRole} className="gap-1">
-                            <Sparkles size={12} />
-                            {activeRoleLabel}
-                        </Badge>
-                    )}
-                    {activeToneLabels.map(tone => (
-                        <Badge key={tone.value} variant="pink" onRemove={() => toggleTone(tone.value)} className="gap-1">
+                        <Badge variant="outline" className="gap-1 min-w-max border-emerald-200 bg-emerald-50 text-emerald-700">
                             <Tag size={12} />
-                            {tone.label}
+                            In: {totalInputTokens}
                         </Badge>
-                    ))}
+                        {totalOutputTokens > 0 && (
+                            <Badge variant="outline" className="gap-1 min-w-max border-amber-200 bg-amber-50 text-amber-700">
+                                <Tag size={12} />
+                                Out: {totalOutputTokens}
+                            </Badge>
+                        )}
+                    </div>
+
+                    {/* Level 2: Prompt Context Attributes */}
+                    <div className="flex flex-wrap gap-2 items-center w-full">
+                        <Badge
+                            variant={complexity === 'direct' ? 'indigo' : complexity === 'contextual' ? 'orange' : 'pink'}
+                            className="gap-1 capitalize"
+                        >
+                            {complexity === 'direct' && <Zap size={12} />}
+                            {complexity === 'contextual' && <Layers size={12} />}
+                            {complexity === 'detailed' && <Brain size={12} />}
+                            {complexity}
+                        </Badge>
+
+                        <Badge variant="purple" className="gap-1">
+                            <BookOpen size={12} />
+                            {currentFramework.name}
+                        </Badge>
+
+                        {activeIndustryLabel && (
+                            <Badge variant="blue" onRemove={clearIndustry} className="gap-1">
+                                <Layout size={12} />
+                                {activeIndustryLabel}
+                            </Badge>
+                        )}
+
+                        {activeRoleLabel && (
+                            <Badge variant="indigo" onRemove={clearRole} className="gap-1">
+                                <Sparkles size={12} />
+                                {activeRoleLabel}
+                            </Badge>
+                        )}
+                        {activeToneLabels.map(tone => (
+                            <Badge key={tone.value} variant="pink" onRemove={() => toggleTone(tone.value)} className="gap-1">
+                                <Tag size={12} />
+                                {tone.label}
+                            </Badge>
+                        ))}
+                    </div>
                 </div>
             </div>
 
-            {/* Quality Score */}
-            {generatedPrompt && qualityScore && (
-                <QualityScore
-                    score={qualityScore}
-                    onImprove={improvePrompt}
-                    isImproving={isImproving}
-                />
-            )}
-
             {/* Generate Button */}
-            <Button
-                onClick={generatePrompt}
-                disabled={isGenerating || !isFormValid}
-                isLoading={isGenerating}
-                className="w-full h-12 text-lg shadow-xl shadow-indigo-500/20"
-                leftIcon={!isGenerating && (generatedPrompt ? <RefreshCw size={20} /> : <Wand2 size={20} />)}
-            >
-                {generatedPrompt ? 'Regenerate' : 'Generate'}
-            </Button>
+            <div className="flex flex-col gap-3">
+                <Button
+                    onClick={generatePrompt}
+                    disabled={isGenerating || !isFormValid}
+                    isLoading={isGenerating}
+                    className="w-full h-12 text-lg shadow-xl shadow-indigo-500/20"
+                    leftIcon={!isGenerating && (generatedPrompt ? <RefreshCw size={20} /> : <Wand2 size={20} />)}
+                >
+                    {generatedPrompt ? 'Regenerate' : 'Generate'}
+                </Button>
+
+                <Button
+                    onClick={assemblePrompt}
+                    disabled={isGenerating || !isFormValid}
+                    variant="outline"
+                    className="w-full text-slate-500 hover:text-indigo-600 hover:bg-white hover:border-indigo-200 border-dashed"
+                    leftIcon={<Zap size={16} />}
+                >
+                    Instant Assemble
+                </Button>
+            </div>
         </div>
     );
 
     return (
-        <div className="min-h-screen bg-slate-50">
-            {/* Fixed Page Header */}
-            <PageHeader
-                title="Prompt Lab"
-                subtitle="Build powerful AI prompts using proven frameworks"
-                icon={FlaskConical}
-                iconGradient="from-indigo-500 to-purple-600"
-                shadowColor="shadow-indigo-500/30"
-                rightContent={HeaderButtons}
-                isSidebarOpen={isSidebarOpen}
-            />
+        <PageTemplate
+            title="Prompt Lab"
+            subtitle="Build powerful AI prompts using proven frameworks"
+            icon={FlaskConical}
+            iconGradient="from-indigo-500 to-purple-600"
+            shadowColor="shadow-indigo-500/30"
+            rightContent={HeaderButtons}
+            isSidebarOpen={isSidebarOpen}
+            className="flex flex-col !p-0 !top-[120px]"
+            headerClassName="!px-4"
+            iconSize={20}
+            titleClassName="text-lg"
+            subtitleClassName="text-xs"
+        >
+            <div className="flex h-full">
+                {/* Secondary Sidebar */}
+                <div className="w-64 h-full flex-shrink-0 flex flex-col bg-white border-r border-slate-200">
+                    <div className="p-2 pt-12 space-y-2 flex-1 overflow-y-auto custom-scrollbar">
+                        <div className="px-4 mb-2">
+                            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Prompt Builder</span>
+                        </div>
+                        <nav className="space-y-1">
+                            {displayMenuItems.map((item) => {
+                                const Icon = item.icon;
+                                const isActive = selectedMenu === item.id;
+                                return (
+                                    <button
+                                        key={item.id}
+                                        onClick={() => setSelectedMenu(item.id)}
+                                        className={clsx(
+                                            "w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 group relative text-left mx-auto",
+                                            isActive
+                                                ? "bg-blue-50 text-blue-700 font-bold"
+                                                : "text-slate-600 hover:bg-slate-50 font-medium"
+                                        )}
+                                        style={{ width: '95%' }}
+                                    >
+                                        <Icon size={18} className={clsx(
+                                            isActive ? "text-blue-600" : item.color
+                                        )} />
+                                        <span className={clsx(isActive ? "text-sm" : "text-sm")}>{item.label}</span>
+                                    </button>
+                                );
+                            })}
+                        </nav>
+                    </div>
 
-            {/* Fixed Secondary Sidebar - Build Steps */}
-            <SecondarySidebar title="Build Steps" footer={SidebarFooter} isSidebarOpen={isSidebarOpen}>
-                <nav className="space-y-2">
-                    {displayMenuItems.map((item) => {
-                        const Icon = item.icon;
-                        const isActive = selectedMenu === item.id;
-                        return (
-                            <button
-                                key={item.id}
-                                onClick={() => setSelectedMenu(item.id)}
-                                className={clsx(
-                                    "w-full flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all duration-200 group relative overflow-hidden text-left",
-                                    isActive
-                                        ? "bg-blue-600 text-white shadow-md transform scale-[1.02]"
-                                        : "text-slate-600 hover:bg-slate-50 hover:translate-x-1"
-                                )}
-                            >
-                                <Icon size={20} className={clsx(
-                                    "transition-transform group-hover:scale-110",
-                                    isActive ? "text-white" : item.color
-                                )} />
-                                <span className="font-bold text-[18px]">{item.label}</span>
-                                {isActive && (
-                                    <div className="absolute right-3 w-2 h-2 bg-white rounded-full animate-pulse" />
-                                )}
-                            </button>
-                        );
-                    })}
-                </nav>
-            </SecondarySidebar>
+                    {/* Footer */}
+                    <div className="p-4 border-t border-slate-200 bg-slate-50/50">
+                        {SidebarFooter}
+                    </div>
+                </div>
 
-            {/* Main Content Area - renders fixed positioned content */}
-            <div>
-                {renderContent()}
+                {/* Main Content Area */}
+                <div className="flex-1 h-full flex flex-col min-w-0 bg-slate-50 overflow-hidden">
+                    {/* Secondary Top Head Bar */}
+                    <div className="shrink-0 h-20 bg-white border-b border-slate-200 px-4 flex items-center justify-between sticky top-[24px] z-10">
+                        <div className="flex items-center gap-4">
+                            <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wider">
+                                {headerInfo.title}
+                            </h2>
+                            <div className="h-4 w-px bg-slate-200"></div>
+                            <p className="text-xs text-slate-400">{headerInfo.subtitle}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            {headerInfo.rightContent}
+                        </div>
+                    </div>
+
+                    {/* Scrollable Content */}
+                    <div className="flex-1 overflow-y-auto px-[18px] py-4">
+                        <div className="w-full mx-auto space-y-4">
+                            {renderContent()}
+                        </div>
+                    </div>
+
+                    {/* Secondary Fixed Footer - Showcase Prompt Score and Details */}
+                    {generatedPrompt && selectedMenu === 'output' && (
+                        <div className="shrink-0 bg-white border-t border-slate-200 px-4 py-2">
+                            {qualityScore ? (
+                                <QualityScore
+                                    score={qualityScore}
+                                    onImprove={improvePrompt}
+                                    isImproving={isImproving}
+                                />
+                            ) : (
+                                <div className="flex items-center justify-between p-2">
+                                    <div className="flex items-center gap-2 text-slate-500">
+                                        <div className="w-12 h-12 bg-slate-100 rounded-2xl animate-pulse"></div>
+                                        <div>
+                                            <p className="font-bold text-sm">Analysis Pending...</p>
+                                            <p className="text-xs">Generating quality metrics</p>
+                                        </div>
+                                    </div>
+                                    <Button
+                                        onClick={() => analyzeQuality()}
+                                        variant="outline"
+                                        size="sm"
+                                        isLoading={isAnalyzing}
+                                    >
+                                        Retry Analysis
+                                    </Button>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
             </div>
 
             <TemplateSelector isOpen={isTemplateDrawerOpen} onClose={() => setIsTemplateDrawerOpen(false)} />
@@ -449,6 +560,6 @@ export const PromptLab: React.FC<PromptLabProps> = ({ isSidebarOpen = false }) =
                 onClose={() => setIsSaveModalOpen(false)}
                 onSave={handleSaveWithTitle}
             />
-        </div>
+        </PageTemplate>
     );
 };

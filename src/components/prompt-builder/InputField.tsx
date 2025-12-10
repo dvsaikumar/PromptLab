@@ -7,16 +7,19 @@ import { usePrompt } from '@/contexts/PromptContext';
 import { clsx } from 'clsx';
 import { TextStats } from '@/components/ui/TextStats';
 
+import { estimateTokens } from '@/utils/tokenEstimator';
+
 interface InputFieldProps {
     id: string;
     label: string;
     description: string;
+    placeholder?: string;
     isReadOnly?: boolean;
 }
 
-export const InputField: React.FC<InputFieldProps> = ({ id, label, description, isReadOnly }) => {
+export const InputField: React.FC<InputFieldProps> = ({ id, label, description, isReadOnly, placeholder }) => {
     const {
-        fields, setField, generateSuggestions, generatePrompt
+        fields, setField, generateSuggestions, generatePrompt, llmConfig
     } = usePrompt();
 
     const rawValue = fields[id];
@@ -101,7 +104,7 @@ export const InputField: React.FC<InputFieldProps> = ({ id, label, description, 
                                 onChange={(e) => setField(id, e.target.value)}
                                 onKeyDown={handleKeyDown}
                                 disabled={isReadOnly}
-                                placeholder={`Enter ${label.toLowerCase()}... (Ctrl+Enter to generate)`}
+                                placeholder={placeholder || `Enter ${label.toLowerCase()}... (Ctrl+Enter to generate)`}
                                 rows={Math.max(3, value.split('\n').length)}
                                 className={clsx(
                                     "w-full px-4 pt-4 pb-12 rounded-xl text-base transition-all resize-none overflow-hidden form-input",
@@ -111,7 +114,7 @@ export const InputField: React.FC<InputFieldProps> = ({ id, label, description, 
                                 )}
                             />
 
-                            <TextStats text={value} className="bottom-3 left-4 border-slate-200/50 bg-slate-50/80 scale-90" />
+                            <TextStats text={value} tokenCount={estimateTokens(value, llmConfig?.model || '')} className="bottom-3 left-4 border-slate-200/50 bg-slate-50/80 scale-90" />
 
                             {/* Smart Suggest Trigger - show if value exists and enough length */}
                             {
@@ -131,7 +134,7 @@ export const InputField: React.FC<InputFieldProps> = ({ id, label, description, 
                         {/* Suggestions Panel */}
                         {
                             suggestions.length > 0 && (
-                                <div className="mt-4 bg-white/80 backdrop-blur-sm rounded-xl p-3 border border-indigo-100 shadow-xl shadow-indigo-500/10 ring-1 ring-indigo-500/5">
+                                <div className="mt-4 bg-white/80 backdrop-blur-sm rounded-xl p-3 border border-indigo-100 shadow-xl shadow-indigo-500/10 ring-1 ring-indigo-500/5 animate-fade-in-up">
                                     <div className="flex justify-between items-center mb-3 px-1">
                                         <span className="text-xs font-bold text-indigo-600 flex items-center gap-1.5 uppercase tracking-wider">
                                             <SparklesIco /> Smart Suggestions

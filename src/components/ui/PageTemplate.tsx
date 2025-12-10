@@ -5,7 +5,7 @@ import { PageHeader } from '@/components/ui/PageHeader';
 
 interface PageTemplateProps {
     // Header props
-    title: string;
+    title: string | React.ReactNode;
     subtitle?: string;
     icon: LucideIcon;
     iconGradient: string;
@@ -16,6 +16,10 @@ interface PageTemplateProps {
     isSidebarOpen?: boolean;
     children: React.ReactNode;
     className?: string;
+    headerClassName?: string;
+    iconSize?: number;
+    titleClassName?: string;
+    subtitleClassName?: string;
 }
 
 /**
@@ -46,7 +50,11 @@ export const PageTemplate: React.FC<PageTemplateProps> = ({
     rightContent,
     isSidebarOpen = false,
     children,
-    className
+    className,
+    headerClassName,
+    iconSize,
+    titleClassName,
+    subtitleClassName
 }) => {
     return (
         <div className="min-h-screen bg-slate-50">
@@ -59,6 +67,10 @@ export const PageTemplate: React.FC<PageTemplateProps> = ({
                 shadowColor={shadowColor}
                 rightContent={rightContent}
                 isSidebarOpen={isSidebarOpen}
+                className={headerClassName}
+                iconSize={iconSize}
+                titleClassName={titleClassName}
+                subtitleClassName={subtitleClassName}
             />
 
             {/* Scrollable Content Area */}

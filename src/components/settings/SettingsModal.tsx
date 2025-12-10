@@ -403,8 +403,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
                                 <div className="flex justify-between items-center mb-2">
-                                    <label className="block text-sm font-bold text-slate-900">
+                                    <label className="flex items-center gap-2 text-sm font-bold text-slate-900">
                                         Model Name
+                                        <div className="group relative">
+                                            <AlertCircle size={14} className="text-slate-400 cursor-help" />
+                                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block w-56 p-2.5 bg-slate-800 text-white text-xs rounded-lg shadow-xl z-50 pointer-events-none leading-relaxed">
+                                                <div className="font-bold mb-1 text-slate-300">Popular Models:</div>
+                                                <ul className="list-disc pl-3 space-y-0.5">
+                                                    <li><span className="text-emerald-300">claude-3-5-sonnet</span>: Coding</li>
+                                                    <li><span className="text-emerald-300">gpt-4o</span>: General Smarts</li>
+                                                    <li><span className="text-emerald-300">gemini-pro</span>: Creative</li>
+                                                </ul>
+                                                <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 rotate-45 w-2 h-2 bg-slate-800"></div>
+                                            </div>
+                                        </div>
                                     </label>
                                     <button
                                         onClick={async () => {
