@@ -2,6 +2,7 @@ import { app, BrowserWindow, shell, ipcMain } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { getDatabase, closeDatabase } from './database.js';
+import { initVectorDb, addVectors, searchVectors, listCollections } from './vectordb.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -78,7 +79,21 @@ ipcMain.handle('db:searchPrompts', async (event, query) => {
     return db.searchPrompts(query);
 });
 
+// Vector DB IPC Handlers
+ipcMain.handle('vectordb:add', async (event, collection, data) => {
+    return addVectors(collection, data);
+});
+
+ipcMain.handle('vectordb:search', async (event, collection, vector, limit) => {
+    return searchVectors(collection, vector, limit);
+});
+
+ipcMain.handle('vectordb:list', async () => {
+    return listCollections();
+});
+
 app.whenReady().then(() => {
+    initVectorDb().catch(e => console.error('Failed to init vector db', e));
     createWindow();
 
     app.on('activate', () => {

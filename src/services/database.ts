@@ -27,17 +27,24 @@ interface ElectronDB {
     searchPrompts: (query: string) => Promise<SavedPrompt[]>;
 }
 
+interface ElectronVectorDB {
+    add: (collection: string, data: any[]) => Promise<any>;
+    search: (collection: string, vector: number[], limit?: number) => Promise<any[]>;
+    list: () => Promise<string[]>;
+}
+
 declare global {
     interface Window {
         electron?: {
             platform: string;
             db: ElectronDB;
+            vectordb: ElectronVectorDB;
         };
     }
 }
 
 // IndexedDB Database service for browser (permanent storage)
-class IndexedDBPromptStorage {
+export class IndexedDBPromptStorage {
     private DB_NAME = 'DStudiosPrompts';
     private DB_VERSION = 1;
     private STORE_NAME = 'savedPrompts';

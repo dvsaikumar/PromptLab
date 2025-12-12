@@ -10,9 +10,12 @@ import toast from 'react-hot-toast';
 interface LLMSelectorProps {
     onOpenSettings: () => void;
     className?: string;
+    value?: LLMProviderId;
+    model?: string;
+    onChange?: (providerId: LLMProviderId, model?: string) => void;
 }
 
-export const LLMSelector: React.FC<LLMSelectorProps> = ({ onOpenSettings, className }) => {
+export const LLMSelector: React.FC<LLMSelectorProps> = ({ onOpenSettings, className, value, model, onChange }) => {
     const { llmConfig, updateConfig } = usePrompt();
     const [showDropdown, setShowDropdown] = useState(false);
     const [savedConfigs, setSavedConfigs] = useState<LLMConfig[]>([]);
@@ -30,6 +33,15 @@ export const LLMSelector: React.FC<LLMSelectorProps> = ({ onOpenSettings, classN
         'local', 'custom'
     ];
 
+    // Controlled Logic
+    const currentProviderId = value || llmConfig.providerId;
+    const activeSavedConfig = value
+        ? savedConfigs.find(c => c.providerId === value && (!model || c.model === model))
+        : null;
+    const currentModel = value
+        ? (model || activeSavedConfig?.model || '')
+        : llmConfig.model;
+
     // Load saved LLM configurations
     useEffect(() => {
         const loadConfigs = async () => {
@@ -46,7 +58,7 @@ export const LLMSelector: React.FC<LLMSelectorProps> = ({ onOpenSettings, classN
     const hasMultipleConfigs = savedConfigs.length > 1;
 
     const handleToggle = () => {
-        if (!hasMultipleConfigs) {
+        if (!hasMultipleConfigs && !value) {
             onOpenSettings();
             return;
         }
@@ -88,7 +100,6 @@ export const LLMSelector: React.FC<LLMSelectorProps> = ({ onOpenSettings, classN
     };
 
     // ... (keep helpers) ...
-    // Note: I will just re-include them to keep context simple for the tool
     const getProviderDisplay = (providerId: string) => {
         const providers: Record<string, string> = {
             'anthropic': 'Anthropic',
@@ -108,6 +119,7 @@ export const LLMSelector: React.FC<LLMSelectorProps> = ({ onOpenSettings, classN
     };
 
     const getModelDisplay = (model: string) => {
+        if (!model) return '';
         if (model.includes('claude')) return model.replace('claude-', '').replace('-20240620', '').replace('-20241022', '');
         if (model.includes('gpt')) return model.replace('gpt-', 'GPT-');
         if (model.includes('gemini')) return model.replace('gemini-', '');
@@ -115,13 +127,17 @@ export const LLMSelector: React.FC<LLMSelectorProps> = ({ onOpenSettings, classN
     };
 
     const handleSelectConfig = async (config: LLMConfig) => {
-        updateConfig(config);
-        setShowDropdown(false);
-        try {
-            await llmConfigDB.saveConfig(config);
-        } catch (error) {
-            console.error('Failed to update active config:', error);
+        if (onChange) {
+            onChange(config.providerId, config.model);
+        } else {
+            updateConfig(config);
+            try {
+                await llmConfigDB.saveConfig(config);
+            } catch (error) {
+                console.error('Failed to update active config:', error);
+            }
         }
+        setShowDropdown(false);
     };
 
     const handleDeleteClick = (config: LLMConfig, e: React.MouseEvent) => {
@@ -158,7 +174,8 @@ export const LLMSelector: React.FC<LLMSelectorProps> = ({ onOpenSettings, classN
 
     return (
         <div className={`relative ${className}`}>
-            <label className="block text-sm font-bold text-slate-700 mb-2">
+            <label className="flex items-center gap-1.5 text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5 ml-1">
+                <Cpu size={14} />
                 Select AI Model
             </label>
             <div
@@ -169,14 +186,14 @@ export const LLMSelector: React.FC<LLMSelectorProps> = ({ onOpenSettings, classN
             >
                 <div className="flex items-center gap-3 overflow-hidden">
                     <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center border border-indigo-100 shrink-0">
-                        <ProviderIcon providerId={llmConfig.providerId} size={20} />
+                        <ProviderIcon providerId={currentProviderId} size={20} />
                     </div>
                     <div className="flex flex-col min-w-0">
                         <span className="text-sm font-semibold text-slate-900 truncate">
-                            {getProviderDisplay(llmConfig.providerId)}
+                            {getProviderDisplay(currentProviderId)}
                         </span>
                         <span className="text-xs text-slate-500 truncate">
-                            {getModelDisplay(llmConfig.model)}
+                            {getModelDisplay(currentModel)}
                         </span>
                     </div>
                 </div>
@@ -257,23 +274,26 @@ export const LLMSelector: React.FC<LLMSelectorProps> = ({ onOpenSettings, classN
 
                             {/* Unconfigured Providers */}
                             <div className="px-3 py-2 text-xs font-bold text-slate-800 uppercase tracking-wider bg-slate-200 border-y border-slate-300 mt-2 sticky top-0 z-10 shadow-sm">
-                                Available Providers
+                                Add New Connection
                             </div>
                             {allProviders
                                 .filter(pid =>
-                                    !savedConfigs.some(config => config.providerId === pid) &&
                                     getProviderDisplay(pid).toLowerCase().includes(searchQuery.toLowerCase())
                                 )
                                 .map(pid => (
                                     <button
                                         key={pid}
                                         onClick={() => {
-                                            updateConfig({
-                                                providerId: pid,
-                                                apiKey: '',
-                                                model: '',
-                                                baseUrl: ''
-                                            });
+                                            if (onChange) {
+                                                onChange(pid, '');
+                                            } else {
+                                                updateConfig({
+                                                    providerId: pid,
+                                                    apiKey: '',
+                                                    model: '',
+                                                    baseUrl: ''
+                                                });
+                                            }
                                             setShowDropdown(false);
                                             onOpenSettings();
                                         }}

@@ -82,29 +82,70 @@ export abstract class LLMProvider {
 
         return cleaned;
     }
+
+    protected parseBase64(dataUrl: string): { mimeType: string; data: string } {
+        const matches = dataUrl.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,(.+)$/);
+        if (!matches || matches.length !== 3) {
+            return { mimeType: 'image/jpeg', data: '' };
+        }
+        return { mimeType: matches[1], data: matches[2] };
+    }
 }
 
 class OpenAICompatibleProvider extends LLMProvider {
     async generateCompletion(payload: CompletionPayload): Promise<string> {
-        const { config, systemPrompt, userPrompt, temperature } = payload;
+        const { config, systemPrompt, userPrompt, temperature, images } = payload;
 
         if (!config.apiKey) throw new Error('API Key is missing. Please check your settings.');
-        // Check baseUrl for custom, but allow default OpenAI logic or others
 
-        const baseUrl = config.baseUrl || 'https://api.openai.com/v1'; // Default to OpenAI if empty
-        const cleanBase = this.cleanUrl(baseUrl);
+        const isElectron = !!(window as any).electron;
+        let finalBaseUrl = config.baseUrl || 'https://api.openai.com/v1';
 
-        const messages = [];
+        if (isElectron) {
+            // 1. Electron: Go Direct (Bypass Proxy)
+            // This is crucial for Image/Vision requests where Base64 payloads are huge.
+            // Vite Proxy often chokes on 5MB+ payloads.
+            // We strip trailing slash manually.
+            finalBaseUrl = finalBaseUrl.replace(/\/+$/, '');
+
+            // Special handling for providers that might need specific sub-paths if not provided
+            // (But usually the config.baseUrl provided by UI is correct)
+        } else {
+            // 2. Browser: Use Proxy
+            // Use the centralized cleanUrl which maps to /api/...
+            finalBaseUrl = this.cleanUrl(finalBaseUrl);
+        }
+
+        const messages: any[] = [];
         if (systemPrompt) messages.push({ role: 'system', content: systemPrompt });
-        messages.push({ role: 'user', content: userPrompt });
+
+        if (images && images.length > 0) {
+            const content: any[] = [{ type: 'text', text: userPrompt }];
+            images.forEach(img => {
+                // OpenAI expects data-url directly in url field
+                content.push({
+                    type: 'image_url',
+                    image_url: { url: img }
+                });
+            });
+            messages.push({ role: 'user', content });
+        } else {
+            messages.push({ role: 'user', content: userPrompt });
+        }
 
         try {
-            const response = await fetch(`${cleanBase}/chat/completions`, {
+            // Set a generous timeout for Vision requests (2 minutes)
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 120000);
+
+            const response = await fetch(`${finalBaseUrl}/chat/completions`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${config.apiKey}`
                 },
+                credentials: 'omit',
+                signal: controller.signal,
                 body: JSON.stringify({
                     model: config.model,
                     messages,
@@ -114,6 +155,8 @@ class OpenAICompatibleProvider extends LLMProvider {
                 })
             });
 
+            clearTimeout(timeoutId);
+
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
                 throw new Error(`API Error ${response.status}: ${errorData.error?.message || response.statusText}`);
@@ -122,6 +165,9 @@ class OpenAICompatibleProvider extends LLMProvider {
             const data = await response.json();
             return data.choices?.[0]?.message?.content || '';
         } catch (error: any) {
+            if (error.name === 'AbortError') {
+                throw new Error('Request timed out after 2 minutes. The model is taking too long or the image is too large.');
+            }
             if (error.message === 'Failed to fetch') {
                 throw new Error('Network error: Failed to reach the API. Check CORS/connection.');
             }
@@ -164,22 +210,33 @@ class GeminiProvider extends LLMProvider {
     }
 
     async generateCompletion(payload: CompletionPayload): Promise<string> {
-        const { config, systemPrompt, userPrompt, temperature } = payload;
+        const { config, systemPrompt, userPrompt, temperature, images } = payload;
         if (!config.apiKey) throw new Error('API Key is missing');
 
         const cleanBase = this.getBaseUrl(config);
-        // Construct URL with API key for Gemini
         const url = `${cleanBase}/models/${config.model}:generateContent?key=${config.apiKey}`;
 
-        // Combine system and user prompt effectively for Gemini
-        const parts = [];
+        const parts: any[] = [];
         if (systemPrompt) parts.push({ text: `System: ${systemPrompt}` });
         parts.push({ text: userPrompt });
+
+        if (images && images.length > 0) {
+            images.forEach(img => {
+                const { mimeType, data } = this.parseBase64(img);
+                parts.push({
+                    inline_data: {
+                        mime_type: mimeType,
+                        data: data
+                    }
+                });
+            });
+        }
 
         try {
             const response = await fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
+                credentials: 'omit',
                 body: JSON.stringify({
                     contents: [{ parts }],
                     generationConfig: {
@@ -214,7 +271,6 @@ class GeminiProvider extends LLMProvider {
             const response = await fetch(`${cleanBase}/models?key=${config.apiKey}`);
             if (!response.ok) return [];
             const data = await response.json();
-            // Gemini returns "name": "models/gemini-pro". We want just "gemini-pro"
             return data.models?.map((m: any) => m.name.replace('models/', '')) || [];
         } catch (e) {
             return [];
@@ -228,9 +284,30 @@ class AnthropicProvider extends LLMProvider {
     }
 
     async generateCompletion(payload: CompletionPayload): Promise<string> {
-        const { config, systemPrompt, userPrompt, temperature } = payload;
+        const { config, systemPrompt, userPrompt, temperature, images } = payload;
 
         if (!config.apiKey) throw new Error('API Key is missing. Please check your settings.');
+
+        const messages: any[] = [];
+        const content: any[] = [];
+
+        // Add images first or last? Anthropic often prefers images before text or intermixed.
+        if (images && images.length > 0) {
+            images.forEach(img => {
+                const { mimeType, data } = this.parseBase64(img);
+                content.push({
+                    type: 'image',
+                    source: {
+                        type: 'base64',
+                        media_type: mimeType,
+                        data: data
+                    }
+                });
+            });
+        }
+
+        content.push({ type: 'text', text: userPrompt });
+        messages.push({ role: 'user', content });
 
         try {
             const response = await fetch(`${this.getBaseUrl(config)}/messages`, {
@@ -241,10 +318,11 @@ class AnthropicProvider extends LLMProvider {
                     'anthropic-version': '2023-06-01',
                     'anthropic-dangerous-direct-browser-access': 'true'
                 },
+                credentials: 'omit',
                 body: JSON.stringify({
                     model: config.model,
                     system: systemPrompt,
-                    messages: [{ role: 'user', content: userPrompt }],
+                    messages,
                     max_tokens: 4096,
                     temperature: temperature ?? 0.7
                 })
@@ -314,6 +392,81 @@ export class QwenProvider extends OpenAICompatibleProvider {
 }
 
 export class OpenRouterProvider extends OpenAICompatibleProvider {
+    async generateCompletion(payload: CompletionPayload): Promise<string> {
+        const { config, systemPrompt, userPrompt, temperature, images } = payload;
+
+        if (!config.apiKey) throw new Error('OpenRouter API Key is missing.');
+
+        const isElectron = !!(window as any).electron;
+
+        // Determine Base URL strategies
+        let finalBaseUrl = config.baseUrl || 'https://openrouter.ai/api/v1';
+
+        if (isElectron) {
+            // In Electron, bypass usage of local proxy to ensure headers are preserved perfectly
+            // We can do this because webSecurity is disabled in main.js
+            finalBaseUrl = finalBaseUrl.replace(/\/+$/, '');
+        } else {
+            // In Standard Browser, use the local proxy to avoid CORS
+            finalBaseUrl = this.cleanUrl(finalBaseUrl);
+        }
+
+        const apiKey = config.apiKey.trim();
+
+        const messages: any[] = [];
+        if (systemPrompt) messages.push({ role: 'system', content: systemPrompt });
+
+        if (images && images.length > 0) {
+            const content: any[] = [{ type: 'text', text: userPrompt }];
+            images.forEach(img => {
+                content.push({
+                    type: 'image_url',
+                    image_url: { url: img }
+                });
+            });
+            messages.push({ role: 'user', content });
+        } else {
+            messages.push({ role: 'user', content: userPrompt });
+        }
+
+        try {
+            const response = await fetch(`${finalBaseUrl}/chat/completions`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`,
+                    'HTTP-Referer': window.location.origin,
+                    'X-Title': 'PromptForge'
+                },
+                credentials: 'omit',
+                body: JSON.stringify({
+                    model: config.model,
+                    messages,
+                    temperature: temperature ?? 0.7,
+                    max_tokens: 4096,
+                    stream: false
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                const msg = errorData.error?.message || response.statusText;
+                if (response.status === 401) {
+                    throw new Error(`OpenRouter Auth Failed: ${msg} (Check API Key)`);
+                }
+                throw new Error(`OpenRouter Error ${response.status}: ${msg}`);
+            }
+
+            const data = await response.json();
+            return data.choices?.[0]?.message?.content || '';
+        } catch (error: any) {
+            if (error.message === 'Failed to fetch') {
+                throw new Error('Network error: Could not reach OpenRouter API.');
+            }
+            throw error;
+        }
+    }
+
     async listModels(config: LLMConfig): Promise<string[]> {
         try {
             const models = await super.listModels(config);

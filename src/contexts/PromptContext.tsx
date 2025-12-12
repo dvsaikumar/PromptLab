@@ -5,6 +5,7 @@ import { LLMService } from '../services/llm';
 import { estimateTokens } from '../utils/tokenEstimator';
 import toast from 'react-hot-toast';
 import { llmConfigDB } from '../services/llmConfigDB';
+import { PERSONAS } from '../constants/personas';
 
 interface PromptContextType {
     // State
@@ -30,6 +31,7 @@ interface PromptContextType {
     executionTime?: number; // In seconds
     totalInputTokens: number;
     totalOutputTokens: number;
+    activePersonaId: string;
 
     // Actions
     setField: (fieldId: string, value: string) => void;
@@ -51,6 +53,7 @@ interface PromptContextType {
     selectRole: (template: Template) => void;
     clearIndustry: () => void;
     clearRole: () => void;
+    setActivePersonaId: (id: string) => void;
 
     // LLM Operations
     expandIdea: () => Promise<void>;
@@ -79,6 +82,7 @@ export const PromptProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
     const [activeIndustry, setActiveIndustry] = useState<string | null>(null);
     const [activeRole, setActiveRole] = useState<string | null>(null);
+    const [activePersonaId, setActivePersonaId] = useState<string>('prompt-engineer');
     const [currentPromptId, setCurrentPromptId] = useState<number | null>(null);
     const [executionTime, setExecutionTime] = useState<number | undefined>(undefined);
     const [totalInputTokens, setTotalInputTokens] = useState(0);
@@ -109,7 +113,6 @@ export const PromptProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     // Load config from IndexedDB on mount
     useEffect(() => {
         const loadConfig = async () => {
-            // ... existing code
             try {
                 const saved = await llmConfigDB.getActiveConfig();
                 if (saved) {
@@ -169,8 +172,7 @@ export const PromptProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     }, [generatedPrompt, qualityScore, autoFillTokens, llmConfig.model]);
 
     useEffect(() => {
-        // Save to IndexedDB when config changes (happens automatically via SettingsModal)
-        // The saving is actually done in SettingsModal after test passes
+        // Save to IndexedDB when config changes
     }, [llmConfig]);
 
     // --- Helpers ---
@@ -257,6 +259,7 @@ export const PromptProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         setHistoryIndex({});
         setActiveIndustry(null);
         setActiveRole(null);
+        setActivePersonaId('prompt-engineer');
         setComplexity('direct');
         setCurrentPromptId(null);
         setExecutionTime(undefined);
@@ -267,7 +270,6 @@ export const PromptProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
     const selectIndustry = (template: Template) => {
         setActiveIndustry(template.id);
-        // Apply visual settings (last one wins context)
         setFramework(template.frameworkId);
         setFields(template.prefill);
         setSelectedTones(prev => Array.from(new Set([...prev, ...template.tones])));
@@ -293,7 +295,6 @@ export const PromptProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     };
 
     // --- LLM Operations ---
-
     const getLLMService = () => LLMService.getInstance().getProvider(llmConfig.providerId);
 
 
@@ -304,20 +305,7 @@ export const PromptProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         }
 
         if (llmConfig.providerId !== 'local' && !llmConfig.apiKey) {
-            toast.error((t) => (
-                <span className="flex items-center gap-2">
-                    API Key Required
-                    <button
-                        onClick={() => {
-                            window.dispatchEvent(new Event('open-settings-modal'));
-                            toast.dismiss(t.id);
-                        }}
-                        className="px-2 py-0.5 bg-white text-red-600 rounded text-xs font-bold border border-red-200 shadow-sm hover:bg-red-50"
-                    >
-                        Configure
-                    </button>
-                </span>
-            ), { duration: 5000 });
+            toast.error('API Key Required');
             return;
         }
 
@@ -329,6 +317,7 @@ export const PromptProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             // Find active templates
             const industryObj = INDUSTRY_TEMPLATES.find(t => t.id === activeIndustry);
             const roleObj = ROLE_PRESETS.find(t => t.id === activeRole);
+            const activePersona = PERSONAS.find(p => p.id === activePersonaId) || PERSONAS[0];
 
             let promptContent = `Simple Idea: "${simpleIdea}"`;
 
@@ -339,7 +328,7 @@ export const PromptProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                 });
             }
 
-            let roleInstruction = "You are a prompt engineer.";
+            let roleInstruction = activePersona.prompt;
             let templateContext = "";
 
             if (industryObj || roleObj) {
@@ -347,7 +336,7 @@ export const PromptProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                 if (roleObj) parts.push(`Role: ${roleObj.label}`);
                 if (industryObj) parts.push(`Industry: ${industryObj.label}`);
 
-                roleInstruction = `You are acting as a specialized AI. ${parts.join('. ')}.`;
+                roleInstruction += `\nAdditional Context: You are acting as a specialized AI. ${parts.join('. ')}.`;
 
                 templateContext = `\nACTIVE CONTEXT:\n`;
                 if (industryObj) {
@@ -406,17 +395,14 @@ export const PromptProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                 temperature: 0.7
             });
 
-            // Robust Key Normalization: Handle potential case mismatch (e.g. "Context" vs "context")
+            // Robust Key Normalization
             const normalizedResult: FieldState = {};
             if (result && typeof result === 'object') {
                 Object.keys(result).forEach(key => {
-                    // 1. Try exact match first
                     if (framework.fields.some(f => f.id === key)) {
                         normalizedResult[key] = result[key];
                         return;
                     }
-
-                    // 2. Try case-insensitive match
                     const lowerKey = key.toLowerCase();
                     const matchingField = framework.fields.find(f => f.id.toLowerCase() === lowerKey);
                     if (matchingField) {
@@ -427,7 +413,6 @@ export const PromptProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
             setFields(prev => ({ ...prev, ...normalizedResult }));
 
-            // Calculate and set token count for this generation event
             const tokens = estimateTokens(JSON.stringify(result), llmConfig.model);
             setAutoFillTokens(tokens);
 
@@ -442,20 +427,7 @@ export const PromptProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
     const generatePrompt = async () => {
         if (llmConfig.providerId !== 'local' && !llmConfig.apiKey) {
-            toast.error((t) => (
-                <span className="flex items-center gap-2">
-                    API Key Required
-                    <button
-                        onClick={() => {
-                            window.dispatchEvent(new Event('open-settings-modal'));
-                            toast.dismiss(t.id);
-                        }}
-                        className="px-2 py-0.5 bg-white text-red-600 rounded text-xs font-bold border border-red-200 shadow-sm hover:bg-red-50"
-                    >
-                        Configure
-                    </button>
-                </span>
-            ), { duration: 5000 });
+            toast.error('API Key Required');
             return;
         }
 
@@ -468,13 +440,46 @@ export const PromptProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             const framework = getCurrentFramework();
             const filledFields = framework.fields
                 .filter(f => fields[f.id])
-                .map(f => `## ${f.label}\n${fields[f.id]}`) // Use Markdown for clear separation in input
+                .map(f => `## ${f.label}\n${fields[f.id]}`)
                 .join('\n\n');
 
             const toneLabels = selectedTones.map(t => TONES.find(opt => opt.value === t)?.label).join(', ');
 
-            // "System Prompt Bible" Architecture
-            let systemPrompt = `You are a Principal Prompt Architect. Your goal is to forge a "System Prompt Bible" — a definitive, authoritative, and comprehensive instruction set for an AI model.
+            // Dynamic Persona Injection
+            const activePersona = PERSONAS.find(p => p.id === activePersonaId) || PERSONAS[0];
+
+            const GOD_MODE_GENERATOR_PROTOCOL = `
+<GOD_MODE_GENERATOR_PROTOCOL>
+You are acting as a "Meta-Prompt Engineer" with the combined intelligence of Claude Sonnet 4.5 and Gemini Vibe Coder.
+
+**PHASE 1: Deconstruction (Deep Analysis)**
+- Identify the User's Core Intent (beyond the literal words).
+- Extrapolate implied "Hidden Constraints" (e.g., if they ask for a landing page, they imply *high conversion*).
+- Determine the optimal Persona (e.g., "Senior React Architect" vs "Creative Director").
+
+**PHASE 2: Mental Sandbox (Simulation)**
+- Run a mental simulation of the prompt's output.
+- *Check*: Will it produce hallucinations? -> Add "Strict Evidence" constraints.
+- *Check*: Will it be generic? -> Inject "Wow Factor" / "Vibe" instructions.
+- *Check*: Is it technically sound? -> Enforce "Type Safety" and "Modern Stack" rules.
+
+**PHASE 3: Construction (The Bible Standard)**
+- **Structure**: Use the specific Framework structure chosen (e.g., CO-STAR).
+- **Clarity**: Use aggressive Markdown formatting (Headers, Lists).
+- **Functionality**: Explicitly forbid "placeholders" or "lazy code".
+
+**PHASE 4: Final Polish (God Mode)**
+- Review the generated prompt against the "God Mode" standard.
+- Ensure it forces the AI to be **MECE** (Mutually Exclusive, Collectively Exhaustive).
+</GOD_MODE_GENERATOR_PROTOCOL>`;
+
+            let systemPrompt = `${activePersona.prompt}
+
+${GOD_MODE_GENERATOR_PROTOCOL}
+
+Your goal is to generate a high-quality, structured AI prompt based on the user's input.
+The output must be a **Ready-to-Use Prompt**.
+Do not output the thinking process, only the final prompt.
 
 The output must be a single, cohesive System Prompt using the ${framework.name} framework structure.
 
@@ -491,7 +496,7 @@ Tone target: ${toneLabels || 'Professional, Precise, and Direct'}.`;
                 systemPrompt += `\n**REQUIREMENT**: You MUST include a "Thinking Process" or "Chain of Thought" section in the generated prompt, instructing the model to think step-by-step before executing the task.`;
             }
 
-            // Complexity-based constraints for Output Generation
+            // Complexity-based constraints
             let outputConstraints = "";
             switch (complexity) {
                 case 'direct':
@@ -532,12 +537,7 @@ Tone target: ${toneLabels || 'Professional, Precise, and Direct'}.`;
             });
 
             setGeneratedPrompt(result);
-
-            // Calculate execution time
-            const endTime = Date.now();
-            setExecutionTime((endTime - startTime) / 1000); // Store in seconds
-
-            // Auto analyze
+            setExecutionTime((Date.now() - startTime) / 1000);
             await analyzeQuality(result);
 
         } catch (error: any) {
@@ -561,7 +561,6 @@ Tone target: ${toneLabels || 'Professional, Precise, and Direct'}.`;
                 assembled += `**Tone:** ${toneLabels}\n\n`;
             }
 
-            // Iterate fields
             framework.fields.forEach(field => {
                 const value = fields[field.id];
                 if (value && value.trim()) {
@@ -569,12 +568,10 @@ Tone target: ${toneLabels || 'Professional, Precise, and Direct'}.`;
                 }
             });
 
-            // Add standard ending if applicable
             assembled += `---\nGenerated with PromptForge`;
 
             setGeneratedPrompt(assembled);
             setExecutionTime((Date.now() - startTime) / 1000);
-
             toast.success('Prompt assembled instantly!');
 
         } catch (error) {
@@ -584,7 +581,7 @@ Tone target: ${toneLabels || 'Professional, Precise, and Direct'}.`;
     };
 
     const analyzeQuality = async (promptText?: string) => {
-        const prompt = promptText || generatedPrompt; // Capture current
+        const prompt = promptText || generatedPrompt;
         if (!prompt) return;
 
         setIsAnalyzing(true);
@@ -621,9 +618,6 @@ Tone target: ${toneLabels || 'Professional, Precise, and Direct'}.`;
             }
         } catch (error) {
             console.error('Analysis failed', error);
-            // Don't toast error on auto-analysis to avoid spam, but finding why it fails is key.
-            // Actually, if user explicitly expects it, we should maybe show a subtle indicator or just let the footer handle the null state.
-            // Let's add a visual toast for now as the user is confused.
             toast.error('Could not generate quality score');
         } finally {
             setIsAnalyzing(false);
@@ -656,7 +650,6 @@ Tone target: ${toneLabels || 'Professional, Precise, and Direct'}.`;
                 config: llmConfig
             });
 
-            // Analyze the candidate directly
             const analysisPrompt = `Analyze this prompt quality (0-100).
             Prompt: ${candidatePrompt}
             
@@ -688,7 +681,6 @@ Tone target: ${toneLabels || 'Professional, Precise, and Direct'}.`;
                 toast.success(`Broadened to ${candidateScore.overallScore}/100!`);
             } else {
                 toast.error(`Optimization dropped score (${candidateScore.overallScore}). Retaining original.`);
-                // We keep the old prompt and score
             }
 
         } catch (error: any) {
@@ -725,10 +717,7 @@ Tone target: ${toneLabels || 'Professional, Precise, and Direct'}.`;
     };
 
     const autoFillOutputStopping = async () => {
-        // Specialized for RTCROS or generic
         if (llmConfig.providerId !== 'local' && !llmConfig.apiKey) return;
-
-
         const prompt = `Based on inputs: ${JSON.stringify(fields)}, recommend OUTPUT and STOPPING criteria.
       Respond JSON: { "output": "...", "stopping": "..." }`;
 
@@ -744,36 +733,17 @@ Tone target: ${toneLabels || 'Professional, Precise, and Direct'}.`;
         }
     };
 
-    // Load a saved prompt back into the form
     const loadPrompt = async (savedPrompt: any) => {
         try {
             setCurrentPromptId(savedPrompt.id);
-            // Set framework
             setActiveFramework(savedPrompt.framework);
-
-            // Set fields
-            const parsedFields = JSON.parse(savedPrompt.fields);
-            setFields(parsedFields);
-
-            // Set tones
-            const parsedTones = JSON.parse(savedPrompt.tones);
-            setSelectedTones(parsedTones);
-
-            // Set simple idea
+            setFields(JSON.parse(savedPrompt.fields));
+            setSelectedTones(JSON.parse(savedPrompt.tones));
             setSimpleIdea(savedPrompt.simpleIdea || '');
-
-            // Set industry/role if exists
-            if (savedPrompt.industry) {
-                setActiveIndustry(savedPrompt.industry);
-            }
-            if (savedPrompt.role) {
-                setActiveRole(savedPrompt.role);
-            }
-
-            // Set generated prompt
+            if (savedPrompt.industry) setActiveIndustry(savedPrompt.industry);
+            if (savedPrompt.role) setActiveRole(savedPrompt.role);
             setGeneratedPrompt(savedPrompt.prompt);
 
-            // Set quality score if exists
             if (savedPrompt.qualityScoreDetails) {
                 try {
                     const parsedQuality = JSON.parse(savedPrompt.qualityScoreDetails);
@@ -790,11 +760,9 @@ Tone target: ${toneLabels || 'Professional, Precise, and Direct'}.`;
                         maxScore: 100
                     });
                 } catch (err) {
-                    console.warn('Failed to parse quality score details', err);
                     setQualityScore(null);
                 }
             } else if (savedPrompt.qualityScore) {
-                // Fallback if only overall score is saved
                 setQualityScore({
                     overallScore: savedPrompt.qualityScore,
                     rating: 'Good',
@@ -824,12 +792,14 @@ Tone target: ${toneLabels || 'Professional, Precise, and Direct'}.`;
             undoField, redoField, updateConfig, resetAll,
             selectIndustry, selectRole, clearIndustry, clearRole,
             expandIdea, generatePrompt, assemblePrompt, analyzeQuality, improvePrompt, loadPrompt,
-            generateSuggestions, autoFillOutputStopping, totalInputTokens, totalOutputTokens
+            generateSuggestions, autoFillOutputStopping, totalInputTokens, totalOutputTokens,
+            activePersonaId, setActivePersonaId
         }}>
             {children}
         </PromptContext.Provider>
     );
 };
+
 export const usePrompt = () => {
     const context = useContext(PromptContext);
     if (context === undefined) {

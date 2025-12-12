@@ -263,6 +263,43 @@ class LLMConfigDB {
     }
 
     /**
+     * Get best available config for a provider
+     */
+    async getConfig(providerId: string): Promise<LLMConfig | null> {
+        const db = await this.ensureDB();
+
+        return new Promise((resolve, reject) => {
+            const transaction = db.transaction([STORE_NAME], 'readonly');
+            const store = transaction.objectStore(STORE_NAME);
+            const request = store.getAll();
+
+            request.onsuccess = () => {
+                const allStored: StoredLLMConfig[] = request.result;
+                // Find matches for provider
+                const matches = allStored.filter(c => c.providerId === providerId);
+
+                if (matches.length === 0) {
+                    resolve(null);
+                    return;
+                }
+
+                // Sort by testedAt desc to use most recent
+                matches.sort((a, b) => new Date(b.testedAt).getTime() - new Date(a.testedAt).getTime());
+                const best = matches[0];
+
+                resolve({
+                    providerId: best.providerId as any,
+                    apiKey: securityManager.decryptApiKey(best.encryptedApiKey),
+                    model: best.model,
+                    baseUrl: best.baseUrl
+                });
+            };
+
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    /**
      * Clear all configurations
      */
     async clearAll(): Promise<void> {

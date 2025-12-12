@@ -8,7 +8,8 @@ import { PromptOutput } from '@/components/results/PromptOutput';
 import { QualityScore } from '@/components/results/QualityScore';
 import { usePrompt } from '@/contexts/PromptContext';
 import { FRAMEWORKS, TONES, INDUSTRY_TEMPLATES, ROLE_PRESETS } from '@/constants';
-import { Wand2, FlaskConical, Sparkles, FileText, BookOpen, Palette, Layout, RefreshCw, Tag, RotateCcw, Zap, Layers, Brain } from 'lucide-react';
+import { PERSONAS } from '@/constants/personas';
+import { Wand2, FlaskConical, Sparkles, FileText, BookOpen, Palette, Layout, RefreshCw, Tag, RotateCcw, Zap, Layers, Brain, User } from 'lucide-react';
 import { clsx } from 'clsx';
 import toast from 'react-hot-toast';
 import { promptDB } from '@/services/database';
@@ -19,6 +20,7 @@ import { PageTemplate } from '@/components/ui/PageTemplate';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { ResultToolbar } from '@/components/ui/ResultToolbar';
 import { ProviderIcon } from '@/components/ui/ProviderIcon';
+import { vectorDb } from '@/services/vectorDbService';
 
 interface PromptLabProps {
     activeSection: string | null;
@@ -42,7 +44,7 @@ export const PromptLab: React.FC<PromptLabProps> = ({ isSidebarOpen = false }) =
         activeIndustry, activeRole, selectedTones, toggleTone, clearIndustry, clearRole,
         requestChainOfThought, toggleChainOfThought, simpleIdea, expandIdea, isExpanding,
         resetAll, complexity, currentPromptId, llmConfig, totalInputTokens, totalOutputTokens,
-        assemblePrompt
+        assemblePrompt, activePersonaId
     } = usePrompt();
 
     const currentFramework = useMemo(() =>
@@ -154,6 +156,23 @@ export const PromptLab: React.FC<PromptLabProps> = ({ isSidebarOpen = false }) =
                 model: llmConfig?.model || 'unknown'
             });
             toast.success(`✓ "${title}" saved successfully!`);
+
+            // Also save to Vector Memory if available
+            if (vectorDb.isAvailable()) {
+                try {
+                    const vector = vectorDb.generateDummyEmbedding(generatedPrompt);
+                    await vectorDb.addDocuments('prompts', [{
+                        title,
+                        text: generatedPrompt,
+                        category: activeFramework,
+                        vector,
+                        timestamp: new Date().toISOString()
+                    }]);
+                    // toast.success("Added to AI Memory", { icon: '🧠' });
+                } catch (e) {
+                    console.error("Vector save failed", e);
+                }
+            }
 
             // Reset all fields after saving
             resetAll();
@@ -353,6 +372,21 @@ export const PromptLab: React.FC<PromptLabProps> = ({ isSidebarOpen = false }) =
             <div>
                 <SectionHeader title="Active Context" />
                 <div className="flex flex-col gap-3">
+                    {/* Level 0: Active AI Persona */}
+                    <div className="flex items-center gap-3 bg-indigo-50/50 p-3 rounded-lg border border-indigo-100/50">
+                        <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center shrink-0">
+                            <User size={16} className="text-indigo-600" />
+                        </div>
+                        <div className="min-w-0">
+                            <div className="text-xs font-bold text-indigo-900 truncate">
+                                {PERSONAS.find(p => p.id === activePersonaId)?.name || 'Default Assistant'}
+                            </div>
+                            <div className="text-[10px] text-indigo-600/80 truncate">
+                                {PERSONAS.find(p => p.id === activePersonaId)?.role || 'Standard AI'}
+                            </div>
+                        </div>
+                    </div>
+
                     {/* Level 1: Technical Stats (LLM & Tokens) */}
                     <div className="flex flex-wrap gap-2 items-center w-full pb-3 border-b border-dashed border-slate-200">
                         {llmConfig && (

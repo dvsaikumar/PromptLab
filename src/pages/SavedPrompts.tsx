@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Search, Trash2, Clock, BookOpen, X, FileText, FolderOpen, Edit, Cpu } from 'lucide-react';
-import { promptDB, SavedPrompt } from '@/services/database';
+import React, { useState, useEffect, useRef } from 'react';
+import { Search, Trash2, Clock, BookOpen, X, FileText, FolderOpen, Edit, Cpu, Download } from 'lucide-react';
+import { promptDB, SavedPrompt, IndexedDBPromptStorage } from '@/services/database';
 import { FRAMEWORKS, TONES, INDUSTRY_TEMPLATES, ROLE_PRESETS } from '@/constants';
 import toast from 'react-hot-toast';
 import { Card } from '@/components/ui/Card';
@@ -24,6 +24,8 @@ export const SavedPromptsLibrary: React.FC<SavedPromptsLibraryPropsExtended> = (
     const [allPrompts, setAllPrompts] = useState<SavedPrompt[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedPrompt, setSelectedPrompt] = useState<SavedPrompt | null>(null);
+    const [isMigrating, setIsMigrating] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const { loadPrompt } = usePrompt();
 
@@ -35,6 +37,93 @@ export const SavedPromptsLibrary: React.FC<SavedPromptsLibraryPropsExtended> = (
         const prompts = await promptDB.getAllPrompts();
         setAllPrompts(prompts);
         setSavedPrompts(prompts);
+    };
+
+    const handleImportFile = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            try {
+                const content = e.target?.result as string;
+                const data = JSON.parse(content);
+                // Support both single prompt object or array of prompts
+                const promptsToImport = Array.isArray(data) ? data : [data];
+
+                let count = 0;
+                for (const p of promptsToImport) {
+                    if (!p.title || !p.prompt) continue; // Basic validation
+                    const { id, ...promptData } = p;
+                    // Ensure fields that need to be strings are strings
+                    if (typeof promptData.fields === 'object') promptData.fields = JSON.stringify(promptData.fields);
+                    if (typeof promptData.tones === 'object') promptData.tones = JSON.stringify(promptData.tones);
+                    if (!promptData.createdAt) promptData.createdAt = new Date().toISOString();
+                    if (!promptData.updatedAt) promptData.updatedAt = new Date().toISOString();
+                    if (!promptData.framework) promptData.framework = 'custom';
+
+                    await promptDB.savePrompt(promptData);
+                    count++;
+                }
+                toast.success(`Imported ${count} prompts from file!`);
+                loadPrompts();
+            } catch (err) {
+                console.error(err);
+                toast.error("Failed to parse JSON file");
+            }
+            // Reset input
+            if (fileInputRef.current) fileInputRef.current.value = '';
+        };
+        reader.readAsText(file);
+    };
+
+    const handleMigrate = async () => {
+        // First try to read from Browser Storage (IndexedDB)
+        setIsMigrating(true);
+        try {
+            const browserDB = new IndexedDBPromptStorage();
+            const oldPrompts = await browserDB.getAllPrompts();
+
+            if (oldPrompts.length === 0) {
+                // If nothing in IndexedDB, ask user for a file
+                if (confirm("No data found in browser storage. Would you like to upload a JSON backup file instead?")) {
+                    fileInputRef.current?.click();
+                }
+                setIsMigrating(false);
+                return;
+            }
+
+            if (!confirm(`Found ${oldPrompts.length} prompts in browser storage. Import them now?`)) {
+                setIsMigrating(false);
+                return;
+            }
+
+            let count = 0;
+            const currentPrompts = await promptDB.getAllPrompts();
+
+            for (const p of oldPrompts) {
+                // Simple duplicate check by Title
+                const exists = currentPrompts.some(cp => cp.title === p.title && cp.createdAt === p.createdAt);
+                if (!exists) {
+                    // Remove ID to let new DB assign it
+                    const { id, ...promptData } = p;
+                    await promptDB.savePrompt(promptData);
+                    count++;
+                }
+            }
+
+            if (count > 0) {
+                toast.success(`Imported ${count} prompts from storage!`);
+                loadPrompts();
+            } else {
+                toast("All prompts are already imported.");
+            }
+        } catch (error) {
+            console.error(error);
+            toast.error("Migration failed");
+        } finally {
+            setIsMigrating(false);
+        }
     };
 
     const handleSearch = (query: string) => {
@@ -114,6 +203,31 @@ export const SavedPromptsLibrary: React.FC<SavedPromptsLibraryPropsExtended> = (
 
 
 
+    const handleExportBackup = async () => {
+        try {
+            const prompts = await promptDB.getAllPrompts();
+            if (prompts.length === 0) {
+                toast.error("No prompts to export");
+                return;
+            }
+
+            const backupData = JSON.stringify(prompts, null, 2);
+            const blob = new Blob([backupData], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `prompt_forge_backup_${new Date().toISOString().slice(0, 10)}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            toast.success(`Exported ${prompts.length} prompts`);
+        } catch (error) {
+            console.error(error);
+            toast.error("Export failed");
+        }
+    };
+
     const handleExport = (prompt: SavedPrompt, format: 'md' | 'txt' | 'json') => {
         let content = '';
         let mime = '';
@@ -174,15 +288,38 @@ export const SavedPromptsLibrary: React.FC<SavedPromptsLibraryPropsExtended> = (
 
     // Search Bar as right content for header
     const SearchBar = (
-        <div className="relative w-80">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-            <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => handleSearch(e.target.value)}
-                placeholder="Search prompts..."
-                className="w-full pl-11 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all bg-slate-50"
-            />
+        <div className="flex items-center gap-2">
+            <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExportBackup}
+                className="gap-2 text-slate-600 border-slate-300 hover:bg-slate-100"
+                title="Export all prompts to JSON"
+            >
+                <Download size={16} />
+                Export
+            </Button>
+            <Button
+                variant="outline"
+                size="sm"
+                onClick={handleMigrate}
+                disabled={isMigrating}
+                className="gap-2 text-slate-600 border-slate-300 hover:bg-slate-100"
+            >
+                <FolderOpen size={16} />
+                {isMigrating ? 'Importing...' : 'Import'}
+            </Button>
+            <div className="relative w-80">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => handleSearch(e.target.value)}
+                    placeholder="Search prompts..."
+                    className="w-full pl-11 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all bg-slate-50"
+                />
+            </div>
+            <input type="file" ref={fileInputRef} className="hidden" accept=".json,.txt" onChange={handleImportFile} />
         </div>
     );
 

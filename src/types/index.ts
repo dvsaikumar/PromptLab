@@ -50,6 +50,7 @@ export interface CompletionPayload {
     userPrompt: string;
     config: LLMConfig;
     temperature?: number;
+    images?: string[]; // Base64 data strings (e.g. "data:image/png;base64,iVBORw...")
 }
 
 export interface JsonPayload extends CompletionPayload {

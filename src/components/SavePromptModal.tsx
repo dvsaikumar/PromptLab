@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
 interface SavePromptModalProps {
@@ -28,9 +29,9 @@ export const SavePromptModal: React.FC<SavePromptModalProps> = ({ isOpen, onClos
         }
     };
 
-    return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-6">
-            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full">
+    return createPortal(
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[2000] p-6 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full animate-in zoom-in-95 duration-200">
                 <div className="flex items-center justify-between p-6 border-b border-slate-200">
                     <h3 className="text-xl font-bold text-slate-900">Save Prompt</h3>
                     <button
@@ -70,6 +71,7 @@ export const SavePromptModal: React.FC<SavePromptModalProps> = ({ isOpen, onClos
                     </button>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };

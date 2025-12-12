@@ -12,6 +12,8 @@ import { PromptLab } from '@/pages/PromptLab';
 import { ToneShifter } from '@/pages/ToneShifter';
 import { SavedPromptsLibrary } from '@/pages/SavedPrompts';
 import { TemplatePage } from '@/pages/TemplatePage';
+import { ChainReactionPage } from '@/pages/ChainReactionPage';
+import { ReversePrompt } from '@/pages/ReversePromptPage';
 import { promptDB } from '@/services/database';
 
 const AppContent: React.FC = () => {
@@ -58,6 +60,10 @@ const AppContent: React.FC = () => {
                 return <MyHub isSidebarOpen={isSidebarOpen} />;
             case 'prompt-lab':
                 return <PromptLab activeSection={activeSection} toggleSection={toggleSection} isSidebarOpen={isSidebarOpen} />;
+            case 'reverse-prompt':
+                return <ReversePrompt isSidebarOpen={isSidebarOpen} />;
+            case 'chain-reaction':
+                return <ChainReactionPage isSidebarOpen={isSidebarOpen} />;
             case 'tone-shifter':
                 return <ToneShifter isSidebarOpen={isSidebarOpen} />;
             case 'saved-prompts':
