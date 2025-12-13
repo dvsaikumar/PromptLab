@@ -45,53 +45,7 @@ interface PromptNodeData {
     tone?: string;
     files?: { name: string, size: string, content: string }[];
     onNodeClick?: (id: string) => void;
-    toolType?: 'web' | 'code'; // Agent Type
 }
-
-// Mock Agent Tools
-const performWebSearch = async (query: string): Promise<string> => {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 1500));
-
-    // Determine context from query for realistic mock
-    const q = query.toLowerCase();
-    let findings = "";
-
-    if (q.includes("agent") || q.includes("ai")) {
-        findings = `1. Enterprise AI Agents are projected to automate 40% of routine workflows by 2026.\n2. Key frameworks include LangChain, AutoGen, and CrewAI.\n3. Security and "Human-in-the-loop" remain top concerns for CTOs.`;
-    } else if (q.includes("python") || q.includes("code")) {
-        findings = `1. Python 3.12 introduces performance improvements.\n2. Top libraries for AI: PyTorch, TensorFlow, HuggingFace Transformers.\n3. Best practice: Use virtual environments.`;
-    } else {
-        findings = `1. Search Result A for "${query}"\n2. Search Result B: Relevance High.\n3. Recent news indicates growing interest in this topic.`;
-    }
-
-    return `### 🌍 Web Agent Results\n**Query:** "${query}"\n\n**Key Findings:**\n${findings}\n\n*Source: Simulated Live Search (Serper/Tavily)*`;
-};
-
-const executeSandboxCode = async (code: string, input: string): Promise<string> => {
-    await new Promise(resolve => setTimeout(resolve, 800)); // Processing delay
-    try {
-        // Safe evaluation simulation - we can actually run simple JS logic
-        // We wrap it to allow 'input' access and ensure return
-        // Note: For a real app, use a Web Worker or a Sandboxed IFrame or Server-side execution.
-        // Here we rely on 'new Function' which shares scope but we limit it.
-
-        let safeCode = code;
-        if (!code.includes('return')) {
-            safeCode = `return "Code executed but no return statement found. Input was: " + input.length + " chars.";`;
-        }
-
-        // Basic console capture (optional, simplified here)
-        const runner = new Function('input', safeCode);
-        const result = runner(input);
-
-        // Handle objects/arrays
-        if (typeof result === 'object') return JSON.stringify(result, null, 2);
-        return String(result);
-    } catch (e: any) {
-        throw new Error(`Code Execution Failed: ${e.message}`);
-    }
-};
 
 const initialNodes: Node<PromptNodeData>[] = [
     {
@@ -572,68 +526,42 @@ export const ChainReactionPage: React.FC<ChainReactionPageProps> = ({ isSidebarO
                 // 3. Execute
                 updateNodeData(nodeId, { status: 'running' });
 
-                let result = '';
+                // Determine Provider and Config
+                const stepProviderId = (node.data.providerId || llmConfig.providerId) as LLMProviderId;
+                let effectiveConfig = llmConfig;
 
-                // BRANCH: Check Tool Type
-                if (node.data.toolType === 'web') {
-                    // --- WEB AGENT ---
+                // If step uses a different provider than global, try to fetch its config
+                if (stepProviderId !== llmConfig.providerId) {
                     try {
-                        result = await performWebSearch(finalPrompt);
-                        updateNodeData(nodeId, { status: 'complete', output: result });
-                        outputs.set(nodeId, result);
-                    } catch (err: any) {
-                        updateNodeData(nodeId, { status: 'error', output: `Agent Error: ${err.message}` });
-                        throw err;
+                        const { llmConfigDB } = await import('@/services/llmConfigDB');
+                        const saved = await llmConfigDB.getConfig(stepProviderId);
+                        if (saved) {
+                            effectiveConfig = saved;
+                        }
+                    } catch (e) {
+                        // console.error("Config fetch failed", e);
                     }
-                } else if (node.data.toolType === 'code') {
-                    // --- CODE AGENT ---
+                }
+
+                let result = '';
+                if (finalPrompt.trim()) {
                     try {
-                        result = await executeSandboxCode(finalPrompt, combinedInput);
-                        updateNodeData(nodeId, { status: 'complete', output: result });
+                        result = await LLMService.getInstance().getProvider(stepProviderId).generateCompletion({
+                            userPrompt: finalPrompt,
+                            config: effectiveConfig,
+                            temperature: 0.7
+                        });
+
                         outputs.set(nodeId, result);
+                        updateNodeData(nodeId, { status: 'complete', output: result });
                     } catch (err: any) {
-                        updateNodeData(nodeId, { status: 'error', output: `Agent Error: ${err.message}` });
+                        updateNodeData(nodeId, { status: 'error', output: `Error: ${err.message}` });
                         throw err;
                     }
                 } else {
-                    // --- LLM (STANDARD) ---
-                    // Determine Provider and Config
-                    const stepProviderId = (node.data.providerId || llmConfig.providerId) as LLMProviderId;
-                    let effectiveConfig = llmConfig;
-
-                    // If step uses a different provider than global, try to fetch its config
-                    if (stepProviderId !== llmConfig.providerId) {
-                        try {
-                            const { llmConfigDB } = await import('@/services/llmConfigDB');
-                            const allConfigs = await llmConfigDB.getAllConfigs();
-                            const saved = allConfigs.find(c => c.providerId === stepProviderId);
-                            if (saved) {
-                                effectiveConfig = saved;
-                            }
-                        } catch (e) {
-                            // console.error("Config fetch failed", e);
-                        }
-                    }
-
-                    if (finalPrompt.trim()) {
-                        try {
-                            result = await LLMService.getInstance().getProvider(stepProviderId).generateCompletion({
-                                userPrompt: finalPrompt,
-                                config: effectiveConfig,
-                                temperature: 0.7
-                            });
-
-                            outputs.set(nodeId, result);
-                            updateNodeData(nodeId, { status: 'complete', output: result });
-                        } catch (err: any) {
-                            updateNodeData(nodeId, { status: 'error', output: `Error: ${err.message}` });
-                            throw err;
-                        }
-                    } else {
-                        result = combinedInput;
-                        outputs.set(nodeId, combinedInput);
-                        updateNodeData(nodeId, { status: 'complete', output: combinedInput });
-                    }
+                    result = combinedInput;
+                    outputs.set(nodeId, combinedInput);
+                    updateNodeData(nodeId, { status: 'complete', output: combinedInput });
                 }
 
                 // Track Step
@@ -787,7 +715,6 @@ export const ChainReactionPage: React.FC<ChainReactionPageProps> = ({ isSidebarO
                         nodeTypes={nodeTypes}
                         fitView
                         attributionPosition="bottom-right"
-                        onNodeClick={(_, node) => handleNodeClick(node.id)}
                     >
                         <Background color="#cbd5e1" gap={16} />
                         <Controls />
