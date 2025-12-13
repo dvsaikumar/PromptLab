@@ -1,23 +1,25 @@
 import React, { useRef, useState } from 'react';
 import {
     X, ChevronDown, ChevronUp,
-    RefreshCw, Lightbulb
+    HelpCircle, RefreshCw, Lightbulb, Sparkles
 } from 'lucide-react';
 import { usePrompt } from '@/contexts/PromptContext';
+import { Tooltip } from '@/components/ui/Tooltip';
 import { clsx } from 'clsx';
 import { TextStats } from '@/components/ui/TextStats';
-
 import { estimateTokens } from '@/utils/tokenEstimator';
 
-interface InputFieldProps {
+export interface InputFieldProps {
     id: string;
     label: string;
     description: string;
     placeholder?: string;
     isReadOnly?: boolean;
+    compact?: boolean;
+    minRows?: number;
 }
 
-export const InputField: React.FC<InputFieldProps> = ({ id, label, description, isReadOnly, placeholder }) => {
+export const InputField: React.FC<InputFieldProps> = ({ id, label, description, isReadOnly, placeholder, compact = false, minRows }) => {
     const {
         fields, setField, generateSuggestions, generatePrompt, llmConfig
     } = usePrompt();
@@ -27,8 +29,6 @@ export const InputField: React.FC<InputFieldProps> = ({ id, label, description, 
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [suggestions, setSuggestions] = useState<string[]>([]);
     const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
-
-
 
     // Validation
     const getValidation = (text: string) => {
@@ -42,7 +42,6 @@ export const InputField: React.FC<InputFieldProps> = ({ id, label, description, 
     const validation = getValidation(value);
 
     // Handlers
-
     const handleSuggestion = async () => {
         setIsLoadingSuggestions(true);
         const result = await generateSuggestions(id);
@@ -73,13 +72,27 @@ export const InputField: React.FC<InputFieldProps> = ({ id, label, description, 
     }, [value, isCollapsed]);
 
     return (
-        <div className="mb-6">
-            <div className="flex justify-between items-center mb-2">
-                <label htmlFor={id} className="block text-xl font-bold text-slate-900">
-                    {label}
-                </label>
+        <div className={compact ? "mb-4" : "mb-6"}>
+            <div className={clsx("flex justify-between items-center", compact ? "mb-1" : "mb-2")}>
+                <div className="flex items-center gap-2">
+                    <label htmlFor={id} className={clsx("font-bold text-slate-900", compact ? "text-sm" : "text-xl")}>
+                        {label}
+                    </label>
+                    <Tooltip content={description}>
+                        <HelpCircle size={compact ? 12 : 16} className="text-slate-400 cursor-help" />
+                    </Tooltip>
+                </div>
                 <div className="flex items-center space-x-2">
-                    <span className={clsx("text-sm font-semibold", validation.color)}>
+                    <button
+                        onClick={handleSuggestion}
+                        disabled={isLoadingSuggestions}
+                        className="flex items-center gap-1.5 text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-2 py-1 rounded-md transition-colors text-xs font-bold"
+                        title="AI Enhance"
+                    >
+                        {isLoadingSuggestions ? <RefreshCw size={12} className="animate-spin" /> : <Sparkles size={12} />}
+                        AI Enhance
+                    </button>
+                    <span className={clsx("font-semibold", validation.color, compact ? "text-xs" : "text-sm")}>
                         {validation.message}
                     </span>
                     <button
@@ -87,12 +100,12 @@ export const InputField: React.FC<InputFieldProps> = ({ id, label, description, 
                         className="text-black-400 hover:text-black-600 transition-colors p-1 rounded-md"
                         title={isCollapsed ? "Expand" : "Collapse"}
                     >
-                        {isCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
+                        {isCollapsed ? <ChevronDown size={compact ? 14 : 16} /> : <ChevronUp size={compact ? 14 : 16} />}
                     </button>
                 </div>
             </div>
 
-            <p className="text-base text-slate-500 mb-3">{description}</p>
+            {!compact && <p className="text-base text-slate-500 mb-3">{description}</p>}
 
             <div className="relative">
                 {!isCollapsed && (
@@ -104,10 +117,11 @@ export const InputField: React.FC<InputFieldProps> = ({ id, label, description, 
                                 onChange={(e) => setField(id, e.target.value)}
                                 onKeyDown={handleKeyDown}
                                 disabled={isReadOnly}
-                                placeholder={placeholder || `Enter ${label.toLowerCase()}... (Ctrl+Enter to generate)`}
-                                rows={Math.max(3, value.split('\n').length)}
+                                placeholder={placeholder || `Enter ${label.toLowerCase()}... (Ctrl + Enter to generate)`}
+                                rows={Math.max(minRows ?? (compact ? 2 : 3), value.split('\n').length)}
                                 className={clsx(
-                                    "w-full px-4 pt-4 pb-12 rounded-xl text-base transition-all resize-none overflow-hidden form-input",
+                                    "w-full rounded-xl transition-all resize-none overflow-hidden form-input",
+                                    compact ? "px-3 py-2 text-sm" : "px-4 pt-4 pb-12 text-base",
                                     isReadOnly
                                         ? "bg-slate-50 text-slate-500 cursor-not-allowed border border-slate-300"
                                         : "input-premium text-slate-700 placeholder:text-slate-400",

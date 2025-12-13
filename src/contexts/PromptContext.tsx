@@ -5,6 +5,8 @@ import { LLMService } from '../services/llm';
 import { estimateTokens } from '../utils/tokenEstimator';
 import toast from 'react-hot-toast';
 import { llmConfigDB } from '../services/llmConfigDB';
+import { promptDB } from '../services/database';
+import { vectorDb } from '../services/vectorDbService';
 import { PERSONAS } from '../constants/personas';
 
 interface PromptContextType {
@@ -538,6 +540,46 @@ Tone target: ${toneLabels || 'Professional, Precise, and Direct'}.`;
 
             setGeneratedPrompt(result);
             setExecutionTime((Date.now() - startTime) / 1000);
+
+            // Auto-Save to History
+            // Fire-and-Forget: Save to History & Vector DB
+            const historyData = {
+                framework: activeFramework,
+                prompt: result,
+                fields: JSON.stringify(fields),
+                tones: JSON.stringify(selectedTones),
+                industry: activeIndustry || undefined,
+                role: activeRole || undefined,
+                simpleIdea,
+                createdAt: new Date().toISOString(),
+                providerId: llmConfig.providerId,
+                model: llmConfig.model
+            };
+
+            const savePromises: Promise<any>[] = [
+                promptDB.addHistory(historyData).catch(e => console.error("History save failed", e))
+            ];
+
+            if (vectorDb.isAvailable()) {
+                try {
+                    const vector = vectorDb.generateDummyEmbedding(result);
+                    savePromises.push(
+                        vectorDb.addDocuments('prompts', [{
+                            title: simpleIdea || "Generated History",
+                            text: result,
+                            category: 'history',
+                            vector,
+                            timestamp: new Date().toISOString()
+                        }]).catch(e => console.error("Vector history save failed", e))
+                    );
+                } catch (e) {
+                    console.error("Vector generation failed", e);
+                }
+            }
+
+            // Execute without awaiting (fire-and-forget)
+            Promise.all(savePromises);
+
             await analyzeQuality(result);
 
         } catch (error: any) {
@@ -694,12 +736,29 @@ Tone target: ${toneLabels || 'Professional, Precise, and Direct'}.`;
         if (llmConfig.providerId !== 'local' && !llmConfig.apiKey) return [];
 
         try {
+            if (fieldId === 'simpleIdea') {
+                const prompt = `Provide 3 concrete, creative refinements or specific examples for this initial prompt idea:
+                "${simpleIdea}"
+                
+                Goal: Make it more specific, actionable, or detailed.
+                Respond JSON: { "suggestions": ["s1", "s2", "s3"] }`;
+
+                const res = await getLLMService().generateJSON<{ suggestions: string[] }>({
+                    userPrompt: prompt,
+                    config: llmConfig,
+                    temperature: 0.7
+                });
+                return res.suggestions || [];
+            }
+
             const framework = getCurrentFramework();
             const field = framework.fields.find(f => f.id === fieldId);
-            const contextFields = framework.fields.slice(0, framework.fields.indexOf(field!));
+            if (!field) return [];
+
+            const contextFields = framework.fields.slice(0, framework.fields.indexOf(field));
             const contextStr = contextFields.map(f => `${f.label}: ${fields[f.id] || ''}`).join('\n');
 
-            const prompt = `Provide 3 smart suggestions for the "${field?.label}" field in ${framework.name} framework.
+            const prompt = `Provide 3 smart suggestions for the "${field.label}" field in ${framework.name} framework.
         Context: ${contextStr}
         Current Input: "${fields[fieldId] || ''}"
         Respond JSON: { "suggestions": ["s1", "s2", "s3"] }`;

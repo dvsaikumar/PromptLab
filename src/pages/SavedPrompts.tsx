@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, Trash2, Clock, BookOpen, X, FileText, FolderOpen, Edit, Cpu, Download } from 'lucide-react';
 import { promptDB, SavedPrompt, IndexedDBPromptStorage } from '@/services/database';
+import { vectorDb } from '@/services/vectorDbService';
 import { FRAMEWORKS, TONES, INDUSTRY_TEMPLATES, ROLE_PRESETS } from '@/constants';
 import toast from 'react-hot-toast';
 import { Card } from '@/components/ui/Card';
@@ -63,6 +64,22 @@ export const SavedPromptsLibrary: React.FC<SavedPromptsLibraryPropsExtended> = (
                     if (!promptData.framework) promptData.framework = 'custom';
 
                     await promptDB.savePrompt(promptData);
+
+                    // Sync Vector DB
+                    if (vectorDb.isAvailable()) {
+                        try {
+                            const vector = vectorDb.generateDummyEmbedding(promptData.prompt);
+                            await vectorDb.addDocuments('prompts', [{
+                                title: promptData.title,
+                                text: promptData.prompt,
+                                category: promptData.framework,
+                                vector,
+                                timestamp: promptData.createdAt
+                            }]);
+                        } catch (e) {
+                            console.warn("Vector index failed for import", e);
+                        }
+                    }
                     count++;
                 }
                 toast.success(`Imported ${count} prompts from file!`);
@@ -108,6 +125,22 @@ export const SavedPromptsLibrary: React.FC<SavedPromptsLibraryPropsExtended> = (
                     // Remove ID to let new DB assign it
                     const { id, ...promptData } = p;
                     await promptDB.savePrompt(promptData);
+
+                    // Sync Vector DB
+                    if (vectorDb.isAvailable()) {
+                        try {
+                            const vector = vectorDb.generateDummyEmbedding(promptData.prompt);
+                            await vectorDb.addDocuments('prompts', [{
+                                title: promptData.title,
+                                text: promptData.prompt,
+                                category: promptData.framework,
+                                vector,
+                                timestamp: promptData.createdAt
+                            }]);
+                        } catch (e) {
+                            console.warn("Vector index failed for migration", e);
+                        }
+                    }
                     count++;
                 }
             }

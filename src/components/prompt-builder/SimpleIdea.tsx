@@ -1,31 +1,46 @@
 import React, { useRef, useState } from 'react';
-import { Sparkles, Upload, Loader2, FileText, X, Image as ImageIcon, File, Zap, Layers, Brain, BookTemplate, Search } from 'lucide-react';
+import { Sparkles, Upload, Loader2, FileText, X, Image as ImageIcon, File, Zap, Layers, Brain, BookTemplate, Search, Lightbulb, RefreshCw, SlidersHorizontal } from 'lucide-react';
 import { usePrompt } from '@/contexts/PromptContext';
 import { processFile } from '@/utils/fileProcessor';
 import toast from 'react-hot-toast';
 import { TextStats } from '@/components/ui/TextStats';
 import { SelectionCard } from '@/components/ui/SelectionCard';
-import { Card } from '@/components/ui/Card';
 import { estimateTokens } from '@/utils/tokenEstimator';
-import { LLMSelector } from '@/components/ui/LLMSelector';
-import { PersonaSelector } from '@/components/ui/PersonaSelector';
 
-type SimpleIdeaProps = {
+
+import { Button } from '@/components/ui/Button';
+
+export interface SimpleIdeaProps {
     isOpen: boolean;
     onToggle: () => void;
     isSidebarOpen?: boolean;
-};
+    hideHeader?: boolean;
+}
 
-export const SimpleIdea: React.FC<SimpleIdeaProps> = () => {
+export const SimpleIdea: React.FC<SimpleIdeaProps> = ({ hideHeader = false }) => {
     const {
         simpleIdea, setSimpleIdea, selectedTones, attachments,
         addAttachment, removeAttachment, expandIdea, complexity,
-        setComplexity, llmConfig, activePersonaId, setActivePersonaId
+        setComplexity, llmConfig, setActivePersonaId, generateSuggestions
     } = usePrompt();
     const fileRef = useRef<HTMLInputElement>(null);
     const [isProcessingFile, setIsProcessingFile] = useState(false);
     const [showTemplates, setShowTemplates] = useState(false);
     const [templateSearch, setTemplateSearch] = useState('');
+    const [suggestions, setSuggestions] = useState<string[]>([]);
+    const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+
+    const handleSuggestion = async () => {
+        setIsLoadingSuggestions(true);
+        const result = await generateSuggestions('simpleIdea');
+        setSuggestions(result);
+        setIsLoadingSuggestions(false);
+    };
+
+    const applySuggestion = (text: string) => {
+        setSimpleIdea(text);
+        setSuggestions([]);
+    };
 
     const TEMPLATES = [
         {
@@ -129,41 +144,43 @@ export const SimpleIdea: React.FC<SimpleIdeaProps> = () => {
     };
 
     return (
-        <div className="px-3 pb-6 pt-4 custom-scrollbar bg-slate-50/50 animate-in fade-in slide-in-from-right-4 duration-300">
-            <Card hoverLift className="mb-6 relative group overflow-hidden border-slate-200 shadow-sm transition-all text-slate-700">
-                <div className="relative">
-                    <textarea
-                        value={simpleIdea}
-                        onChange={(e) => setSimpleIdea(e.target.value)}
-                        onKeyDown={handleKeyDown}
-                        placeholder="Describe your goal... (e.g., 'Create a LinkedIn post about AI safety for CTOs') (Ctrl+Enter to Auto-Expand)"
-                        className="w-full h-[calc(100vh-700px)] min-h-[120px] bg-transparent border-none focus:ring-0 resize-none transition-all placeholder:text-slate-300 text-base text-slate-700 disabled:opacity-50 disabled:cursor-not-allowed outline-none p-4"
-                        disabled={isProcessingFile}
-                        spellCheck={false}
-                    />
+        <>
+            {/* Main Input Area - Styled to match ReversePromptPage and Configuration Grid */}
+            <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex flex-col min-h-[500px]">
+                <div className="flex items-center justify-between mb-2">
+                    {!hideHeader && (
+                        <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2 uppercase tracking-wide opacity-90">
+                            <div className="p-1 rounded-md bg-amber-100 text-amber-600">
+                                <Sparkles size={14} />
+                            </div>
+                            Core Input
+                        </h3>
+                    )}
+                    {/* Make sure we take up space if header is hidden or keep alignment */}
+                    {hideHeader && <div></div>}
 
-                    <TextStats text={simpleIdea} tokenCount={estimateTokens(simpleIdea, llmConfig?.model || '')} className="bottom-0 left-0 border-slate-200/50 bg-slate-50/80" />
-
-                    <input
-                        type="file"
-                        ref={fileRef}
-                        className="hidden"
-                        accept=".txt,.md,.json,.csv,.docx,.pdf,image/*"
-                        onChange={handleFileUpload}
-                    />
-
-                    <div className="absolute top-3 right-3 flex items-center gap-2 z-10">
-                        <div
-                            className="relative"
+                    <div className="flex gap-2">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleSuggestion}
+                            disabled={simpleIdea.length < 5 || isLoadingSuggestions}
+                            className="gap-1.5 text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700 font-bold"
+                            leftIcon={isLoadingSuggestions ? <RefreshCw size={14} className="animate-spin" /> : <Sparkles size={14} />}
                         >
-                            <button
+                            AI Enhance
+                        </Button>
+                        <div className="w-px h-6 bg-slate-200 mx-1 self-center"></div>
+                        <div className="relative">
+                            <Button
+                                variant="ghost"
+                                size="sm"
                                 onClick={() => setShowTemplates(!showTemplates)}
-                                className="flex items-center px-3 py-1.5 bg-indigo-50 text-indigo-600 border border-indigo-100 hover:bg-indigo-100 hover:border-indigo-200 rounded-lg transition-all shadow-sm"
-                                title="Use a Starter"
+                                className="gap-2 text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700"
+                                rightIcon={<BookTemplate size={14} />}
                             >
-                                <BookTemplate size={16} className="text-indigo-400 group-hover:text-indigo-600 transition-colors" />
-                                <span className="text-xs font-semibold ml-2">Idea Starters</span>
-                            </button>
+                                Starters
+                            </Button>
 
                             {showTemplates && (
                                 <>
@@ -206,109 +223,101 @@ export const SimpleIdea: React.FC<SimpleIdeaProps> = () => {
                             )}
                         </div>
 
-                        <button
+                        <div className="w-px h-6 bg-slate-200 mx-1 self-center"></div>
+
+                        <Button
+                            variant="outline"
+                            size="sm"
                             onClick={() => fileRef.current?.click()}
                             disabled={isProcessingFile}
-                            className="flex items-center px-3 py-1.5 bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300 rounded-lg transition-all shadow-sm disabled:opacity-50"
-                            title="Attach context file"
+                            className="gap-2"
                         >
-                            {isProcessingFile ? <Loader2 size={16} className="animate-spin text-indigo-500" /> : <Upload size={16} />}
-                            <span className="text-xs font-semibold ml-2">Attach</span>
-                        </button>
+                            {isProcessingFile ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />} Attach
+                        </Button>
                     </div>
                 </div>
-            </Card>
 
-            {/* Attachments List */}
-            {attachments.length > 0 && (
-                <div className="flex flex-wrap gap-2 mb-4 animate-in fade-in slide-in-from-top-2">
-                    {attachments.map((file) => (
-                        <div key={file.name} className="flex items-center gap-2 pl-2.5 pr-1.5 py-1.5 bg-white border border-slate-200 rounded-lg shadow-sm group hover:border-indigo-300 transition-colors">
-                            {getIconForType(file.type)}
-                            <span className="text-xs font-medium text-slate-700 max-w-[150px] truncate" title={file.name}>
-                                {file.name}
-                            </span>
-                            <button
-                                onClick={() => removeAttachment(file.name)}
-                                className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
-                                title="Remove file"
-                            >
-                                <X size={12} />
-                            </button>
+                {/* Attachments List (Moved Top) */}
+                {attachments.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mb-3">
+                        {attachments.map((file) => (
+                            <div key={file.name} className="flex items-center gap-2 pl-2.5 pr-1.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg shadow-sm group hover:border-indigo-300 transition-colors">
+                                {getIconForType(file.type)}
+                                <span className="text-xs font-medium text-slate-700 max-w-[150px] truncate" title={file.name}>
+                                    {file.name}
+                                </span>
+                                <button
+                                    onClick={() => removeAttachment(file.name)}
+                                    className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
+                                    title="Remove file"
+                                >
+                                    <X size={12} />
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                <div className="relative group flex-1 flex flex-col min-h-0">
+                    <textarea
+                        value={simpleIdea}
+                        onChange={(e) => setSimpleIdea(e.target.value)}
+                        onKeyDown={handleKeyDown}
+                        placeholder="Describe your goal... (e.g., 'Create a LinkedIn post about AI safety for CTOs') (Ctrl+Enter to Auto-Expand)"
+                        className="w-full flex-1 bg-slate-50 border border-slate-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all font-mono text-sm leading-relaxed p-3 text-slate-700 placeholder:text-slate-400"
+                        disabled={isProcessingFile}
+                        spellCheck={false}
+                    />
+
+                    <TextStats text={simpleIdea} tokenCount={estimateTokens(simpleIdea, llmConfig?.model || '')} className="bottom-3 left-4 border-slate-200/50 bg-slate-50/80 scale-90" />
+
+                    {/* AI Assistant Button (Moved to Header) */}
+
+                    {/* Suggestions Panel */}
+                    {suggestions.length > 0 && (
+                        <div className="absolute bottom-12 left-0 right-0 z-30 mx-4 mb-2 bg-white/95 backdrop-blur-md rounded-xl p-3 border border-indigo-100 shadow-xl animate-in fade-in slide-in-from-bottom-2">
+                            <div className="flex justify-between items-center mb-2 px-1">
+                                <span className="text-xs font-bold text-indigo-600 flex items-center gap-1.5 uppercase tracking-wider">
+                                    <Sparkles size={12} /> Refine Idea
+                                </span>
+                                <button onClick={() => setSuggestions([])} className="text-slate-400 hover:text-indigo-500 transition-colors p-1 hover:bg-indigo-50 rounded-lg">
+                                    <X size={14} />
+                                </button>
+                            </div>
+                            <div className="space-y-2">
+                                {suggestions.map((s, i) => (
+                                    <button
+                                        key={i}
+                                        onClick={() => applySuggestion(s)}
+                                        className="w-full text-left p-2.5 bg-indigo-50/50 hover:bg-indigo-100/50 border border-indigo-100 hover:border-indigo-200 rounded-lg text-sm text-slate-700 transition-all group/item"
+                                    >
+                                        <div className="flex gap-2">
+                                            <span className="text-indigo-400 font-bold text-xs mt-0.5">{i + 1}</span>
+                                            <span className="leading-relaxed text-xs">{s}</span>
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
                         </div>
-                    ))}
-                </div>
-            )}
-
-            {/* Configuration Helpers */}
-            <div className="mb-6 space-y-4">
-
-                {/* Top Row: Engine & Persona */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* AI Model Selector */}
-                    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-1">
-                        <LLMSelector
-                            onOpenSettings={() => window.dispatchEvent(new Event('open-settings-modal'))}
-                            className="bg-transparent border-0 shadow-none !p-0"
-                        />
-                    </div>
-
-                    {/* Persona Selector */}
-                    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-1">
-                        <PersonaSelector
-                            activePersonaId={activePersonaId}
-                            setActivePersonaId={setActivePersonaId}
-                            className="bg-transparent border-0 shadow-none !p-0"
-                        />
-                    </div>
+                    )}
                 </div>
 
-                {/* Complexity Selector */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <SelectionCard
-                        title="Direct & Simple"
-                        description="Concise outputs"
-                        icon={<Zap size={24} />}
-                        activeColor="green"
-                        isSelected={complexity === 'direct'}
-                        onClick={() => setComplexity('direct')}
-                        showActiveIndicator
-                        className="h-full"
-                    />
+                <input
+                    type="file"
+                    ref={fileRef}
+                    className="hidden"
+                    accept=".txt,.md,.json,.csv,.docx,.pdf,image/*"
+                    onChange={handleFileUpload}
+                />
 
-                    <SelectionCard
-                        title="Contextual"
-                        description="Organized flow"
-                        icon={<Layers size={24} />}
-                        activeColor="orange"
-                        isSelected={complexity === 'contextual'}
-                        onClick={() => setComplexity('contextual')}
-                        showActiveIndicator
-                        className="h-full"
-                    />
-
-                    <SelectionCard
-                        title="Detailed"
-                        description="In-depth analysis"
-                        icon={<Brain size={24} />}
-                        activeColor="red"
-                        isSelected={complexity === 'detailed'}
-                        onClick={() => setComplexity('detailed')}
-                        showActiveIndicator
-                        className="h-full"
-                    />
-                </div>
-            </div>
-
-            {/* Tip */}
-            {
-                !selectedTones.length && simpleIdea.length > 5 && (
-                    <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 rounded-lg border border-amber-100 text-amber-700 animate-in fade-in">
+                {/* Tip (Inside Container) */}
+                {!selectedTones.length && simpleIdea.length > 5 && (
+                    <div className="mt-3 flex items-center gap-2 px-3 py-2 bg-amber-50 rounded-lg border border-amber-100 text-amber-700 animate-in fade-in">
                         <Sparkles size={14} className="text-amber-500" />
-                        <p className="text-xs font-semibold">Pro Tip: Select a tone below to enable smart auto-expansion.</p>
+                        <p className="text-xs font-semibold">Pro Tip: Select a tone above to enable smart auto-expansion.</p>
                     </div>
-                )
-            }
-        </div>
+                )}
+            </div>
+        </>
     );
 };

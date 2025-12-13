@@ -79,7 +79,7 @@ export const PageTemplate: React.FC<PageTemplateProps> = ({
             <main
                 className={clsx(
                     "fixed top-[144px] bottom-16 right-0 overflow-y-auto custom-scrollbar transition-all duration-300",
-                    "pl-10 pr-10 py-6",
+                    "pl-4 pr-4 py-6",
                     isSidebarOpen ? "lg:left-64" : "lg:left-16",
                     "left-0",
                     className

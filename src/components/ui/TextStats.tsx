@@ -17,24 +17,24 @@ export const TextStats: React.FC<TextStatsProps> = ({ text, charCount: propCharC
     const wordCount = propWordCount ?? (text ? text.trim().split(/\s+/).filter(w => w.length > 0).length : 0);
 
     return (
-        <div className={clsx("flex gap-3 items-center text-xs font-semibold text-slate-400 px-3 py-1.5 rounded-lg select-none pointer-events-none", className)}>
-            <span>{charCount} chars</span>
-            <div className="w-px h-3 bg-slate-300 my-auto" />
-            <span>{wordCount} words</span>
+        <div className={clsx("flex gap-4 items-center text-[13px] font-medium text-slate-500 px-4 py-2 rounded-lg select-none pointer-events-none bg-white/50 backdrop-blur-sm", className)}>
+            <span className="tracking-tight">{charCount} <span className="opacity-70 font-normal">chars</span></span>
+            <div className="w-px h-3 bg-slate-200" />
+            <span className="tracking-tight">{wordCount} <span className="opacity-70 font-normal">words</span></span>
             {(tokenCount !== undefined || contextTokenCount !== undefined) && (
                 <>
-                    <div className="w-px h-3 bg-slate-300 my-auto" />
-                    <span className="text-indigo-400">
-                        {contextTokenCount !== undefined && <span>In: {contextTokenCount} {tokenCount !== undefined && '| '}</span>}
+                    <div className="w-px h-3 bg-slate-200" />
+                    <span className="text-indigo-600 font-semibold tracking-tight">
+                        {contextTokenCount !== undefined && <span>In: {contextTokenCount} {tokenCount !== undefined && <span className="text-slate-200 mx-1">|</span>}</span>}
                         {tokenCount !== undefined && <span>Out: {tokenCount}</span>}
-                        {contextTokenCount === undefined && tokenCount !== undefined && <span> tokens</span>}
+                        {contextTokenCount === undefined && tokenCount !== undefined && <span className="opacity-70 font-normal ml-1">tokens</span>}
                     </span>
                 </>
             )}
             {executionTime !== undefined && (
                 <>
-                    <div className="w-px h-3 bg-slate-300 my-auto" />
-                    <span>{executionTime.toFixed(2)}s</span>
+                    <div className="w-px h-3 bg-slate-200" />
+                    <span className="tabular-nums text-slate-600">{executionTime.toFixed(2)}s</span>
                 </>
             )}
         </div>

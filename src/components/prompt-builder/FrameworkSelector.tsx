@@ -4,17 +4,21 @@ import { FRAMEWORKS } from '@/constants';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { SelectionCard } from '@/components/ui/SelectionCard';
 
-type FrameworkSelectorProps = {
+
+
+export interface FrameworkSelectorProps {
     isOpen: boolean;
     onToggle: () => void;
     isSidebarOpen?: boolean;
-};
+    hideHeader?: boolean;
+    compact?: boolean;
+}
 
-export const FrameworkSelector: React.FC<FrameworkSelectorProps> = () => {
+export const FrameworkSelector: React.FC<FrameworkSelectorProps> = ({ hideHeader = false, compact = false }) => {
     const { activeFramework, setFramework } = usePrompt();
 
     return (
-        <div className="px-3 pb-6 pt-4 custom-scrollbar bg-slate-50/50 animate-in fade-in slide-in-from-right-4 duration-300 grid grid-cols-2 gap-6">
+        <div className={`custom-scrollbar bg-slate-50/50 animate-in fade-in slide-in-from-right-4 duration-300 ${compact ? 'grid grid-cols-1 gap-3 p-2' : 'grid grid-cols-1 md:grid-cols-2 gap-6 px-6 pb-6 pt-4'}`}>
             {['Essentials (Simple & Direct)', 'Strategic (Business & Marketing)', 'Analytical (Complex & Detailed)', 'Refinement (Optimization)', 'Technical & Architecture', 'Other'].map(category => {
                 const categoryFrameworks = FRAMEWORKS.filter(f => {
                     const id = f.id;

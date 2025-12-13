@@ -57,7 +57,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
         }
     }, [isOpen, llmConfig]);
 
-    const handleSave = () => {
+    const handleSave = async () => {
         // Validate API key before saving
         if (apiKey && apiKey.trim()) {
             const validation = securityManager.validateApiKey(providerId, apiKey);
@@ -70,34 +70,42 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
             }
         }
 
-        updateConfig({
+        const newConfig = {
             providerId,
             apiKey,
             model,
             baseUrl: baseUrl || undefined
-        });
-
-        const providerNames: Record<LLMProviderId, string> = {
-            'anthropic': 'Anthropic',
-            'openai': 'OpenAI',
-            'gemini': 'Gemini',
-            'deepseek': 'DeepSeek',
-            'kimi': 'Kimi',
-            'glm': 'GLM',
-            'mistral': 'Mistral AI',
-            'grok': 'Grok (xAI)',
-            'qwen': 'Qwen (DashScope)',
-            'openrouter': 'OpenRouter',
-            'local': 'Local LLM',
-            'custom': 'Custom'
         };
 
-        toast.success(`✓ ${providerNames[providerId]} settings saved!`, {
-            duration: 3000,
-            icon: '💾',
-        });
+        try {
+            await llmConfigDB.saveConfig(newConfig);
+            updateConfig(newConfig);
 
-        onClose();
+            const providerNames: Record<LLMProviderId, string> = {
+                'anthropic': 'Anthropic',
+                'openai': 'OpenAI',
+                'gemini': 'Gemini',
+                'deepseek': 'DeepSeek',
+                'kimi': 'Kimi',
+                'glm': 'GLM',
+                'mistral': 'Mistral AI',
+                'grok': 'Grok (xAI)',
+                'qwen': 'Qwen (DashScope)',
+                'openrouter': 'OpenRouter',
+                'local': 'Local LLM',
+                'custom': 'Custom'
+            };
+
+            toast.success(`✓ ${providerNames[providerId]} settings saved permanently!`, {
+                duration: 3000,
+                icon: '💾',
+            });
+
+            onClose();
+        } catch (error) {
+            console.error('Failed to save config:', error);
+            toast.error('Failed to save settings to server');
+        }
     };
 
     const handleTest = async () => {

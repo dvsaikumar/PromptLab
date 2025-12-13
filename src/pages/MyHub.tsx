@@ -82,8 +82,10 @@ export const MyHub: React.FC<MyHubProps> = ({ isSidebarOpen = false }) => {
             <div className="h-full overflow-y-auto bg-slate-50 p-6">
                 {/* Quick Actions */}
                 <section className="mb-10">
-                    <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
-                        <Zap size={20} className="text-amber-500" />
+                    <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wide opacity-90 mb-4 flex items-center gap-2">
+                        <div className="p-1 rounded-md bg-amber-100 text-amber-600">
+                            <Zap size={14} />
+                        </div>
                         Quick Actions
                     </h2>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -136,8 +138,10 @@ export const MyHub: React.FC<MyHubProps> = ({ isSidebarOpen = false }) => {
 
                 {/* Stats Section */}
                 <section className="mb-10">
-                    <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
-                        <TrendingUp size={20} className="text-green-500" />
+                    <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wide opacity-90 mb-4 flex items-center gap-2">
+                        <div className="p-1 rounded-md bg-green-100 text-green-600">
+                            <TrendingUp size={14} />
+                        </div>
                         Your Stats
                     </h2>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -191,6 +195,6 @@ export const MyHub: React.FC<MyHubProps> = ({ isSidebarOpen = false }) => {
                     </Card>
                 </section>
             </div>
-        </PageTemplate>
+        </PageTemplate >
     );
 };

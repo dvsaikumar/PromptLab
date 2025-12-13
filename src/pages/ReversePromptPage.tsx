@@ -1,8 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { RotateCcw, Loader2, Copy, X, Image as ImageIcon, Send, Paperclip, FileText, Save } from 'lucide-react';
+import { RotateCcw, HelpCircle, Sparkles, Paperclip, Loader2, Save, Copy, FileText, X, Settings2, Eye, ChevronRight, Wand2, ArrowRight } from 'lucide-react';
 import { PageTemplate } from '@/components/ui/PageTemplate';
 import { Button } from '@/components/ui/Button';
-import { SectionHeader } from '@/components/ui/SectionHeader';
 import { usePrompt } from '@/contexts/PromptContext';
 import { LLMService } from '@/services/llm';
 import { promptDB } from '@/services/database';
@@ -18,12 +17,12 @@ import {
     FOCUS_TEMPLATES,
     GOD_MODE_INSTRUCTION,
     CURSOR_AGENT_PROTOCOL,
-    GEMINI_VIBE_CODER_PROTOCOL,
+    // GEMINI_VIBE_CODER_PROTOCOL, // Unused
+    // V0_DESIGN_PROTOCOL, // Unused
     SONNET_DESIGN_PROTOCOL,
-    V0_DESIGN_PROTOCOL,
     TECHNOLOGIES_DEFAULT
 } from '@/constants/reverse-prompt';
-import { AnalysisLoader } from '@/components/reverse-prompt/AnalysisLoader';
+import { Card } from '@/components/ui/Card';
 
 interface ReversePromptProps {
     isSidebarOpen?: boolean;
@@ -41,18 +40,105 @@ export const ReversePrompt: React.FC<ReversePromptProps> = ({ isSidebarOpen = fa
     const { llmConfig } = usePrompt();
     const [inputText, setInputText] = useState('');
     const [isAnalyzing, setIsAnalyzing] = useState(false);
+    const [isEnhancingInput, setIsEnhancingInput] = useState(false);
     const [isProcessingFile, setIsProcessingFile] = useState(false);
     const [result, setResult] = useState<string | null>(null);
     const [files, setFiles] = useState<UploadedFile[]>([]);
     const [selectedPersonaId, setSelectedPersonaId] = useState<string>('prompt-engineer');
     const [analysisMode, setAnalysisMode] = useState<string>('general');
-    const [techStack, setTechStack] = useState<string>(TECHNOLOGIES_DEFAULT);
+    const [techStack] = useState<string>(TECHNOLOGIES_DEFAULT);
     const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
     const [ocrContent, setOcrContent] = useState('');
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Track the last auto-generated text to allow safe overwrites
     const lastAutoTemplateRef = useRef<string>('');
+
+    // Tutorial State
+    const [tutorialStep, setTutorialStep] = useState<number>(-1);
+
+    const startTutorial = () => {
+        setTutorialStep(0);
+        toast.dismiss();
+        toast('Tutorial started!', { icon: '🎓' });
+    };
+
+    const nextTutorialStep = () => {
+        setTutorialStep(prev => prev + 1);
+    };
+
+    const endTutorial = () => {
+        setTutorialStep(-1);
+        toast.success("You're ready to reverse engineer!");
+    };
+
+    const TutorialOverlay = () => {
+        if (tutorialStep === -1) return null;
+
+        const steps = [
+            {
+                title: "Welcome to Reverse Engineering",
+                content: "This tool helps you deconstruct code, designs, and prompts to understand how they were made. Let's take a quick tour.",
+            },
+            {
+                title: "1. Configuration",
+                content: "Start by selecting your LLM, a specific Persona (Role), and the Analysis Mode (e.g., Design, Code, Security).",
+            },
+            {
+                title: "2. Input Content",
+                content: "Paste your code/text or upload images (screenshots/diagrams). We use Vision AI to analyze visual inputs.",
+            },
+            {
+                title: "3. Analyze & Deconstruct",
+                content: "Click the 'Deconstruct' button in the bottom dock. The AI will generate a 'Bible Prompt' or technical specification.",
+            },
+            {
+                title: "4. Result & Export",
+                content: "Your result appears on the right. You can copy it or save it to your library.",
+            }
+        ];
+
+        const step = steps[tutorialStep];
+        if (!step) {
+            endTutorial();
+            return null;
+        }
+
+        return (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm transition-all duration-300">
+                <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full relative border border-slate-100 animate-in zoom-in-50 duration-300">
+                    <div className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 cursor-pointer" onClick={endTutorial}>
+                        <X size={20} />
+                    </div>
+
+                    <div className="w-12 h-12 bg-orange-100 text-orange-600 rounded-xl flex items-center justify-center mb-6">
+                        <HelpCircle size={28} />
+                    </div>
+
+                    <h3 className="text-xl font-bold text-slate-900 mb-2">
+                        {step.title}
+                    </h3>
+                    <p className="text-slate-600 mb-8 leading-relaxed">
+                        {step.content}
+                    </p>
+
+                    <div className="flex items-center justify-between">
+                        <div className="flex gap-1.5">
+                            {steps.map((_, idx) => (
+                                <div
+                                    key={idx}
+                                    className={`w-2 h-2 rounded-full transition-all ${idx === tutorialStep ? 'bg-orange-500 w-6' : 'bg-slate-200'}`}
+                                />
+                            ))}
+                        </div>
+                        <Button onClick={nextTutorialStep} className="bg-orange-600 hover:bg-orange-700 text-white gap-2">
+                            {tutorialStep === steps.length - 1 ? 'Finish' : 'Next'} <ChevronRight size={16} />
+                        </Button>
+                    </div>
+                </div>
+            </div>
+        );
+    };
 
     // Auto-fill template dynamically based on Mode AND Persona
     useEffect(() => {
@@ -62,19 +148,17 @@ export const ReversePrompt: React.FC<ReversePromptProps> = ({ isSidebarOpen = fa
         const persona = PERSONAS.find(p => p.id === selectedPersonaId) || PERSONAS[0];
 
         // Construct Dynamic Template: "As a [Role], [instruction lowercased]"
-        // e.g., "As a Senior Engineer, analyze this code..."
         const newTemplate = `As a ${persona.role}, ${baseTemplate.charAt(0).toLowerCase() + baseTemplate.slice(1)}`;
 
         const currentText = inputText.trim();
 
         // Smart Overwrite Logic:
         // Only update if input is empty OR if the current text identifies identical to what we auto-generated last time.
-        // This ensures we never overwrite user's custom edits.
         if (!currentText || currentText === lastAutoTemplateRef.current) {
             setInputText(newTemplate);
             lastAutoTemplateRef.current = newTemplate;
         }
-    }, [analysisMode, selectedPersonaId]);
+    }, [analysisMode, selectedPersonaId, inputText]);
 
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const fileList = e.target.files;
@@ -104,13 +188,11 @@ export const ReversePrompt: React.FC<ReversePromptProps> = ({ isSidebarOpen = fa
                 try {
                     const { data: { text } } = await Tesseract.recognize(file, 'eng');
                     if (text && text.trim()) {
-                        // Store OCR invisibly for fallback, don't clutter UI
                         setOcrContent(prev => prev + (prev ? '\n\n' : '') + `[Context from ${file.name}]:\n${text}`);
                         toast.success(`Extracted text from ${file.name}`, { id: 'ocr-success-' + i });
                     }
                 } catch (ocrError) {
                     console.warn(`OCR Failed for ${file.name}`, ocrError);
-                    // Continue without text - Vision LLM can still see it
                 }
 
                 newFiles.push({
@@ -123,628 +205,362 @@ export const ReversePrompt: React.FC<ReversePromptProps> = ({ isSidebarOpen = fa
             }
 
             setFiles(prev => [...prev, ...newFiles]);
-            // Auto-switch to design mode if images uploaded
-            if (newFiles.length > 0) setAnalysisMode('design');
-
-            toast.success(`Processed ${newFiles.length} file(s)!`, { id: toastId });
+            toast.success('Files processed', { id: toastId });
         } catch (error) {
-            console.error(error);
-            toast.error('Failed to process files.', { id: toastId });
+            console.error('File processing error:', error);
+            toast.error('Failed to process files', { id: toastId });
         } finally {
             setIsProcessingFile(false);
             if (fileInputRef.current) fileInputRef.current.value = '';
         }
     };
 
-    const removeFile = (id: string) => {
+    const handleRemoveFile = (id: string) => {
         setFiles(prev => prev.filter(f => f.id !== id));
     };
 
+    const handleEnhanceInput = async () => {
+        if (!inputText.trim()) {
+            toast.error('Please enter some text to enhance');
+            return;
+        }
+
+        setIsEnhancingInput(true);
+        const toastId = toast.loading('Enhancing input...');
+
+        try {
+            const provider = LLMService.getInstance().getProvider(llmConfig.providerId);
+            const enhanced = await provider.generateCompletion({
+                config: llmConfig,
+                systemPrompt: "You are an expert technical editor. Your task is to refine the user's input text to make it clearer, better structured, and more suitable for technical analysis or reverse engineering. If it is code, format it and add comments where unclear. If it is a description, make it more precise and detailed. Do not add introductory conversational text, just output the enhanced content.",
+                userPrompt: inputText,
+                temperature: 0.3
+            });
+
+            setInputText(enhanced);
+            toast.success('Input enhanced!', { id: toastId });
+        } catch (error: any) {
+            toast.error('Failed to enhance input: ' + error.message, { id: toastId });
+        } finally {
+            setIsEnhancingInput(false);
+        }
+    };
 
     const handleAnalyze = async () => {
-        if (!inputText.trim() && files.length === 0) return;
-        if (!llmConfig.apiKey) {
-            toast.error('Please configure your LLM settings first.');
-            window.dispatchEvent(new Event('open-settings-modal'));
+        if (!inputText.trim() && files.length === 0) {
+            toast.error('Please provide some content or upload an image.');
             return;
         }
 
         setIsAnalyzing(true);
-        setResult(null);
+        const toastId = toast.loading('Deconstructing...');
 
         try {
-            const hasImages = files.length > 0;
-            const activePersona = PERSONAS.find(p => p.id === selectedPersonaId) || PERSONAS[0];
+            let systemPrompt = '';
 
-            let systemPrompt = `${activePersona.prompt}\n${GOD_MODE_INSTRUCTION}`;
-            let prompt = '';
-
-            // Mode Switching Logic
+            // Mode-Specific Prompt Construction
             switch (analysisMode) {
-                // =========================================================
-                // 1. DESIGN MODE (THE VISUAL BIBLE)
-                // =========================================================
-                case 'design':
-                    if (hasImages) {
-                        systemPrompt += `\n${SONNET_DESIGN_PROTOCOL}\n${V0_DESIGN_PROTOCOL}`;
-                        prompt = `Execute a "Visual Compiler Trace" on this UI screenshot. Treat the image as a compiled render that must be de-compiled back into source code.
-
-<VISUAL_DECOMPILATION_STEPS>
-1.  **Global Design DNA Extraction (EVIDENCE BASED)**:
-    *   **Chromatics**: Identify the HEX codes for Background, Surface, Primary, and Text.
-    *   **Typography**: Accurately determine Font Family (Serif/Sans), Weights, and Relative Scales.
-    *   **Geometry**: Measure Border Radius and Spacing chains.
-
-2.  **Layout Topology (The Skeleton)**:
-    *   **Macro-Structure**: Is it a Shell Layout? Holy Grail? Dashboard Grid?
-    *   **Grid/Flex Logic**: Explicit CSS identification (e.g., "flex-row justify-between").
-    *   **Responsiveness**: Infer breakpoints based on component crowding.
-
-3.  **Atomic Component Inventory**:
-    *   **Visible Components Only**: List Buttons, Inputs, Cards.
-    *   **Interactive State Inference**: Identify "Active" states or "Hover" affordances ONLY if visually distinct.
-
-4.  **Anti-Hallucination Check**:
-    *   Verify: Do not hallucinate hover states for components that are static.
-    *   Verify: Do not invent data fields that are cut off.
-</VISUAL_DECOMPILATION_STEPS>
-
-<OUTPUT_COMMANDMENT>
-Generate the **"Creation Bible"** - a single, comprehensive prompt for a Senior AI Engineer.
-Target Stack: **${techStack}** (Default to React + Tailwind + Lucide if unspecified).
-
-Structure the Output as follows:
-
-# 🏗️ Master Implementation Protocol (Verified)
-**Role**: Senior Frontend Architect specialized in ${techStack}.
-**Task**: Build a Pixel-Perfect Derivative of the analyzed UI.
-**Style**: v0.dev / Shadcn UI Standard.
-**Vibe**: Premium, "Wow Factor" (Sonnet 4.5 Standard).
-
-## 1. Design Tokens (Observed)
-[List exact Colors, Fonts, Shadows, and Spacing variables]
-
-## 2. Component Hierarchy (Mapped)
-*   **AppShell**: [Layout Strategy]
-*   **[Component Name]**: [Visual Specs] -> [Child Components]
-
-## 3. Implementation Code Standards
-*   Use **${techStack}**.
-*   **Strict Constraint**: Do not use arbitrary values. Use the Design Tokens defined above.
-*   **Mock Data**: Generate realistic data matching the *exact types* seen in the image.
-
-## 4. Refinement Instructions
-"Ensure the final output matches the screenshot's 'Air Density' (whitespace) and 'Visual Weight' (contrast) perfectly."
-</OUTPUT_COMMANDMENT>`;
-                    } else {
-                        systemPrompt += `\n${SONNET_DESIGN_PROTOCOL}`;
-                        prompt = `Analyze this Description: "${inputText}".
-Generate a **Midjourney / DALL-E 3 "Bible Prompt"**.
-Deconstruct the request into:
-1. **Subject**: The core subject matter.
-2. **Medium**: Photography, 3D Render, Oil Painting, Vector Illustration.
-3. **Style**: Cyberpunk, Minimalist, Baroque, Synthwave.
-4. **Lighting**: Volumetric, Rembrant, Golden Hour, Neon.
-5. **Color**: Palette and Saturation.
-6. **Composition**: Camera Angle, Aspect Ratio, Depth of Field.`;
-                    }
+                case 'god-mode':
+                    systemPrompt = GOD_MODE_INSTRUCTION + `\n\nTARGET TECH STACK: ${techStack}`;
                     break;
-
-                // =========================================================
-                // 2. CODE MODE (THE ARCHITECTURAL BIBLE)
-                // =========================================================
-                case 'code':
-                    systemPrompt += `\n${CURSOR_AGENT_PROTOCOL}\n${GEMINI_VIBE_CODER_PROTOCOL}`;
-                    prompt = `Perform a **Deep Analysis** on this Code Snippet / Architecture.
-
-<INPUT_CODE>
-${inputText}
-</INPUT_CODE>
-
-<ARCHITECTURAL_DECONSTRUCTION>
-1.  **Fact-Based Pattern Recognition**: Identify patterns ONLY if code evidence exists.
-2.  **Complexity Audit**: Estimate Cyclomatic Complexity and Big-O Time/Space notation.
-3.  **Safety & Security**: Check for sanitization gaps, memory leaks, or race conditions.
-4.  **Tech Stack Fingerprint**: Identify specific libraries and version paradigms used.
-5.  **Hidden Dependency Scan**: Infer likely external services (e.g., "AWS SDK" implies Cloud usage).
-</ARCHITECTURAL_DECONSTRUCTION>
-
-<OUTPUT_COMMANDMENT>
-Generate a "Optimization Master-Prompt" structured as a **.cursorrules** file or System Prompt.
-**Target Audience**: Cursor AI Agent / Gemini Vibe Coder.
-**Constraint**: Use ${techStack || 'Detected Stack'}.
-**Requirements**:
-1. Reduce Time Complexity to [Target].
-2. Implement [Pattern] for better decoupled logic.
-3. Add copious JSDoc/TSDoc comments explaining 'Why'.
-4. Ensure 100% Type Safety (No 'any').
-5. Strictly follow React 18+ / ESM standards.
-</OUTPUT_COMMANDMENT>`;
+                case 'design-dna':
+                    systemPrompt = SONNET_DESIGN_PROTOCOL;
                     break;
-
-                // =========================================================
-                // 3. PRODUCT MODE (THE SPECS BIBLE)
-                // =========================================================
-                case 'product':
-                    prompt = `Analyze this Request / Input as a **Chief Product Officer**.
-
-<INPUT_CONTEXT>
-${inputText}
-</INPUT_CONTEXT>
-
-<PRODUCT_DEEP_DIVE>
-1.  **User Psychology**: What is the user's *deepest* motivation? (Jobs-to-be-Done).
-2.  **Market Fit**: How does this differentiate from standard solutions?
-3.  **Specification**: Define the "Happy Path", "Edge Cases", and "Error States".
-4.  **Success Metrics**: Define concrete KPIs (e.g., "Reduce Time-to-Interact by 200ms").
-</PRODUCT_DEEP_DIVE>
-
-<OUTPUT_COMMANDMENT>
-Generate a **PRD (Product Requirements Document) Generation Prompt**.
-Structure:
-"Act as a **Lead Product Owner**.
-Write a comprehensive PRD for [Feature].
-**Sections**:
-1. **Problem Statement**: The 'Why' (Data-backed).
-2. **User Stories**: Gherkin Syntax (Given/When/Then) for ALL scenarios.
-3. **Acceptance Criteria**: Pass/Fail binary conditions.
-4. **UI/UX Guidance**: Layout wireframe descriptions with Micro-Interaction specs."
-</OUTPUT_COMMANDMENT>`;
+                case 'code-audit':
+                    systemPrompt = CURSOR_AGENT_PROTOCOL;
                     break;
-
-                // =========================================================
-                // 4. SECURITY MODE (THE FORENSIC BIBLE)
-                // =========================================================
-                case 'security':
-                    prompt = `Conduct a **Forensic Code Audit** (Simulate NSA/Nation-State level scrutiny).
-
-<TARGET_CONTENT>
-${inputText}
-</TARGET_CONTENT>
-
-<FORENSIC_ANALYSIS>
-1.  **Attack Surface Mapping**: Identify all entry points (API headers, user inputs, query params).
-2.  **Vulnerability Scanner**: Check for OWASP Top 10 (Injection, Broken Auth, XSS, Deserialization).
-3.  **Logic Flaws**: Look for business logic bypasses that automated tools miss.
-4.  **Supply Chain Audit**: Analyze import paths for known vulnerable dependencies.
-</FORENSIC_ANALYSIS>
-
-<OUTPUT_COMMANDMENT>
-Generate two prompts:
-1.  **Red Team**: "Generate a Python exploit script to verify [Vulnerability]."
-2.  **Blue Team**: "Generate a Patch + Unit Test that explicitly prevents [Vulnerability]."
-Target Context: ${techStack}.
-</OUTPUT_COMMANDMENT>`;
-                    break;
-
-                // =========================================================
-                // 5. BUG MODE (THE DEBUGGER BIBLE)
-                // =========================================================
-                case 'bug':
-                    prompt = `Analyze this Bug Report / Error Log as a **Distinguished Engineer**.
-
-<INPUT_ERROR>
-${inputText}
-</INPUT_ERROR>
-
-<DEBUG_PROTOCOL>
-1.  **Stack Trace Anatomy**: Deconstruct the error path frame-by-frame.
-2.  **State Reconstruction**: Infer the exact state of variables at the crash point.
-3.  **Root Cause Analysis**: Apply the "5 Whys" technique to find the *origin*, not just the symptom.
-</DEBUG_PROTOCOL>
-
-<OUTPUT_COMMANDMENT>
-Generate a "Fix & Prevention Protocol".
-1.  **Reproduction Script**: Minimal code to trigger the error.
-2.  **The Fix**: Corrected code using ${techStack || 'Detected Stack'}.
-3.  **Regression Test**: A test case to ensure it never happens again.
-</OUTPUT_COMMANDMENT>`;
-                    break;
-
-                // =========================================================
-                // 6. GENERIC / DEFAULT (THE CO-STAR BIBLE)
-                // =========================================================
                 default:
-                    prompt = `Deconstruct this content to find its "Source Code" (The Prompt that created it).
-
-<CONTENT>
-${inputText}
-</CONTENT>
-
-<REVERSE_ENGINEERING_PROTOCOL>
-1.  **Tone DNA**: Analyze the exact lexical density, sentence variance, and emotional temperature.
-2.  **Structural Blueprint**: Headers, Lists, Spacing, Bold usage.
-3.  **Intent Decoding**: What was the *exact* instruction given to the AI?
-4.  **Micro-Tone Analysis**: Identifying subtle bias or framing.
-</REVERSE_ENGINEERING_PROTOCOL>
-
-<OUTPUT_COMMANDMENT>
-Construct the "System Prompt" using the **CO-STAR Bible Format**:
-**C**ontext (The World)
-**O**bjective (The Mission)
-**S**tyle (The Voice)
-**T**one (The Vibe)
-**A**udience (The Reader)
-**R**esponse (The Format)
-</OUTPUT_COMMANDMENT>`;
-                    break;
+                    const persona = PERSONAS.find(p => p.id === selectedPersonaId);
+                    systemPrompt = `You are a ${persona?.role || 'Expert System'}. ${persona?.prompt || ''}`;
             }
 
-            const service = LLMService.getInstance();
-            const provider = service.getProvider(llmConfig.providerId);
-            const imagePayload = files.length > 0 ? files.map(f => f.base64) : undefined;
-
-            let response;
-            try {
-                // Attempt 1: Try with Images (Vision)
-                response = await provider.generateCompletion({
-                    config: llmConfig,
-                    systemPrompt: systemPrompt,
-                    userPrompt: prompt,
-                    temperature: 0.7,
-                    images: imagePayload
-                });
-            } catch (err: any) {
-                // Fallback: If 400/Invalid Parameter, the model likely doesn't support Vision.
-                // Retry with JUST text (which includes the OCR'd content)
-                if (imagePayload && (err.message.includes('400') || err.message.includes('Invalid') || err.message.includes('parameter'))) {
-                    console.warn("Vision capabilities rejected by model. Falling back to text-only analysis.");
-                    toast('Model lacks Vision support. Using extracted text instead...', { icon: '🔄' });
-
-                    const fallbackPrompt = prompt + (ocrContent ? `\n\n=== EXTRACTED IMAGE TEXT (OCR) ===\n${ocrContent}` : '');
-
-                    response = await provider.generateCompletion({
-                        config: llmConfig,
-                        systemPrompt: systemPrompt,
-                        userPrompt: fallbackPrompt,
-                        temperature: 0.7,
-                        images: undefined // Remove images to force text-only mode
-                    });
-                } else {
-                    throw err;
-                }
+            // Append OCR or Context
+            let finalInput = inputText;
+            if (ocrContent) {
+                finalInput += `\n\n[EXTRACTED VISUAL CONTEXT]\n${ocrContent}`;
             }
 
-            if (!response || !response.trim()) {
-                console.warn("Empty response received via", llmConfig.providerId);
-                throw new Error("AI returned empty response. The model may have refused the request or timed out silently.");
-            }
+            const images = files
+                .filter(f => f.type.startsWith('image/'))
+                .map(f => f.base64);
 
-            setResult(response);
-            toast.success(`Analysis complete! (${response.length} chars)`);
+            const provider = LLMService.getInstance().getProvider(llmConfig.providerId);
+            const content = await provider.generateCompletion({
+                config: llmConfig,
+                systemPrompt,
+                userPrompt: finalInput,
+                temperature: 0.2,
+                images: images.length > 0 ? images : undefined
+            });
+
+            setResult(content);
+            toast.success('Analysis Complete', { id: toastId });
         } catch (error: any) {
-            console.error(error);
-            toast.error(error.message || 'Failed to analyze content.');
+            console.error('Analysis failed:', error);
+            toast.error('Analysis failed: ' + (error.message || 'Unknown error'), { id: toastId });
         } finally {
             setIsAnalyzing(false);
         }
     };
 
-    const handleSave = () => {
-        if (!result) return;
-        setIsSaveModalOpen(true);
-    };
-
-    const handleSaveWithTitle = async (title: string) => {
-        if (!result) return;
-
-        try {
-            await promptDB.savePrompt({
-                title,
-                framework: `reverse - ${analysisMode} `,
-                prompt: result,
-                simpleIdea: inputText || 'Uploaded Content',
-                fields: JSON.stringify({
-                    analysisMode,
-                    hasFiles: files.length > 0,
-                    fileNames: files.map(f => f.name)
-                }),
-                tones: JSON.stringify([]),
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString(),
-                providerId: llmConfig?.providerId || 'unknown',
-                model: llmConfig?.model || 'unknown'
-            });
-            toast.success(`Saved "${title}"!`);
-            setIsSaveModalOpen(false);
-        } catch (error: any) {
-            toast.error('Failed to save prompt.');
-            console.error(error);
-        }
-    };
-
-    // Dynamic Loading Component
-    const AnalysisLoader = () => {
-        const [step, setStep] = useState(0);
-        const steps = [
-            "Initializing Reverse Prompt Protocols...",
-            "Deconstructing DNA...",
-            "Running Forensic Audit...",
-            "Applying Anti-Hallucination Filters...",
-            "Synthesizing Master Prompt..."
-        ];
-
-        useEffect(() => {
-            const interval = setInterval(() => {
-                setStep((prev) => (prev + 1) % steps.length);
-            }, 2000);
-            return () => clearInterval(interval);
-        }, []);
-
-        return (
-            <div className="h-full flex flex-col items-center justify-center p-12 text-center space-y-6">
-                <div className="relative">
-                    <div className="absolute inset-0 bg-orange-500/20 blur-xl rounded-full animate-pulse"></div>
-                    <RotateCcw className="w-16 h-16 text-orange-500 animate-spin relative z-10 duration-3000" />
-                </div>
-                <div className="space-y-2">
-                    <h3 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-orange-600 to-red-600 animate-pulse">
-                        {steps[step]}
-                    </h3>
-                    <p className="text-slate-500 text-sm font-mono">Running Deep Analysis...</p>
-                </div>
-                <div className="w-64 h-1 bg-slate-200 rounded-full overflow-hidden">
-                    <div className="h-full bg-orange-500 animate-[progress_2s_ease-in-out_infinite] origin-left"></div>
-                </div>
-            </div>
-        );
-    };
+    // Header Actions
+    const HeaderButtons = (
+        <Button
+            variant="ghost"
+            size="sm"
+            onClick={startTutorial}
+            className="text-slate-500 hover:text-orange-600 hover:bg-orange-50 gap-2"
+        >
+            <HelpCircle size={18} />
+        </Button>
+    );
 
     return (
         <PageTemplate
-            title="Reverse Prompt Engineering"
-            subtitle="Full-page workspace for deconstructing content and designs"
+            title="Reverse Engineering Lab"
+            subtitle="Deconstruct apps, code, and designs"
             icon={RotateCcw}
-            iconGradient="from-orange-500 to-red-600"
-            shadowColor="shadow-orange-500/30"
+            iconGradient="from-orange-500 to-amber-600"
             isSidebarOpen={isSidebarOpen}
-            className="!p-0 !overflow-hidden flex flex-col h-[calc(100vh-144px)]"
-            headerClassName="!px-4 !py-4 border-b border-slate-200"
+            rightContent={HeaderButtons}
+            className="flex flex-col !p-0 !top-[144px] bg-slate-50/50"
+            headerClassName="!px-4 bg-slate-50 z-50"
+            iconSize={20}
             titleClassName="text-lg"
             subtitleClassName="text-xs"
-            iconSize={20}
         >
-            <div className="flex h-full flex-col lg:flex-row overflow-hidden relative">
-
-                {/* LEFT PANEL: Input Studio */}
-                <div className="w-full lg:w-1/2 flex flex-col bg-white h-full border-r border-slate-200 z-10 shadow-lg lg:shadow-none">
-                    <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-8">
-
-                        {/* 1. Configuration Grid */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            {/* LLM Selector */}
-                            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-1">
-                                <LLMSelector
-                                    onOpenSettings={() => window.dispatchEvent(new Event('open-settings-modal'))}
-                                    className="bg-transparent border-0 shadow-none !p-0"
-                                />
-                            </div>
-
-                            {/* Persona Selector */}
-                            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-1">
-                                <PersonaSelector
-                                    activePersonaId={selectedPersonaId}
-                                    setActivePersonaId={setSelectedPersonaId}
-                                    className="bg-transparent border-0 shadow-none !p-0"
-                                />
-                            </div>
-
-                            {/* Analysis Mode Selector */}
-                            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-1">
-                                <AnalysisFocusSelector
-                                    value={analysisMode}
-                                    onChange={setAnalysisMode}
-                                    modes={ANALYSIS_MODES}
-                                    className="bg-transparent border-0 shadow-none !p-0"
-                                />
-                            </div>
-                        </div>
-
-
-
-                        {/* Active Persona Badge */}
-                        <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-3 flex items-start gap-3">
-                            <div className="mt-1 min-w-[4px] h-4 rounded-full bg-indigo-500"></div>
-                            <div>
-                                <h4 className="text-xs font-bold text-indigo-900 uppercase tracking-wide mb-1">Acting As</h4>
-                                <p className="text-sm text-indigo-800 leading-relaxed font-medium">
-                                    {PERSONAS.find(p => p.id === selectedPersonaId)?.role}
-                                </p>
-                            </div>
-                        </div>
-
-                        {/* 2. Text Input Section */}
-                        <div className="space-y-2">
-                            <SectionHeader title="Text Input" className="text-slate-800 !mb-2" />
-                            <div className="relative border border-slate-200 rounded-xl shadow-sm focus-within:ring-2 focus-within:ring-orange-500/20 bg-white transition-all hover:border-slate-300">
-                                <textarea
-                                    value={inputText}
-                                    onChange={(e) => setInputText(e.target.value)}
-                                    placeholder={`As a ${PERSONAS.find(p => p.id === selectedPersonaId)?.name}, I will analyze your text or code...`}
-                                    className="w-full min-h-[160px] p-4 bg-transparent border-none focus:ring-0 outline-none resize-none text-slate-700 font-mono text-sm leading-relaxed placeholder:text-slate-400"
-                                    disabled={isAnalyzing}
-                                />
-                                <div className="p-3 border-t border-slate-100 flex items-center justify-between bg-slate-50/30 rounded-b-xl">
-                                    <div className="text-xs text-slate-400">
-                                        {inputText.length} chars
-                                    </div>
-                                    <Button
-                                        size="sm"
-                                        onClick={handleAnalyze}
-                                        isLoading={isAnalyzing}
-                                        disabled={(!inputText.trim() && files.length === 0) || isAnalyzing}
-                                        className="bg-orange-600 hover:bg-orange-700 text-white rounded-lg px-3 py-1 shadow-sm shadow-orange-500/20"
-                                        title="Start Analysis"
-                                    >
-                                        <Send size={16} />
-                                    </Button>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* 3. Document Upload Section */}
-                        <div className="space-y-4">
-                            <div className="flex items-center justify-between">
-                                <SectionHeader title="Attachments" className="text-slate-800 !mb-0" />
-                                <button
-                                    onClick={() => fileInputRef.current?.click()}
-                                    className="text-xs flex items-center gap-1.5 text-orange-600 font-medium hover:bg-orange-50 px-3 py-1.5 rounded-lg transition-colors"
-                                >
-                                    {isProcessingFile ? <Loader2 size={14} className="animate-spin" /> : <Paperclip size={14} />}
-                                    Upload Docs
-                                </button>
-                            </div>
-
-                            {/* Empty State for Docs */}
-                            {files.length === 0 && (
-                                <div
-                                    onClick={() => fileInputRef.current?.click()}
-                                    className="border-2 border-dashed border-slate-200 rounded-xl p-6 flex flex-col items-center justify-center text-center gap-2 cursor-pointer hover:border-orange-300 hover:bg-orange-50/10 transition-all select-none group"
-                                >
-                                    <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center group-hover:bg-white text-slate-400 group-hover:text-orange-500 transition-colors shadow-sm">
-                                        <ImageIcon size={20} />
-                                    </div>
-                                    <p className="text-sm font-medium text-slate-600">Click to upload images</p>
-                                    <p className="text-xs text-slate-400">Supports PNG, JPG, Screenshots</p>
-                                </div>
-                            )}
-
-                            {/* Files List */}
-                            {files.length > 0 && (
-                                <div className="space-y-2">
-                                    {files.map((file) => (
-                                        <div key={file.id} className="flex items-center gap-3 p-3 bg-white border border-slate-200 rounded-xl shadow-sm hover:shadow-md transition-shadow group">
-                                            <div className="w-12 h-12 flex-shrink-0 bg-slate-100 rounded-lg overflow-hidden border border-slate-100 relative">
-                                                {file.preview ? (
-                                                    <img src={file.preview} alt={file.name} className="w-full h-full object-cover" />
-                                                ) : (
-                                                    <div className="w-full h-full flex items-center justify-center text-slate-400">
-                                                        <FileText size={20} />
-                                                    </div>
-                                                )}
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <h4 className="text-sm font-medium text-slate-700 truncate">{file.name}</h4>
-                                                <p className="text-[10px] text-slate-400 uppercase">{file.type.split('/')[1] || 'FILE'}</p>
-                                            </div>
-                                            <button
-                                                onClick={() => removeFile(file.id)}
-                                                className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
-                                                title="Remove file"
-                                            >
-                                                <X size={16} />
-                                            </button>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Tech Stack Preference */}
-                        <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
-                            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 block">
-                                Tech Stack Preference
-                            </label>
-                            <input
-                                type="text"
-                                value={techStack}
-                                onChange={(e) => setTechStack(e.target.value)}
-                                placeholder="e.g. React, Tailwind, Lucide, Next.js"
-                                className="w-full text-sm bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                            />
-                        </div>
-
-                    </div>
-
-                    <input
-                        type="file"
-                        ref={fileInputRef}
-                        className="hidden"
-                        accept="image/*"
-                        multiple
-                        onChange={handleFileUpload}
-                        data-testid="file-upload"
-                    />
-                </div>
-
-                {/* RIGHT PANEL: Output Source */}
-                <div className="w-full lg:w-1/2 flex flex-col bg-slate-50/60 h-full relative">
-                    <div className="flex-1 overflow-y-auto custom-scrollbar p-6 lg:p-10">
-
-                        {isAnalyzing ? (
-                            <AnalysisLoader />
-                        ) : result ? (
-                            <div className="animate-in fade-in slide-in-from-bottom-8 duration-700">
-                                <div className="flex items-center justify-between mb-6">
-                                    <div>
-                                        <h2 className="text-2xl font-bold text-slate-800">Analysis Result</h2>
-                                        <div className="flex items-center gap-2 mt-1">
-                                            <span className="text-[10px] font-bold bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full uppercase tracking-wide">
-                                                {PERSONAS.find(p => p.id === selectedPersonaId)?.name}
-                                            </span>
-                                            <span className="text-slate-400 text-xs">•</span>
-                                            <span className="text-slate-500 text-xs">Generated by {llmConfig.providerId}</span>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <Button
-                                            variant="outline"
-                                            onClick={handleSave}
-                                            leftIcon={<Save size={16} />}
-                                            className="bg-white hover:bg-slate-50 text-indigo-600 border-indigo-200"
-                                        >
-                                            Save
-                                        </Button>
-                                        <Button
-                                            variant="outline"
-                                            onClick={() => {
-                                                navigator.clipboard.writeText(result);
-                                                toast.success('Copied to clipboard');
-                                            }}
-                                            leftIcon={<Copy size={16} />}
-                                            className="bg-white hover:bg-slate-50"
-                                        >
-                                            Copy
-                                        </Button>
-                                    </div>
-                                </div>
-
-                                <div className="prose prose-slate max-w-none">
-                                    <div className="bg-white border border-slate-200 shadow-sm rounded-xl overflow-hidden">
-                                        <div className="bg-slate-900 border-b border-slate-800 px-4 py-2 flex items-center gap-2">
-                                            <div className="w-3 h-3 rounded-full bg-red-500/20 border border-red-500/50"></div>
-                                            <div className="w-3 h-3 rounded-full bg-yellow-500/20 border border-yellow-500/50"></div>
-                                            <div className="w-3 h-3 rounded-full bg-green-500/20 border border-green-500/50"></div>
-                                            <div className="ml-auto text-xs text-slate-500 font-mono">mode: {files.length > 0 ? 'vision-design' : 'prompt-breakdown'}</div>
-                                        </div>
-                                        <div className="p-6 bg-[#1e1e2e] text-slate-300 font-mono text-sm leading-relaxed overflow-x-auto">
-                                            <pre className="whitespace-pre-wrap">{result}</pre>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        ) : (
-                            /* Empty State using Full Height */
-                            <div className="h-full flex flex-col items-center justify-center text-center opacity-40 select-none">
-                                <div className="w-24 h-24 bg-slate-200 rounded-full flex items-center justify-center mb-6 animate-pulse">
-                                    <Send size={40} className="text-slate-400 -ml-1 mt-1" />
-                                </div>
-                                <h3 className="text-3xl font-bold text-slate-300 mb-2">Workspace Ready</h3>
-                                <p className="text-slate-400 max-w-sm mx-auto">
-                                    Results will appear here. The panel automatically detects code, markdown, and design tokens.
-                                </p>
-                            </div>
-                        )}
-                    </div>
-                </div>
-
-            </div>
-
+            <TutorialOverlay />
             <SavePromptModal
                 isOpen={isSaveModalOpen}
                 onClose={() => setIsSaveModalOpen(false)}
-                onSave={handleSaveWithTitle}
+                onSave={async (title) => {
+                    try {
+                        await promptDB.savePrompt({
+                            title,
+                            framework: 'reverse-engineering',
+                            prompt: inputText,
+                            fields: JSON.stringify({ analysisMode, techStack, selectedPersonaId }),
+                            tones: JSON.stringify([]),
+                            simpleIdea: result || '',
+                            createdAt: new Date().toISOString(),
+                            updatedAt: new Date().toISOString(),
+                            industry: 'Tech',
+                            role: selectedPersonaId,
+                            qualityScore: 0,
+                            qualityScoreDetails: '{}',
+                            providerId: llmConfig.providerId,
+                            model: llmConfig.model
+                        });
+                        toast.success('Prompt saved to library!');
+                        setIsSaveModalOpen(false);
+                    } catch (error) {
+                        toast.error('Failed to save prompt.');
+                    }
+                }}
             />
+
+            <div className="flex h-[calc(100vh-180px)] w-full overflow-hidden">
+                <div className="w-full h-full flex flex-col relative">
+
+                    {/* Content Grid */}
+                    <div className="flex-1 overflow-hidden p-2">
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 h-full max-w-[1920px] mx-auto">
+
+                            {/* --- LEFT: CONFIG & INPUTS --- */}
+                            <div className="h-full flex flex-col gap-2 pl-1 pb-16 group/left relative overflow-hidden">
+
+                                {/* Configuration Card */}
+                                <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm space-y-3 shrink-0">
+                                    <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2 uppercase tracking-wide opacity-90">
+                                        <div className="p-1 rounded-md bg-indigo-100 text-indigo-600">
+                                            <Settings2 size={14} />
+                                        </div>
+                                        Configuration
+                                    </h3>
+                                    <div className="grid grid-cols-12 gap-2 items-start">
+                                        <div className="col-span-12 md:col-span-4">
+                                            <LLMSelector
+                                                onOpenSettings={() => toast('Settings functionality placeholder')}
+                                            />
+                                        </div>
+                                        <div className="col-span-12 md:col-span-4">
+                                            <PersonaSelector
+                                                activePersonaId={selectedPersonaId}
+                                                setActivePersonaId={setSelectedPersonaId}
+                                            />
+                                        </div>
+                                        <div className="col-span-12 md:col-span-4">
+                                            <AnalysisFocusSelector
+                                                value={analysisMode}
+                                                onChange={setAnalysisMode}
+                                                modes={ANALYSIS_MODES}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Input Area */}
+                                <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex flex-col flex-1 min-h-0">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2 uppercase tracking-wide opacity-90">
+                                            <div className="p-1 rounded-md bg-amber-100 text-amber-600">
+                                                <FileText size={14} />
+                                            </div>
+                                            Input Source
+                                        </h3>
+                                        <div className="flex gap-2">
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={handleEnhanceInput}
+                                                disabled={isEnhancingInput || !inputText.trim()}
+                                                className="gap-1.5 text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700 font-bold"
+                                                leftIcon={isEnhancingInput ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+                                            >
+                                                AI Enhance
+                                            </Button>
+                                            <div className="w-px h-6 bg-slate-200 mx-1 self-center"></div>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => fileInputRef.current?.click()}
+                                                className="gap-2"
+                                            >
+                                                <Paperclip size={16} /> Attach
+                                            </Button>
+                                            <input
+                                                type="file"
+                                                ref={fileInputRef}
+                                                className="hidden"
+                                                onChange={handleFileUpload}
+                                                multiple
+                                                accept="image/*,.txt,.md,.js,.ts,.tsx,.py"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* File Previews */}
+                                    {files.length > 0 && (
+                                        <div className="flex gap-3 mb-2 overflow-x-auto pb-2">
+                                            {files.map(f => (
+                                                <div key={f.id} className="relative group shrink-0">
+                                                    {f.type.startsWith('image/') ? (
+                                                        <img src={f.preview} alt={f.name} className="w-16 h-16 object-cover rounded-lg border border-slate-200" />
+                                                    ) : (
+                                                        <div className="w-16 h-16 bg-slate-50 rounded-lg border border-slate-200 flex items-center justify-center">
+                                                            <FileText size={24} className="text-slate-400" />
+                                                        </div>
+                                                    )}
+                                                    <button
+                                                        onClick={() => handleRemoveFile(f.id)}
+                                                        className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    >
+                                                        <X size={12} />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    <textarea
+                                        value={inputText}
+                                        onChange={(e) => setInputText(e.target.value)}
+                                        placeholder="Paste code, requirements, or enter a description needed for reverse engineering..."
+                                        className="flex-1 w-full p-3 bg-slate-50 border border-slate-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all font-mono text-sm leading-relaxed"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* --- RIGHT: OUTPUT RESULTS --- */}
+                            <div className="h-full overflow-y-auto [&::-webkit-scrollbar]:hidden pl-1 pb-16">
+                                {result ? (
+                                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 h-full flex flex-col group animate-in slide-in-from-right-4 duration-500">
+                                        <div className="flex items-center justify-between p-3 border-b border-slate-100 bg-slate-50/50">
+                                            <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2 uppercase tracking-wide opacity-90">
+                                                <div className="p-1 rounded-md bg-emerald-100 text-emerald-600">
+                                                    <Eye size={14} />
+                                                </div>
+                                                Observation Result
+                                            </h3>
+                                            <div className="flex gap-2">
+                                                <Button variant="ghost" size="sm" onClick={() => {
+                                                    navigator.clipboard.writeText(result);
+                                                    toast.success('Copied to clipboard');
+                                                }}>
+                                                    <Copy size={16} />
+                                                </Button>
+                                                <Button variant="ghost" size="sm" onClick={() => setIsSaveModalOpen(true)}>
+                                                    <Save size={16} />
+                                                </Button>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex-1 p-6 overflow-auto custom-scrollbar bg-slate-50/30">
+                                            <pre className="whitespace-pre-wrap font-mono text-sm leading-7 text-slate-700">{result}</pre>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <Card className="h-full flex flex-col items-center justify-center border-dashed bg-slate-50/30 hover:bg-slate-50/50 transition-colors group cursor-default">
+                                        <div className="flex flex-col items-center justify-center text-slate-400 p-8 text-center">
+                                            <Wand2 className="w-16 h-16 mb-4 opacity-20 group-hover:opacity-30 transition-opacity text-orange-500" />
+                                            <p className="font-bold text-slate-500 text-lg">Ready to Deconstruct</p>
+                                            <p className="text-sm opacity-70 mt-2 max-w-[240px]">
+                                                Input your data on the left and click Deconstruct to reveal the hidden engineering.
+                                            </p>
+                                        </div>
+                                    </Card>
+                                )}
+                            </div>
+
+                        </div>
+                    </div>
+
+                    {/* Floating Action Dock */}
+                    <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-full max-w-xl px-4 z-50">
+                        <div className="bg-slate-900/90 backdrop-blur-xl border border-white/10 text-white p-2 rounded-2xl shadow-2xl flex items-center justify-between gap-4 ring-1 ring-white/20">
+
+                            {/* Status Info */}
+                            <div className="flex items-center gap-4 px-4 text-xs font-medium text-slate-200">
+                                {isProcessingFile && <span className="flex items-center gap-2 text-emerald-400"><Loader2 size={12} className="animate-spin" /> Processing Files...</span>}
+                                {!isProcessingFile && <span className="opacity-60">{files.length} files attached</span>}
+                            </div>
+
+                            {/* Actions */}
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    onClick={() => {
+                                        setResult(null);
+                                        setInputText('');
+                                        setFiles([]);
+                                        toast.success('Cleared');
+                                    }}
+                                    variant="ghost"
+                                    className="h-9 px-4 text-slate-300 hover:text-white hover:bg-white/10 rounded-xl text-xs"
+                                >
+                                    Clear All
+                                </Button>
+                                <div className="w-px h-4 bg-slate-700 mx-1"></div>
+                                <Button
+                                    onClick={handleAnalyze}
+                                    disabled={isAnalyzing || isProcessingFile || (!inputText && files.length === 0)}
+                                    className="h-10 px-6 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-400 hover:to-amber-500 text-white font-semibold rounded-xl shadow-lg shadow-orange-500/25 border-none transition-all"
+                                >
+                                    {isAnalyzing ? (
+                                        <span className="flex items-center gap-2">
+                                            <Loader2 size={16} className="animate-spin" /> Analyzing...
+                                        </span>
+                                    ) : (
+                                        <span className="flex items-center gap-2">
+                                            Deconstruct <ArrowRight size={16} />
+                                        </span>
+                                    )}
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
         </PageTemplate>
     );
 };

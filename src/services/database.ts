@@ -15,6 +15,22 @@ export interface SavedPrompt {
     updatedAt: string;
     providerId?: string;
     model?: string;
+    persona?: string;
+    tokenUsage?: string;
+}
+
+export interface HistoryRecord {
+    id?: number;
+    framework: string;
+    prompt: string;
+    fields: string;
+    tones: string;
+    industry?: string;
+    role?: string;
+    simpleIdea?: string;
+    createdAt: string;
+    providerId?: string;
+    model?: string;
 }
 
 interface ElectronDB {
@@ -25,6 +41,8 @@ interface ElectronDB {
     updatePrompt: (id: number, updates: Partial<SavedPrompt>) => Promise<void>;
     deletePrompt: (id: number) => Promise<void>;
     searchPrompts: (query: string) => Promise<SavedPrompt[]>;
+    // New History Method
+    addHistory: (record: HistoryRecord) => Promise<number>;
 }
 
 interface ElectronVectorDB {
@@ -46,8 +64,9 @@ declare global {
 // IndexedDB Database service for browser (permanent storage)
 export class IndexedDBPromptStorage {
     private DB_NAME = 'DStudiosPrompts';
-    private DB_VERSION = 1;
+    private DB_VERSION = 2; // Bumped version for history table
     private STORE_NAME = 'savedPrompts';
+    private HISTORY_STORE = 'generationHistory';
     private db: IDBDatabase | null = null;
 
     /**
@@ -69,11 +88,15 @@ export class IndexedDBPromptStorage {
                 // Create object store if it doesn't exist
                 if (!db.objectStoreNames.contains(this.STORE_NAME)) {
                     const store = db.createObjectStore(this.STORE_NAME, { keyPath: 'id', autoIncrement: true });
-
-                    // Create indices for faster lookups
                     store.createIndex('framework', 'framework', { unique: false });
                     store.createIndex('createdAt', 'createdAt', { unique: false });
                     store.createIndex('title', 'title', { unique: false });
+                }
+
+                // History Store (New in v2)
+                if (!db.objectStoreNames.contains(this.HISTORY_STORE)) {
+                    const hStore = db.createObjectStore(this.HISTORY_STORE, { keyPath: 'id', autoIncrement: true });
+                    hStore.createIndex('createdAt', 'createdAt', { unique: false });
                 }
             };
         });
@@ -97,6 +120,17 @@ export class IndexedDBPromptStorage {
             const store = transaction.objectStore(this.STORE_NAME);
             const request = store.add(prompt);
 
+            request.onsuccess = () => resolve(request.result as number);
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    async addHistory(record: HistoryRecord): Promise<number> {
+        const db = await this.ensureDB();
+        return new Promise((resolve, reject) => {
+            const transaction = db.transaction([this.HISTORY_STORE], 'readwrite');
+            const store = transaction.objectStore(this.HISTORY_STORE);
+            const request = store.add(record);
             request.onsuccess = () => resolve(request.result as number);
             request.onerror = () => reject(request.error);
         });
@@ -196,4 +230,83 @@ export class IndexedDBPromptStorage {
 }
 
 // Export unified database service
-export const promptDB = window.electron?.db || new IndexedDBPromptStorage();
+// HTTP Database service for web browser (communicates with local server)
+export class HttpPromptStorage {
+    private API_URL = 'http://localhost:3001/api';
+
+    async savePrompt(prompt: Omit<SavedPrompt, 'id'>): Promise<number> {
+        const response = await fetch(`${this.API_URL}/prompts`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(prompt)
+        });
+        if (!response.ok) throw new Error('Failed to save prompt');
+        const data = await response.json();
+        return data.id;
+    }
+
+    async addHistory(record: HistoryRecord): Promise<number> {
+        try {
+            const response = await fetch(`${this.API_URL}/history`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(record)
+            });
+            if (!response.ok) return -1;
+            const data = await response.json();
+            return data.id;
+        } catch (e) {
+            console.warn("History save failed locally", e);
+            return -1;
+        }
+    }
+
+    async getAllPrompts(): Promise<SavedPrompt[]> {
+        try {
+            const response = await fetch(`${this.API_URL}/prompts`);
+            if (!response.ok) return []; // Fallback gracefully if server not running
+            return await response.json();
+        } catch (e) {
+            console.warn('Local server not reachable, prompts might be empty');
+            return [];
+        }
+    }
+
+    async getPromptById(id: number): Promise<SavedPrompt | undefined> {
+        const response = await fetch(`${this.API_URL}/prompts/${id}`);
+        if (!response.ok) return undefined;
+        return await response.json();
+    }
+
+    async getPromptsByFramework(framework: string): Promise<SavedPrompt[]> {
+        const prompts = await this.getAllPrompts();
+        return prompts.filter(p => p.framework === framework);
+    }
+
+    async updatePrompt(id: number, updates: Partial<SavedPrompt>): Promise<void> {
+        await fetch(`${this.API_URL}/prompts/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updates)
+        });
+    }
+
+    async deletePrompt(id: number): Promise<void> {
+        await fetch(`${this.API_URL}/prompts/${id}`, {
+            method: 'DELETE'
+        });
+    }
+
+    async searchPrompts(query: string): Promise<SavedPrompt[]> {
+        const response = await fetch(`${this.API_URL}/prompts/search/query?q=${encodeURIComponent(query)}`);
+        if (!response.ok) return [];
+        return await response.json();
+    }
+}
+
+// Export unified database service
+// If Electron, use Electron DB.
+// If Web, try Local Server (HttpPromptStorage).
+// You can fallback to IndexedDB if you prefer, but to share data across browsers, server is required.
+export const promptDB = window.electron?.db || new HttpPromptStorage();
+

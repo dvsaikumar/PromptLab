@@ -7,7 +7,11 @@ import { Card } from '@/components/ui/Card';
 import { clsx } from 'clsx';
 import { estimateTokens } from '@/utils/tokenEstimator';
 
-export const PromptOutput: React.FC = () => {
+export interface PromptOutputProps {
+    hideHeader?: boolean;
+}
+
+export const PromptOutput: React.FC<PromptOutputProps> = ({ hideHeader = false }) => {
     const {
         generatedPrompt, setGeneratedPrompt, isGenerating, isAnalyzing, executionTime, llmConfig, totalInputTokens
     } = usePrompt();
@@ -32,7 +36,10 @@ export const PromptOutput: React.FC = () => {
     };
 
     return (
-        <div className="px-3 pb-6 pt-4 custom-scrollbar bg-slate-50/50 animate-in fade-in slide-in-from-right-4 duration-300 flex-1 relative flex flex-col h-full">
+        <div className={clsx(
+            "custom-scrollbar bg-slate-50/50 animate-in fade-in slide-in-from-right-4 duration-300 flex-1 relative flex flex-col h-full",
+            !hideHeader && "px-3 pb-6 pt-4"
+        )}>
             {isGenerating ? (
                 <Card className="h-[50vh] flex flex-col items-center justify-center border-dashed relative">
                     <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/50 backdrop-blur-sm z-10 transition-all">
@@ -46,10 +53,16 @@ export const PromptOutput: React.FC = () => {
                     </div>
                 </Card>
             ) : generatedPrompt ? (
-                <div className="w-full">
-                    <Card className="relative group overflow-hidden border-slate-200 shadow-sm hover:shadow-md transition-all flex flex-col h-[50vh]">
+                <div className="w-full h-full">
+                    <Card className={clsx(
+                        "relative group overflow-hidden flex flex-col h-full transition-all",
+                        !hideHeader ? "border border-slate-200 shadow-sm rounded-xl" : "border-none shadow-none rounded-none bg-transparent"
+                    )}>
                         {/* Header Bar */}
-                        <div className="flex items-center justify-between px-4 py-2 border-b border-slate-100 bg-slate-50/50 shrink-0">
+                        <div className={clsx(
+                            "flex items-center justify-between py-2 border-b border-slate-100 bg-slate-50/50 shrink-0",
+                            !hideHeader ? "px-4" : "px-0"
+                        )}>
                             <button
                                 onClick={() => setIsVisualMode(!isVisualMode)}
                                 className={clsx(
@@ -69,7 +82,7 @@ export const PromptOutput: React.FC = () => {
                                 tokenCount={estimateTokens(generatedPrompt, llmConfig?.model || '')}
                                 contextTokenCount={totalInputTokens}
                                 executionTime={executionTime}
-                                className="!static !bottom-auto !left-auto !translate-x-0 !m-0 bg-white border border-slate-200 shadow-sm scale-90 origin-right"
+                                className="!static !bottom-auto !left-auto !translate-x-0 !m-0 bg-white border border-slate-200 shadow-sm origin-right"
                             />
                         </div>
 
@@ -88,7 +101,7 @@ export const PromptOutput: React.FC = () => {
                     </Card>
                 </div>
             ) : (
-                <Card className="h-[50vh] flex flex-col items-center justify-center border-dashed bg-slate-50/30 hover:bg-slate-50/50 transition-colors group cursor-default">
+                <Card className="h-full flex flex-col items-center justify-center border-dashed bg-slate-50/30 hover:bg-slate-50/50 transition-colors group cursor-default">
                     <div className="flex flex-col items-center justify-center text-slate-400 p-8 text-center">
                         <Wand2 className="w-16 h-16 mb-4 opacity-20 group-hover:opacity-30 transition-opacity" />
                         <p className="font-bold text-slate-500 text-lg">Ready to Generate</p>

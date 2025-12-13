@@ -6,7 +6,7 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({ }) => {
     return (
-        <header className="fixed top-0 left-0 right-0 h-16 bg-white border-b border-slate-200 z-50 shadow-sm">
+        <header className="fixed top-0 left-0 right-0 h-16 bg-slate-50 border-b border-slate-200 z-50 shadow-sm">
             <div className="h-full flex items-center justify-between">
                 {/* Left: Logo always visible with text */}
                 <div className="h-full flex items-center gap-3 pl-4">
