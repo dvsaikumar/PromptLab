@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { RotateCcw, HelpCircle, Sparkles, Paperclip, Loader2, Save, Copy, FileText, X, Settings2, Eye, ChevronRight, Wand2, ArrowRight, Microscope } from 'lucide-react';
+import { RotateCcw, HelpCircle, Sparkles, Paperclip, Loader2, Save, Copy, FileText, X, Settings2, Eye, ChevronRight, Wand2, ArrowRight, Microscope, Globe } from 'lucide-react';
 import { PageTemplate } from '@/components/ui/PageTemplate';
 import { Button } from '@/components/ui/Button';
 import { usePrompt } from '@/contexts/PromptContext';
@@ -49,6 +49,9 @@ export const ReversePrompt: React.FC<ReversePromptProps> = ({ isSidebarOpen = fa
     const [techStack] = useState<string>(TECHNOLOGIES_DEFAULT);
     const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
     const [ocrContent, setOcrContent] = useState('');
+    const [showUrlInput, setShowUrlInput] = useState(false);
+    const [url, setUrl] = useState('');
+    const [isFetchingUrl, setIsFetchingUrl] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Track the last auto-generated text to allow safe overwrites
@@ -212,6 +215,47 @@ export const ReversePrompt: React.FC<ReversePromptProps> = ({ isSidebarOpen = fa
         } finally {
             setIsProcessingFile(false);
             if (fileInputRef.current) fileInputRef.current.value = '';
+        }
+    };
+
+    const handleUrlFetch = async () => {
+        if (!url) return;
+        setIsFetchingUrl(true);
+        const toastId = toast.loading('Fetching website content...');
+
+        try {
+            // Use allorigins to bypass CORS for client-side demo
+            const response = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`);
+            const data = await response.json();
+
+            if (data.contents) {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(data.contents, 'text/html');
+
+                // Remove scripts and styles
+                const scripts = doc.querySelectorAll('script, style, noscript, iframe, svg');
+                scripts.forEach(script => script.remove());
+
+                // Extract text
+                const text = doc.body.textContent || "";
+                const cleanText = text.replace(/\s+/g, ' ').trim();
+
+                const metadata = `\n\n=== SOURCE: ${url} ===\nTitle: ${doc.title}\n`;
+                const limit = 20000;
+                const truncatedText = cleanText.length > limit ? cleanText.substring(0, limit) + "...(truncated)" : cleanText;
+
+                setInputText(prev => (prev ? prev + '\n\n' : '') + metadata + truncatedText);
+                toast.success('Website content extracted!', { id: toastId });
+                setShowUrlInput(false);
+                setUrl('');
+            } else {
+                throw new Error("No content returned");
+            }
+        } catch (error) {
+            console.error(error);
+            toast.error('Failed to fetch URL. This site might block proxies.', { id: toastId });
+        } finally {
+            setIsFetchingUrl(false);
         }
     };
 
@@ -412,6 +456,16 @@ export const ReversePrompt: React.FC<ReversePromptProps> = ({ isSidebarOpen = fa
                                             <Button
                                                 variant="ghost"
                                                 size="sm"
+                                                onClick={() => setShowUrlInput(!showUrlInput)}
+                                                className={`gap-2 ${showUrlInput ? 'bg-indigo-50 text-indigo-700' : 'text-slate-500'}`}
+                                            >
+                                                <Globe size={16} />
+                                                <span className="hidden xl:inline">Website</span>
+                                            </Button>
+                                            <div className="w-px h-6 bg-slate-200 mx-1 self-center"></div>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
                                                 onClick={handleEnhanceInput}
                                                 disabled={isEnhancingInput || !inputText.trim()}
                                                 className="gap-1.5 text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700 font-bold"
@@ -438,6 +492,27 @@ export const ReversePrompt: React.FC<ReversePromptProps> = ({ isSidebarOpen = fa
                                             />
                                         </div>
                                     </div>
+
+                                    {showUrlInput && (
+                                        <div className="mb-3 p-2 bg-indigo-50 rounded-lg flex gap-2 animate-in slide-in-from-top-2">
+                                            <input
+                                                type="url"
+                                                placeholder="https://example.com"
+                                                className="flex-1 px-3 py-1.5 rounded-md border border-indigo-200 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                                                value={url}
+                                                onChange={(e) => setUrl(e.target.value)}
+                                                onKeyDown={(e) => e.key === 'Enter' && handleUrlFetch()}
+                                            />
+                                            <Button
+                                                size="sm"
+                                                onClick={handleUrlFetch}
+                                                disabled={isFetchingUrl || !url}
+                                                className="bg-indigo-600 text-white hover:bg-indigo-700"
+                                            >
+                                                {isFetchingUrl ? <Loader2 size={14} className="animate-spin" /> : 'Fetch'}
+                                            </Button>
+                                        </div>
+                                    )}
 
                                     {/* File Previews */}
                                     {files.length > 0 && (
