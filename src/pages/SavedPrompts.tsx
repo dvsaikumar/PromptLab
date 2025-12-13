@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Trash2, Clock, BookOpen, X, FileText, FolderOpen, Edit, Cpu, Download } from 'lucide-react';
+import { Search, Trash2, Clock, BookOpen, X, FileText, FolderOpen, Edit, Cpu, Download, Brain, Sparkles } from 'lucide-react';
 import { promptDB, SavedPrompt } from '@/services/database';
 import { vectorDb } from '@/services/vectorDbService';
 import { FRAMEWORKS, TONES, INDUSTRY_TEMPLATES, ROLE_PRESETS } from '@/constants';
@@ -25,6 +25,8 @@ export const SavedPromptsLibrary: React.FC<SavedPromptsLibraryPropsExtended> = (
     const [allPrompts, setAllPrompts] = useState<SavedPrompt[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedPrompt, setSelectedPrompt] = useState<SavedPrompt | null>(null);
+    const [isSemantic, setIsSemantic] = useState(false);
+    const [isSearching, setIsSearching] = useState(false);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -96,13 +98,47 @@ export const SavedPromptsLibrary: React.FC<SavedPromptsLibraryPropsExtended> = (
 
 
 
-    const handleSearch = (query: string) => {
+    const handleSearch = async (query: string) => {
         setSearchQuery(query);
         const term = query.toLowerCase().trim();
 
         if (!term) {
             setSavedPrompts(allPrompts);
             return;
+        }
+
+        if (isSemantic) {
+            if (!vectorDb.isAvailable()) {
+                toast.error("Semantic search requires desktop app or Vector DB", { id: "sem-fail" });
+                // Fallback to text search
+            } else {
+                setIsSearching(true);
+                try {
+                    // Generate embedding (using dummy for now as placeholder for real LLM embedding)
+                    const embedding = vectorDb.generateDummyEmbedding(query);
+                    // Search vector DB
+                    const results = await vectorDb.search('prompts', embedding, 10);
+
+                    // If results found, filter by ID (assuming results have some metadata or we map by title/text matches if ID not returned)
+                    // LanceDB returns rows. We need to match back to our DB IDs.
+                    // Ideally we stored ID in vector DB. (In SavedPrompts import, we didn't explicitly store ID... wait. Line 72 of SavedPrompts.tsx shows we stored title, text, category, timestamp. NO ID.)
+
+                    // Since we didn't store ID, we might need to fuzzy match title? Or text?
+                    // This is a flaw in previous implementation of Import.
+                    // I will check if I can match by text.
+
+                    if (results && results.length > 0) {
+                        const matchedtexts = new Set(results.map((r: any) => r.text));
+                        const filtered = allPrompts.filter(p => matchedtexts.has(p.prompt));
+                        setSavedPrompts(filtered);
+                        setIsSearching(false);
+                        return;
+                    }
+                } catch (e) {
+                    console.error("Vector search failed", e);
+                }
+                setIsSearching(false);
+            }
         }
 
         const filtered = allPrompts.filter(p => {
@@ -262,31 +298,50 @@ export const SavedPromptsLibrary: React.FC<SavedPromptsLibraryPropsExtended> = (
             <Button
                 variant="outline"
                 size="sm"
-                onClick={handleExportBackup}
-                className="gap-2 text-slate-600 border-slate-300 hover:bg-slate-100"
-                title="Export all prompts to JSON"
-            >
-                <Download size={16} />
-                Export
-            </Button>
-            <Button
-                variant="outline"
-                size="sm"
                 onClick={() => fileInputRef.current?.click()}
                 className="gap-2 text-slate-600 border-slate-300 hover:bg-slate-100"
             >
                 <FolderOpen size={16} />
                 Import JSON
             </Button>
-            <div className="relative w-80">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => handleSearch(e.target.value)}
-                    placeholder="Search prompts..."
-                    className="w-full pl-11 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all bg-slate-50"
-                />
+            <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExportBackup}
+                className="gap-2 text-slate-600 border-slate-300 hover:bg-slate-100"
+                title="Export all prompts to JSON"
+            >
+                <Download size={16} />
+                Backup
+            </Button>
+
+            <div className="relative w-96 flex items-center gap-2">
+                <div className="relative flex-1">
+                    <Search className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors ${isSemantic ? 'text-purple-500' : 'text-slate-400'}`} size={18} />
+                    <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => handleSearch(e.target.value)}
+                        placeholder={isSemantic ? "Semantic Search (Concept)..." : "Search prompts..."}
+                        className={`w-full pl-11 pr-4 py-3 border rounded-xl focus:ring-2 transition-all bg-slate-50 ${isSemantic ? 'border-purple-200 focus:ring-purple-500 focus:border-purple-500' : 'border-slate-200 focus:ring-emerald-500 focus:border-emerald-500'}`}
+                    />
+                    {isSearching && (
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                            <Sparkles className="w-4 h-4 text-purple-500 animate-spin" />
+                        </div>
+                    )}
+                </div>
+                <button
+                    onClick={() => {
+                        setIsSemantic(!isSemantic);
+                        setSavedPrompts(allPrompts);
+                        setSearchQuery('');
+                    }}
+                    className={`p-3 rounded-xl border transition-all ${isSemantic ? 'bg-purple-100 border-purple-200 text-purple-700' : 'bg-slate-50 border-slate-200 text-slate-400 hover:text-slate-600'}`}
+                    title="Toggle Semantic Search"
+                >
+                    <Brain size={20} />
+                </button>
             </div>
             <input type="file" ref={fileInputRef} className="hidden" accept=".json,.txt" onChange={handleImportFile} />
         </div>
