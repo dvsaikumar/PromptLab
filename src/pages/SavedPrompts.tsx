@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, Trash2, Clock, BookOpen, X, FileText, FolderOpen, Edit, Cpu, Download } from 'lucide-react';
-import { promptDB, SavedPrompt, IndexedDBPromptStorage } from '@/services/database';
+import { promptDB, SavedPrompt } from '@/services/database';
 import { vectorDb } from '@/services/vectorDbService';
 import { FRAMEWORKS, TONES, INDUSTRY_TEMPLATES, ROLE_PRESETS } from '@/constants';
 import toast from 'react-hot-toast';
@@ -25,7 +25,7 @@ export const SavedPromptsLibrary: React.FC<SavedPromptsLibraryPropsExtended> = (
     const [allPrompts, setAllPrompts] = useState<SavedPrompt[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedPrompt, setSelectedPrompt] = useState<SavedPrompt | null>(null);
-    const [isMigrating, setIsMigrating] = useState(false);
+
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const { loadPrompt } = usePrompt();
@@ -94,70 +94,7 @@ export const SavedPromptsLibrary: React.FC<SavedPromptsLibraryPropsExtended> = (
         reader.readAsText(file);
     };
 
-    const handleMigrate = async () => {
-        // First try to read from Browser Storage (IndexedDB)
-        setIsMigrating(true);
-        try {
-            const browserDB = new IndexedDBPromptStorage();
-            const oldPrompts = await browserDB.getAllPrompts();
 
-            if (oldPrompts.length === 0) {
-                // If nothing in IndexedDB, ask user for a file
-                if (confirm("No data found in browser storage. Would you like to upload a JSON backup file instead?")) {
-                    fileInputRef.current?.click();
-                }
-                setIsMigrating(false);
-                return;
-            }
-
-            if (!confirm(`Found ${oldPrompts.length} prompts in browser storage. Import them now?`)) {
-                setIsMigrating(false);
-                return;
-            }
-
-            let count = 0;
-            const currentPrompts = await promptDB.getAllPrompts();
-
-            for (const p of oldPrompts) {
-                // Simple duplicate check by Title
-                const exists = currentPrompts.some(cp => cp.title === p.title && cp.createdAt === p.createdAt);
-                if (!exists) {
-                    // Remove ID to let new DB assign it
-                    const { id, ...promptData } = p;
-                    await promptDB.savePrompt(promptData);
-
-                    // Sync Vector DB
-                    if (vectorDb.isAvailable()) {
-                        try {
-                            const vector = vectorDb.generateDummyEmbedding(promptData.prompt);
-                            await vectorDb.addDocuments('prompts', [{
-                                title: promptData.title,
-                                text: promptData.prompt,
-                                category: promptData.framework,
-                                vector,
-                                timestamp: promptData.createdAt
-                            }]);
-                        } catch (e) {
-                            console.warn("Vector index failed for migration", e);
-                        }
-                    }
-                    count++;
-                }
-            }
-
-            if (count > 0) {
-                toast.success(`Imported ${count} prompts from storage!`);
-                loadPrompts();
-            } else {
-                toast("All prompts are already imported.");
-            }
-        } catch (error) {
-            console.error(error);
-            toast.error("Migration failed");
-        } finally {
-            setIsMigrating(false);
-        }
-    };
 
     const handleSearch = (query: string) => {
         setSearchQuery(query);
@@ -335,12 +272,11 @@ export const SavedPromptsLibrary: React.FC<SavedPromptsLibraryPropsExtended> = (
             <Button
                 variant="outline"
                 size="sm"
-                onClick={handleMigrate}
-                disabled={isMigrating}
+                onClick={() => fileInputRef.current?.click()}
                 className="gap-2 text-slate-600 border-slate-300 hover:bg-slate-100"
             >
                 <FolderOpen size={16} />
-                {isMigrating ? 'Importing...' : 'Import'}
+                Import JSON
             </Button>
             <div className="relative w-80">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
