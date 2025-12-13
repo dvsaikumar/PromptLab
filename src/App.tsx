@@ -9,7 +9,7 @@ import { Footer } from '@/components/layout/Footer';
 import { SettingsModal } from '@/components/settings/SettingsModal';
 import { MyHub } from '@/pages/MyHub';
 import { PromptLab } from '@/pages/PromptLab';
-import { PromptLabNew } from '@/pages/PromptLabNew';
+import { PromptLaboratory } from '@/pages/PromptLabNew';
 import { ToneShifter } from '@/pages/ToneShifter';
 import { SavedPromptsLibrary } from '@/pages/SavedPrompts';
 import { TemplatePage } from '@/pages/TemplatePage';
@@ -65,7 +65,7 @@ const AppContent: React.FC = () => {
             case 'prompt-lab':
                 return <PromptLab activeSection={activeSection} toggleSection={toggleSection} isSidebarOpen={isSidebarOpen} />;
             case 'prompt-lab-2':
-                return <PromptLabNew isSidebarOpen={isSidebarOpen} />;
+                return <PromptLaboratory isSidebarOpen={isSidebarOpen} />;
             case 'reverse-prompt':
                 return <ReversePrompt isSidebarOpen={isSidebarOpen} />;
             case 'chain-reaction':

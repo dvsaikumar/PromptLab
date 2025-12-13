@@ -24,11 +24,11 @@ import { ProviderIcon } from '@/components/ui/ProviderIcon';
 import { vectorDb } from '@/services/vectorDbService';
 import { estimateTokens } from '@/utils/tokenEstimator';
 
-interface PromptLabProps {
+interface PromptLaboratoryProps {
     isSidebarOpen?: boolean;
 }
 
-export const PromptLabNew: React.FC<PromptLabProps> = ({ isSidebarOpen = false }) => {
+export const PromptLaboratory: React.FC<PromptLaboratoryProps> = ({ isSidebarOpen = false }) => {
     const {
         activeFramework, generatePrompt, isGenerating, fields, qualityScore,
         generatedPrompt, improvePrompt, isImproving,
@@ -38,20 +38,20 @@ export const PromptLabNew: React.FC<PromptLabProps> = ({ isSidebarOpen = false }
         activePersonaId, setActivePersonaId, complexity, setComplexity
     } = usePrompt();
 
-    const currentFramework = useMemo(() =>
+    const selectedFramework = useMemo(() =>
         FRAMEWORKS.find(f => f.id === activeFramework) || FRAMEWORKS[0],
         [activeFramework]
     );
 
-    const [isTemplateDrawerOpen, setIsTemplateDrawerOpen] = useState(false);
-    const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
-    const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
-    const [activeConfigTab, setActiveConfigTab] = useState<'framework' | 'tone'>('framework');
-    const [isOutputModalOpen, setIsOutputModalOpen] = useState(false);
-    const [isComplexityModalOpen, setIsComplexityModalOpen] = useState(false);
+    const [isTemplateDrawerVisible, setIsTemplateDrawerVisible] = useState(false);
+    const [isSaveModalVisible, setIsSaveModalVisible] = useState(false);
+    const [isConfigurationModalVisible, setIsConfigurationModalVisible] = useState(false);
+    const [selectedConfigurationTab, setSelectedConfigurationTab] = useState<'framework' | 'tone'>('framework');
+    const [isOutputModalVisible, setIsOutputModalVisible] = useState(false);
+    const [isComplexitySelectionVisible, setIsComplexitySelectionVisible] = useState(false);
 
-    // Export Handler
-    const handleExport = (format: 'md' | 'txt' | 'json') => {
+    // Export prompt to file in various formats
+    const exportPromptToFile = (format: 'md' | 'txt' | 'json') => {
         if (!generatedPrompt) return;
         const timestamp = new Date().toISOString().split('T')[0];
         const filename = `prompt_${activeFramework}_${timestamp} `;
@@ -85,15 +85,15 @@ export const PromptLabNew: React.FC<PromptLabProps> = ({ isSidebarOpen = false }
         URL.revokeObjectURL(url);
     };
 
-    const handleSaveNew = () => {
+    const saveNewPrompt = () => {
         if (!generatedPrompt) {
             toast.error('No prompt to save');
             return;
         }
-        setIsSaveModalOpen(true);
+        setIsSaveModalVisible(true);
     };
 
-    const handleUpdate = async () => {
+    const updateExistingPrompt = async () => {
         if (!generatedPrompt || !currentPromptId) return;
         try {
             await promptDB.updatePrompt(currentPromptId, {
@@ -135,7 +135,7 @@ export const PromptLabNew: React.FC<PromptLabProps> = ({ isSidebarOpen = false }
         }
     };
 
-    const handleSaveWithTitle = async (title: string) => {
+    const savePromptWithTitle = async (title: string) => {
         try {
             await promptDB.savePrompt({
                 title,
@@ -173,45 +173,45 @@ export const PromptLabNew: React.FC<PromptLabProps> = ({ isSidebarOpen = false }
     };
 
     // Check if all mandatory fields are filled
-    const isFormValid = useMemo(() => {
-        const requiredFields = currentFramework.fields.filter(field => field.id !== 'tone');
+    const areAllRequiredFieldsFilled = useMemo(() => {
+        const requiredFields = selectedFramework.fields.filter(field => field.id !== 'tone');
         return requiredFields.every(field => {
             const value = fields[field.id];
             return typeof value === 'string' && value.trim().length > 0;
         });
-    }, [fields, currentFramework]);
+    }, [fields, selectedFramework]);
 
 
     // Calculate token breakdown including overhead
-    const tokenBreakdownItems = useMemo(() => {
+    const tokenUsageBreakdownDisplay = useMemo(() => {
         const model = llmConfig?.model || 'gpt-4';
 
         // Input Calculations
-        const core = estimateTokens(simpleIdea || '', model);
-        const tones = estimateTokens(selectedTones.join(', '), model);
-        const fieldTokens = currentFramework.fields.map(f => ({
-            label: f.label,
-            value: estimateTokens(fields[f.id] || '', model)
+        const coreIdeaTokens = estimateTokens(simpleIdea || '', model);
+        const tonesTokens = estimateTokens(selectedTones.join(', '), model);
+        const fieldTokens = selectedFramework.fields.map((frameworkField: any) => ({
+            label: frameworkField.label,
+            value: estimateTokens(fields[frameworkField.id] || '', model)
         }));
 
-        const fieldsSum = fieldTokens.reduce((acc, f) => acc + f.value, 0);
-        const visibleSum = core + tones + fieldsSum;
-        const inputOverhead = Math.max(0, totalInputTokens - visibleSum);
+        const totalFieldsTokens = fieldTokens.reduce((accumulator: number, field: any) => accumulator + field.value, 0);
+        const visibleTokensSum = coreIdeaTokens + tonesTokens + totalFieldsTokens;
+        const inputOverheadTokens = Math.max(0, totalInputTokens - visibleTokensSum);
 
         const inputItems = [
-            { label: 'Core Idea', value: core },
-            { label: 'Tones', value: tones },
+            { label: 'Core Idea', value: coreIdeaTokens },
+            { label: 'Tones', value: tonesTokens },
             ...fieldTokens,
-            ...(inputOverhead > 0 ? [{ label: 'System & Template', value: inputOverhead }] : []),
+            ...(inputOverheadTokens > 0 ? [{ label: 'System & Template', value: inputOverheadTokens }] : []),
         ];
 
         // Output Calculations
-        const genTokens = estimateTokens(generatedPrompt || '', model);
-        const outputOverhead = Math.max(0, totalOutputTokens - genTokens);
+        const generatedContentTokens = estimateTokens(generatedPrompt || '', model);
+        const outputOverheadTokens = Math.max(0, totalOutputTokens - generatedContentTokens);
 
         const outputItems = [
-            { label: 'Generated Content', value: genTokens },
-            ...(outputOverhead > 0 ? [{ label: 'Metadata / Other', value: outputOverhead }] : [])
+            { label: 'Generated Content', value: generatedContentTokens },
+            ...(outputOverheadTokens > 0 ? [{ label: 'Metadata / Other', value: outputOverheadTokens }] : [])
         ];
 
         return (
@@ -281,7 +281,7 @@ export const PromptLabNew: React.FC<PromptLabProps> = ({ isSidebarOpen = false }
                 </div>
             </div>
         );
-    }, [simpleIdea, selectedTones, fields, currentFramework, totalInputTokens, totalOutputTokens, llmConfig, generatedPrompt]);
+    }, [simpleIdea, selectedTones, fields, selectedFramework, totalInputTokens, totalOutputTokens, llmConfig, generatedPrompt]);
 
     // Header Actions
     const HeaderButtons = (
@@ -301,7 +301,7 @@ export const PromptLabNew: React.FC<PromptLabProps> = ({ isSidebarOpen = false }
             </Button>
             <Button
                 variant="outline"
-                onClick={() => setIsTemplateDrawerOpen(true)}
+                onClick={() => setIsTemplateDrawerVisible(true)}
                 leftIcon={<Layout size={18} />}
             >
                 Templates
@@ -335,7 +335,7 @@ export const PromptLabNew: React.FC<PromptLabProps> = ({ isSidebarOpen = false }
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-[2px] h-full max-w-[1920px] mx-auto">
 
                             {/* --- LEFT: CORE IDEA & CONTEXT --- */}
-                            <div className="h-full pb-32 group/left relative">
+                            <div className="h-full overflow-y-auto [&::-webkit-scrollbar]:hidden pb-20 group/left relative">
                                 <div className="space-y-4">
                                     {/* Configuration Grid */}
                                     <section className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm mb-4">
@@ -368,7 +368,7 @@ export const PromptLabNew: React.FC<PromptLabProps> = ({ isSidebarOpen = false }
                                                     <BookOpen size={14} /> Framework
                                                 </label>
                                                 <div
-                                                    onClick={() => { setActiveConfigTab('framework'); setIsConfigModalOpen(true); }}
+                                                    onClick={() => { setSelectedConfigurationTab('framework'); setIsConfigurationModalVisible(true); }}
                                                     className="w-full flex items-center justify-between gap-3 px-4 py-3 bg-white hover:bg-slate-50 rounded-xl border border-slate-200 hover:border-indigo-300 transition-all cursor-pointer group shadow-sm"
                                                 >
                                                     <div className="flex items-center gap-3 overflow-hidden">
@@ -377,7 +377,7 @@ export const PromptLabNew: React.FC<PromptLabProps> = ({ isSidebarOpen = false }
                                                         </div>
                                                         <div className="flex flex-col min-w-0">
                                                             <span className="text-sm font-semibold text-slate-900 truncate">
-                                                                {currentFramework.name}
+                                                                {selectedFramework.name}
                                                             </span>
                                                             <span className="text-xs text-slate-500 truncate">
                                                                 Click to change
@@ -394,7 +394,7 @@ export const PromptLabNew: React.FC<PromptLabProps> = ({ isSidebarOpen = false }
                                                     <Palette size={14} /> Tone & Style
                                                 </label>
                                                 <div
-                                                    onClick={() => { setActiveConfigTab('tone'); setIsConfigModalOpen(true); }}
+                                                    onClick={() => { setSelectedConfigurationTab('tone'); setIsConfigurationModalVisible(true); }}
                                                     className="w-full flex items-center justify-between gap-3 px-4 py-3 bg-white hover:bg-slate-50 rounded-xl border border-slate-200 hover:border-pink-300 transition-all cursor-pointer group shadow-sm"
                                                 >
                                                     <div className="flex items-center gap-3 overflow-hidden">
@@ -424,18 +424,18 @@ export const PromptLabNew: React.FC<PromptLabProps> = ({ isSidebarOpen = false }
                             </div>
 
                             {/* --- RIGHT: CONFIGURATION & FIELDS --- */}
-                            <div className="h-full overflow-y-auto [&::-webkit-scrollbar]:hidden pb-8">
-                                <div className="space-y-1">
+                            <div className="h-full overflow-hidden pb-20">
+                                <div className="space-y-1 h-full">
 
 
                                     {/* Detailed Fields */}
-                                    <section className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm h-full">
-                                        <div className="flex items-center justify-between mb-3 px-1">
+                                    <section className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm h-full flex flex-col">
+                                        <div className="shrink-0 z-10 bg-white flex items-center justify-between mb-3 px-1 py-1 border-b border-slate-50">
                                             <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2 uppercase tracking-wide opacity-90">
                                                 <div className="p-1 rounded-md bg-purple-100 text-purple-600">
                                                     <FileText size={14} />
                                                 </div>
-                                                {currentFramework.name} Inputs
+                                                {selectedFramework.name} Inputs
                                             </h3>
                                             <div className="flex items-center gap-3">
                                                 <Button
@@ -458,8 +458,8 @@ export const PromptLabNew: React.FC<PromptLabProps> = ({ isSidebarOpen = false }
                                             </div>
                                         </div>
 
-                                        <div className="space-y-4">
-                                            {currentFramework.fields.map((field, index) => (
+                                        <div className="space-y-4 flex-1 overflow-y-auto custom-scrollbar pr-1 pb-2">
+                                            {selectedFramework.fields.map((field: any, index: number) => (
                                                 <div key={field.id} className="transform transition-all duration-500" style={{ animationDelay: `${index * 100} ms` }}>
                                                     <InputField
                                                         id={field.id}
@@ -480,7 +480,7 @@ export const PromptLabNew: React.FC<PromptLabProps> = ({ isSidebarOpen = false }
                     </div>
 
                     {/* Floating Action Dock */}
-                    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-fit max-w-[95vw] px-4 z-50">
+                    <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-fit max-w-[95vw] px-4 z-50">
                         <div className="bg-slate-900/90 backdrop-blur-xl border border-white/10 text-white p-2 rounded-2xl shadow-2xl flex items-center justify-between gap-4 ring-1 ring-white/20">
 
                             {/* Stats */}
@@ -527,7 +527,7 @@ export const PromptLabNew: React.FC<PromptLabProps> = ({ isSidebarOpen = false }
                                 <div className="w-px h-8 bg-white/10 shrink-0"></div>
 
                                 <Tooltip
-                                    content={tokenBreakdownItems}
+                                    content={tokenUsageBreakdownDisplay}
                                     title="Token Breakdown"
                                     position="top"
                                 >
@@ -552,15 +552,15 @@ export const PromptLabNew: React.FC<PromptLabProps> = ({ isSidebarOpen = false }
                             {/* Actions */}
                             <div className="flex items-center gap-2">
                                 <Button
-                                    onClick={() => setIsOutputModalOpen(true)}
+                                    onClick={() => setIsOutputModalVisible(true)}
                                     className="h-9 px-4 bg-white/8 hover:bg-white/10 text-slate-200 hover:text-white border border-white/10 hover:border-white/20 rounded-xl transition-all shadow-sm font-medium"
                                 >
                                     View Output
                                 </Button>
                                 <div className="w-px h-4 bg-slate-700 mx-1"></div>
                                 <Button
-                                    onClick={() => setIsComplexityModalOpen(true)}
-                                    disabled={isGenerating || !isFormValid}
+                                    onClick={() => setIsComplexitySelectionVisible(true)}
+                                    disabled={isGenerating || !areAllRequiredFieldsFilled}
                                     isLoading={isGenerating}
                                     className="h-10 px-6 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 hover:from-indigo-400 hover:to-pink-400 text-white font-semibold rounded-xl shadow-lg shadow-purple-500/25 border-none"
                                 >
@@ -577,15 +577,15 @@ export const PromptLabNew: React.FC<PromptLabProps> = ({ isSidebarOpen = false }
                 </div >
             </div >
 
-            <TemplateSelector isOpen={isTemplateDrawerOpen} onClose={() => setIsTemplateDrawerOpen(false)} />
+            <TemplateSelector isOpen={isTemplateDrawerVisible} onClose={() => setIsTemplateDrawerVisible(false)} />
             <SavePromptModal
-                isOpen={isSaveModalOpen}
-                onClose={() => setIsSaveModalOpen(false)}
-                onSave={handleSaveWithTitle}
+                isOpen={isSaveModalVisible}
+                onClose={() => setIsSaveModalVisible(false)}
+                onSave={savePromptWithTitle}
             />
 
             {/* Output Modal */}
-            {isOutputModalOpen && createPortal(
+            {isOutputModalVisible && createPortal(
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[95vw] h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
                         {/* Header with Toolbar */}
@@ -597,15 +597,15 @@ export const PromptLabNew: React.FC<PromptLabProps> = ({ isSidebarOpen = false }
                             <div className="flex items-center gap-4">
                                 {generatedPrompt && (
                                     <ResultToolbar
-                                        onExport={handleExport}
-                                        onSave={currentPromptId ? handleUpdate : handleSaveNew}
-                                        onSaveAs={currentPromptId ? handleSaveNew : undefined}
+                                        onExport={exportPromptToFile}
+                                        onSave={currentPromptId ? updateExistingPrompt : saveNewPrompt}
+                                        onSaveAs={currentPromptId ? saveNewPrompt : undefined}
                                         contentToCopy={generatedPrompt}
                                         className="shadow-none border-none bg-transparent"
                                     />
                                 )}
                                 <button
-                                    onClick={() => setIsOutputModalOpen(false)}
+                                    onClick={() => setIsOutputModalVisible(false)}
                                     className="p-2 hover:bg-slate-200 rounded-full text-slate-500 transition-colors"
                                 >
                                     <X size={24} />
@@ -628,7 +628,7 @@ export const PromptLabNew: React.FC<PromptLabProps> = ({ isSidebarOpen = false }
                                                 {simpleIdea || <em className="text-slate-400">No core idea provided.</em>}
                                             </div>
                                         </div>
-                                        {currentFramework.fields.map(field => (
+                                        {selectedFramework.fields.map((field: any) => (
                                             <div key={field.id} className="space-y-1">
                                                 <label className="text-xs font-bold text-blue-900 bg-blue-100 px-2.5 py-1 rounded-md inline-block uppercase tracking-wide">{field.label}</label>
                                                 <div className="p-2 bg-slate-50 rounded-lg text-sm text-slate-700 leading-relaxed border border-slate-100">
@@ -664,7 +664,7 @@ export const PromptLabNew: React.FC<PromptLabProps> = ({ isSidebarOpen = false }
             )}
 
             {/* Complexity Modal */}
-            {isComplexityModalOpen && createPortal(
+            {isComplexitySelectionVisible && createPortal(
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
                         <div className="p-6 border-b border-slate-100 bg-slate-50/50">
@@ -708,12 +708,12 @@ export const PromptLabNew: React.FC<PromptLabProps> = ({ isSidebarOpen = false }
                         </div>
 
                         <div className="p-4 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-3">
-                            <Button variant="ghost" onClick={() => setIsComplexityModalOpen(false)}>Cancel</Button>
+                            <Button variant="ghost" onClick={() => setIsComplexitySelectionVisible(false)}>Cancel</Button>
                             <Button
                                 onClick={() => {
-                                    setIsComplexityModalOpen(false);
+                                    setIsComplexitySelectionVisible(false);
                                     generatePrompt();
-                                    setIsOutputModalOpen(true);
+                                    setIsOutputModalVisible(true);
                                 }}
                                 className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white"
                                 leftIcon={<RotateCcw size={16} />}
@@ -727,7 +727,7 @@ export const PromptLabNew: React.FC<PromptLabProps> = ({ isSidebarOpen = false }
             )}
 
             {/* Configuration Modal */}
-            {isConfigModalOpen && createPortal(
+            {isConfigurationModalVisible && createPortal(
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[95vw] h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
                         {/* Header */}
@@ -739,7 +739,7 @@ export const PromptLabNew: React.FC<PromptLabProps> = ({ isSidebarOpen = false }
                                 Prompt Configuration
                             </h2>
                             <button
-                                onClick={() => setIsConfigModalOpen(false)}
+                                onClick={() => setIsConfigurationModalVisible(false)}
                                 className="p-2 hover:bg-red-50 hover:text-red-500 rounded-full text-slate-400 transition-colors"
                             >
                                 <X size={24} />
@@ -749,10 +749,10 @@ export const PromptLabNew: React.FC<PromptLabProps> = ({ isSidebarOpen = false }
                         {/* Tabs */}
                         <div className="flex border-b border-slate-100 bg-slate-50/50 px-6 pt-2">
                             <button
-                                onClick={() => setActiveConfigTab('framework')}
+                                onClick={() => setSelectedConfigurationTab('framework')}
                                 className={clsx(
                                     "flex-1 justify-center px-4 py-3 text-sm font-bold border-b-2 transition-all flex items-center gap-2",
-                                    activeConfigTab === 'framework'
+                                    selectedConfigurationTab === 'framework'
                                         ? "border-indigo-500 text-indigo-700 bg-white rounded-t-lg"
                                         : "border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100/50 rounded-t-lg"
                                 )}
@@ -760,10 +760,10 @@ export const PromptLabNew: React.FC<PromptLabProps> = ({ isSidebarOpen = false }
                                 <BookOpen size={16} /> Framework
                             </button>
                             <button
-                                onClick={() => setActiveConfigTab('tone')}
+                                onClick={() => setSelectedConfigurationTab('tone')}
                                 className={clsx(
                                     "flex-1 justify-center px-4 py-3 text-sm font-bold border-b-2 transition-all flex items-center gap-2",
-                                    activeConfigTab === 'tone'
+                                    selectedConfigurationTab === 'tone'
                                         ? "border-pink-500 text-pink-700 bg-white rounded-t-lg"
                                         : "border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100/50 rounded-t-lg"
                                 )}
@@ -774,7 +774,7 @@ export const PromptLabNew: React.FC<PromptLabProps> = ({ isSidebarOpen = false }
 
                         {/* Content */}
                         <div className="flex-1 overflow-y-auto bg-slate-50/30 p-6 custom-scrollbar">
-                            {activeConfigTab === 'framework' ? (
+                            {selectedConfigurationTab === 'framework' ? (
                                 <div className="w-full">
                                     <div className="mb-4 p-4 bg-blue-50 border border-blue-100 rounded-xl text-blue-800 text-sm">
                                         <p className="font-bold mb-1">Select a Framework</p>
@@ -795,10 +795,10 @@ export const PromptLabNew: React.FC<PromptLabProps> = ({ isSidebarOpen = false }
 
                         {/* Footer */}
                         <div className="p-4 border-t border-slate-200 bg-white flex justify-end gap-3">
-                            <Button onClick={() => setIsConfigModalOpen(false)} variant="outline">
+                            <Button onClick={() => setIsConfigurationModalVisible(false)} variant="outline">
                                 Close
                             </Button>
-                            <Button onClick={() => setIsConfigModalOpen(false)} leftIcon={<Check size={16} />}>
+                            <Button onClick={() => setIsConfigurationModalVisible(false)} leftIcon={<Check size={16} />}>
                                 Done
                             </Button>
                         </div>

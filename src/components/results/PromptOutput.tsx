@@ -16,23 +16,23 @@ export const PromptOutput: React.FC<PromptOutputProps> = ({ hideHeader = false }
         generatedPrompt, setGeneratedPrompt, isGenerating, isAnalyzing, executionTime, llmConfig, totalInputTokens
     } = usePrompt();
 
-    const [loadingStep, setLoadingStep] = useState(0);
-    const [isVisualMode, setIsVisualMode] = useState(false);
-    const textSteps = ["Connecting to LLM...", "Drafting content...", "Polishing output..."];
+    const [currentLoadingStep, setCurrentLoadingStep] = useState(0);
+    const [isVisualModeEnabled, setIsVisualModeEnabled] = useState(false);
+    const loadingStepMessages = ["Connecting to LLM...", "Drafting content...", "Polishing output..."];
 
     useEffect(() => {
         if (isGenerating) {
-            setLoadingStep(0);
-            const t1 = setTimeout(() => setLoadingStep(1), 2000);
-            const t2 = setTimeout(() => setLoadingStep(2), 5000);
-            return () => { clearTimeout(t1); clearTimeout(t2); };
+            setCurrentLoadingStep(0);
+            const firstStepTimer = setTimeout(() => setCurrentLoadingStep(1), 2000);
+            const secondStepTimer = setTimeout(() => setCurrentLoadingStep(2), 5000);
+            return () => { clearTimeout(firstStepTimer); clearTimeout(secondStepTimer); };
         }
     }, [isGenerating]);
 
-    const handleReplace = (oldText: string, newText: string) => {
+    const replaceTextInPrompt = (oldText: string, newText: string) => {
         if (!generatedPrompt) return;
-        const updated = generatedPrompt.replace(oldText, newText);
-        setGeneratedPrompt(updated);
+        const updatedPrompt = generatedPrompt.replace(oldText, newText);
+        setGeneratedPrompt(updatedPrompt);
     };
 
     return (
@@ -44,11 +44,11 @@ export const PromptOutput: React.FC<PromptOutputProps> = ({ hideHeader = false }
                 <Card className="h-[50vh] flex flex-col items-center justify-center border-dashed relative">
                     <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/50 backdrop-blur-sm z-10 transition-all">
                         <RefreshCw className="w-12 h-12 text-indigo-500 animate-spin mb-4 drop-shadow-sm" />
-                        <p className="text-slate-600 font-bold text-lg animate-pulse">{textSteps[loadingStep]}</p>
+                        <p className="text-slate-600 font-bold text-lg animate-pulse">{loadingStepMessages[currentLoadingStep]}</p>
                         <div className="flex gap-1 mt-2">
-                            <div className={clsx("w-2 h-2 rounded-full transition-colors", loadingStep >= 0 ? "bg-indigo-500" : "bg-slate-200")} />
-                            <div className={clsx("w-2 h-2 rounded-full transition-colors", loadingStep >= 1 ? "bg-indigo-500" : "bg-slate-200")} />
-                            <div className={clsx("w-2 h-2 rounded-full transition-colors", loadingStep >= 2 ? "bg-indigo-500" : "bg-slate-200")} />
+                            <div className={clsx("w-2 h-2 rounded-full transition-colors", currentLoadingStep >= 0 ? "bg-indigo-500" : "bg-slate-200")} />
+                            <div className={clsx("w-2 h-2 rounded-full transition-colors", currentLoadingStep >= 1 ? "bg-indigo-500" : "bg-slate-200")} />
+                            <div className={clsx("w-2 h-2 rounded-full transition-colors", currentLoadingStep >= 2 ? "bg-indigo-500" : "bg-slate-200")} />
                         </div>
                     </div>
                 </Card>
@@ -64,16 +64,16 @@ export const PromptOutput: React.FC<PromptOutputProps> = ({ hideHeader = false }
                             !hideHeader ? "px-4" : "px-0"
                         )}>
                             <button
-                                onClick={() => setIsVisualMode(!isVisualMode)}
+                                onClick={() => setIsVisualModeEnabled(!isVisualModeEnabled)}
                                 className={clsx(
                                     "p-1.5 rounded-lg border transition-all shadow-sm",
-                                    isVisualMode
+                                    isVisualModeEnabled
                                         ? "bg-indigo-50 border-indigo-200 text-indigo-600"
                                         : "bg-white border-slate-200 text-slate-500 hover:text-slate-700 hover:border-slate-300"
                                 )}
-                                title={isVisualMode ? "Back to Edit" : "Enable Visual Logic"}
+                                title={isVisualModeEnabled ? "Back to Edit" : "Enable Visual Logic"}
                             >
-                                {isVisualMode ? <EyeOff size={16} /> : <Eye size={16} />}
+                                {isVisualModeEnabled ? <EyeOff size={16} /> : <Eye size={16} />}
                                 <span className="sr-only">Toggle Visual Mode</span>
                             </button>
 
@@ -87,9 +87,9 @@ export const PromptOutput: React.FC<PromptOutputProps> = ({ hideHeader = false }
                         </div>
 
                         {/* Content Area */}
-                        {isVisualMode ? (
+                        {isVisualModeEnabled ? (
                             <div className="w-full flex-1 p-4 overflow-auto custom-scrollbar bg-slate-50/30">
-                                <PromptHighlighter text={generatedPrompt} onReplace={handleReplace} />
+                                <PromptHighlighter text={generatedPrompt} onReplace={replaceTextInPrompt} />
                             </div>
                         ) : (
                             <textarea
