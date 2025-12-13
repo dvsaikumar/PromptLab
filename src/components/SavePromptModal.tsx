@@ -6,17 +6,25 @@ interface SavePromptModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSave: (title: string) => void;
+    title?: string;
+    placeholder?: string;
 }
 
-export const SavePromptModal: React.FC<SavePromptModalProps> = ({ isOpen, onClose, onSave }) => {
-    const [title, setTitle] = useState('');
+export const SavePromptModal: React.FC<SavePromptModalProps> = ({
+    isOpen,
+    onClose,
+    onSave,
+    title = 'Save Prompt',
+    placeholder = 'Enter a descriptive title...'
+}) => {
+    const [promptTitle, setPromptTitle] = useState('');
 
     if (!isOpen) return null;
 
     const handleSave = () => {
-        if (title.trim()) {
-            onSave(title.trim());
-            setTitle('');
+        if (promptTitle.trim()) {
+            onSave(promptTitle.trim());
+            setPromptTitle('');
             onClose();
         }
     };
@@ -33,7 +41,7 @@ export const SavePromptModal: React.FC<SavePromptModalProps> = ({ isOpen, onClos
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[2000] p-6 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full animate-in zoom-in-95 duration-200">
                 <div className="flex items-center justify-between p-6 border-b border-slate-200">
-                    <h3 className="text-xl font-bold text-slate-900">Save Prompt</h3>
+                    <h3 className="text-xl font-bold text-slate-900">{title}</h3>
                     <button
                         onClick={onClose}
                         className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
@@ -43,14 +51,14 @@ export const SavePromptModal: React.FC<SavePromptModalProps> = ({ isOpen, onClos
                 </div>
                 <div className="p-6">
                     <label className="block text-sm font-bold text-slate-700 mb-2">
-                        Prompt Title
+                        {title}
                     </label>
                     <input
                         type="text"
-                        value={title}
-                        onChange={(e) => setTitle(e.target.value)}
+                        value={promptTitle}
+                        onChange={(e) => setPromptTitle(e.target.value)}
                         onKeyDown={handleKeyDown}
-                        placeholder="Enter a descriptive title..."
+                        placeholder={placeholder}
                         className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
                         autoFocus
                     />
@@ -58,10 +66,10 @@ export const SavePromptModal: React.FC<SavePromptModalProps> = ({ isOpen, onClos
                 <div className="p-6 border-t border-slate-200 flex gap-3">
                     <button
                         onClick={handleSave}
-                        disabled={!title.trim()}
+                        disabled={!promptTitle.trim()}
                         className="flex-1 px-4 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl font-bold shadow-md hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        Save Prompt
+                        {title}
                     </button>
                     <button
                         onClick={onClose}

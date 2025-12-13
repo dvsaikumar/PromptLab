@@ -1,5 +1,6 @@
 import React, { useCallback, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { workflowDB, SavedWorkflow } from '@/services/database';
 import ReactFlow, {
     addEdge,
     Background,
@@ -16,7 +17,7 @@ import { PageTemplate } from '@/components/ui/PageTemplate';
 import { Button } from '@/components/ui/Button';
 import { PromptNode } from '@/components/chain/PromptNode';
 import { NodeConfigurationDrawer } from '@/components/chain/NodeConfigurationDrawer';
-import { Workflow, Plus, Play, Save, Loader2, X, Copy, Sparkles, LayoutList, FileText, FileJson, AlignLeft, FileType, Printer, Upload, Link } from 'lucide-react';
+import { Workflow, Plus, Play, Save, Loader2, X, Copy, Sparkles, LayoutList, FileText, FileJson, AlignLeft, FileType, Printer, Upload, Link, FolderOpen } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import toast from 'react-hot-toast';
@@ -135,6 +136,41 @@ export const ChainReactionPage: React.FC<ChainReactionPageProps> = ({ isSidebarO
     const [showFullHistory, setShowFullHistory] = useState(false);
     const [viewFormat, setViewFormat] = useState<'markdown' | 'text' | 'json'>('markdown');
     const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
+    const [isWorkflowSaveModalOpen, setIsWorkflowSaveModalOpen] = useState(false);
+    const [isLoadWorkflowModalOpen, setIsLoadWorkflowModalOpen] = useState(false);
+    const [savedWorkflows, setSavedWorkflows] = useState<SavedWorkflow[]>([]);
+
+    const fetchWorkflows = async () => {
+        const flows = await workflowDB.getAllWorkflows();
+        setSavedWorkflows(flows.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()));
+    };
+
+    const handleSaveWorkflowGraph = async (title: string) => {
+        try {
+            await workflowDB.saveWorkflow({
+                title,
+                nodes: nodes,
+                edges: edges,
+                globalFiles: globalFiles,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+            });
+            toast.success("Workflow saved!");
+            setIsWorkflowSaveModalOpen(false);
+        } catch (e) {
+            toast.error("Failed to save workflow");
+        }
+    };
+
+    const handleLoadWorkflow = (flow: SavedWorkflow) => {
+        if (!confirm("Load this workflow? Unsaved changes will be lost.")) return;
+        setNodes(flow.nodes);
+        setEdges(flow.edges);
+        setGlobalFiles(flow.globalFiles || []);
+        setIsLoadWorkflowModalOpen(false);
+        toast.success(`Workflow "${flow.title}" loaded`);
+        // Re-hydrate handlers just in case, though useEffect depends on setNodes
+    };
 
     // Global Context Files
     const [globalFiles, setGlobalFiles] = useState<{ name: string, content: string }[]>([]);
@@ -646,7 +682,23 @@ export const ChainReactionPage: React.FC<ChainReactionPageProps> = ({ isSidebarO
                             {isRunning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
                             {isRunning ? 'Processing...' : 'Run Chain'}
                         </Button>
-                        <Button variant="outline" size="sm" className="gap-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="gap-2 mr-2"
+                            onClick={() => {
+                                fetchWorkflows();
+                                setIsLoadWorkflowModalOpen(true);
+                            }}
+                        >
+                            <FolderOpen className="w-4 h-4" /> Load
+                        </Button>
+                        <Button
+                            onClick={() => setIsWorkflowSaveModalOpen(true)}
+                            variant="outline"
+                            size="sm"
+                            className="gap-2"
+                        >
                             <Save className="w-4 h-4" /> Save Workflow
                         </Button>
                     </div>
@@ -678,6 +730,51 @@ export const ChainReactionPage: React.FC<ChainReactionPageProps> = ({ isSidebarO
                     onSave={handleDrawerSave}
                 />
             </div>
+
+            <SavePromptModal
+                isOpen={isWorkflowSaveModalOpen}
+                onClose={() => setIsWorkflowSaveModalOpen(false)}
+                onSave={handleSaveWorkflowGraph}
+                title="Save Workflow"
+                placeholder="Enter workflow name..."
+            />
+
+            {/* Load Workflow Modal */}
+            {isLoadWorkflowModalOpen && createPortal(
+                <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
+                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[70vh] animate-in zoom-in-95">
+                        <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                            <h3 className="font-bold text-slate-800">Load Workflow</h3>
+                            <button onClick={() => setIsLoadWorkflowModalOpen(false)} className="text-slate-400 hover:text-indigo-600"><X size={20} /></button>
+                        </div>
+                        <div className="overflow-y-auto p-2 bg-slate-50/50">
+                            {savedWorkflows.length === 0 ? (
+                                <div className="p-8 text-center text-slate-500">No saved workflows found.</div>
+                            ) : (
+                                <div className="space-y-2">
+                                    {savedWorkflows.map(flow => (
+                                        <button
+                                            key={flow.id}
+                                            onClick={() => handleLoadWorkflow(flow)}
+                                            className="w-full text-left p-4 bg-white hover:bg-slate-50 rounded-lg border border-slate-200 hover:border-indigo-300 shadow-sm transition-all flex justify-between items-center group"
+                                        >
+                                            <div className="overflow-hidden">
+                                                <div className="font-semibold text-slate-800 truncate">{flow.title}</div>
+                                                <div className="text-xs text-slate-500 mt-1 flex items-center gap-1">
+                                                    <div className="w-1.5 h-1.5 rounded-full bg-slate-300 group-hover:bg-indigo-400"></div>
+                                                    {new Date(flow.updatedAt).toLocaleDateString()}
+                                                </div>
+                                            </div>
+                                            <FolderOpen size={18} className="text-slate-300 group-hover:text-indigo-500 flex-shrink-0" />
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
 
             {/* Final Result Modal */}
             {finalResult && finalResult.isOpen && createPortal(

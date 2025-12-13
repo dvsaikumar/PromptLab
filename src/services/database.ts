@@ -33,6 +33,17 @@ export interface HistoryRecord {
     model?: string;
 }
 
+export interface SavedWorkflow {
+    id?: number;
+    title: string;
+    description?: string;
+    nodes: any[];
+    edges: any[];
+    globalFiles?: any[];
+    createdAt: string;
+    updatedAt: string;
+}
+
 interface ElectronDB {
     savePrompt: (prompt: Omit<SavedPrompt, 'id'>) => Promise<number>;
     getAllPrompts: () => Promise<SavedPrompt[]>;
@@ -64,9 +75,10 @@ declare global {
 // IndexedDB Database service for browser (permanent storage)
 export class IndexedDBPromptStorage {
     private DB_NAME = 'DStudiosPrompts';
-    private DB_VERSION = 2; // Bumped version for history table
+    private DB_VERSION = 3; // Bumped version for workflows
     private STORE_NAME = 'savedPrompts';
     private HISTORY_STORE = 'generationHistory';
+    private WORKFLOW_STORE = 'workflows';
     private db: IDBDatabase | null = null;
 
     /**
@@ -97,6 +109,12 @@ export class IndexedDBPromptStorage {
                 if (!db.objectStoreNames.contains(this.HISTORY_STORE)) {
                     const hStore = db.createObjectStore(this.HISTORY_STORE, { keyPath: 'id', autoIncrement: true });
                     hStore.createIndex('createdAt', 'createdAt', { unique: false });
+                }
+
+                // Workflows Store (New in v3)
+                if (!db.objectStoreNames.contains(this.WORKFLOW_STORE)) {
+                    const wStore = db.createObjectStore(this.WORKFLOW_STORE, { keyPath: 'id', autoIncrement: true });
+                    wStore.createIndex('createdAt', 'createdAt', { unique: false });
                 }
             };
         });
@@ -227,6 +245,29 @@ export class IndexedDBPromptStorage {
             p.prompt.toLowerCase().includes(lowerQuery)
         );
     }
+
+    // --- WORKFLOWS (Chain Reaction) ---
+    async saveWorkflow(workflow: Omit<SavedWorkflow, 'id'>): Promise<number> {
+        const db = await this.ensureDB();
+        return new Promise((resolve, reject) => {
+            const transaction = db.transaction([this.WORKFLOW_STORE], 'readwrite');
+            const store = transaction.objectStore(this.WORKFLOW_STORE);
+            const request = store.add(workflow);
+            request.onsuccess = () => resolve(request.result as number);
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    async getAllWorkflows(): Promise<SavedWorkflow[]> {
+        const db = await this.ensureDB();
+        return new Promise((resolve, reject) => {
+            const transaction = db.transaction([this.WORKFLOW_STORE], 'readonly');
+            const store = transaction.objectStore(this.WORKFLOW_STORE);
+            const request = store.getAll();
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+    }
 }
 
 // Export unified database service
@@ -309,4 +350,7 @@ export class HttpPromptStorage {
 // If Web, try Local Server (HttpPromptStorage).
 // You can fallback to IndexedDB if you prefer, but to share data across browsers, server is required.
 export const promptDB = window.electron?.db || new HttpPromptStorage();
+
+// Detailed Workflow DB (IndexedDB Only for now)
+export const workflowDB = new IndexedDBPromptStorage();
 
