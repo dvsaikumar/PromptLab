@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Save, RefreshCw, Wand2, Gauge, MessageSquare, Sparkles, ArrowDown, Paperclip, FileText, Trash2 } from 'lucide-react';
+import { X, Save, RefreshCw, Wand2, Gauge, MessageSquare, Sparkles, ArrowDown, Paperclip, FileText, Trash2, Bot, Globe, Terminal, Repeat } from 'lucide-react';
 import { LLMSelector } from '@/components/ui/LLMSelector';
 import { PersonaSelector } from '@/components/ui/PersonaSelector';
 import { UnifiedSelector } from '@/components/ui/UnifiedSelector';
@@ -270,66 +270,95 @@ export const NodeConfigurationDrawer: React.FC<NodeConfigurationDrawerProps> = (
                 {/* Body */}
                 <div className="flex-1 overflow-y-auto p-6 space-y-8 custom-scrollbar">
 
-                    {/* 1. AI Model */}
-                    <div className="space-y-4">
-                        <LLMSelector
-                            onOpenSettings={() => window.dispatchEvent(new Event('open-settings-modal'))}
-                            value={formData.providerId}
-                            model={formData.model}
-                            onChange={(pid, model) => {
-                                handleChange('providerId', pid);
-                                if (model !== undefined) handleChange('model', model);
-                            }}
-                            className=""
-                        />
+                    {/* 0. Node Type Selector (New for Active Agents) */}
+                    <div className="grid grid-cols-3 gap-2 p-1 bg-slate-100 rounded-xl mb-6">
+                        <button
+                            onClick={() => handleChange('toolType', undefined)} // default is prompt
+                            className={`flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-bold transition-all ${!formData.toolType ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-indigo-600'}`}
+                        >
+                            <Bot size={16} />
+                            Prompt
+                        </button>
+                        <button
+                            onClick={() => handleChange('toolType', 'web')}
+                            className={`flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-bold transition-all ${formData.toolType === 'web' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-blue-600'}`}
+                        >
+                            <Globe size={16} />
+                            Web Agent
+                        </button>
+                        <button
+                            onClick={() => handleChange('toolType', 'code')}
+                            className={`flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-bold transition-all ${formData.toolType === 'code' ? 'bg-white text-amber-600 shadow-sm' : 'text-slate-500 hover:text-amber-600'}`}
+                        >
+                            <Terminal size={16} />
+                            Code Agent
+                        </button>
                     </div>
 
-                    {/* 2. Persona */}
-                    <div className="space-y-4">
-                        <PersonaSelector
-                            activePersonaId={formData.personaId || 'prompt-engineer'}
-                            setActivePersonaId={(id) => handleChange('personaId', id)}
-                            className=""
-                        />
-                    </div>
+                    {/* 1. AI Model & Persona (Show ONLY if Prompt Node) */}
+                    {!formData.toolType && (
+                        <>
+                            <div className="space-y-4">
+                                <LLMSelector
+                                    onOpenSettings={() => window.dispatchEvent(new Event('open-settings-modal'))}
+                                    value={formData.providerId}
+                                    model={formData.model}
+                                    onChange={(pid, model) => {
+                                        handleChange('providerId', pid);
+                                        if (model !== undefined) handleChange('model', model);
+                                    }}
+                                    className=""
+                                />
+                            </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                        {/* 3. Complexity */}
-                        <UnifiedSelector
-                            label="Complexity"
-                            icon={<Gauge size={14} />}
-                            value={formData.complexity || 'medium'}
-                            onChange={(val) => handleChange('complexity', val)}
-                            options={COMPLEXITY_OPTIONS.map(opt => ({
-                                value: opt.value,
-                                label: opt.label.split(' - ')[0],
-                                description: opt.label.split(' - ')[1],
-                                icon: <Gauge size={18} />
-                            }))}
-                        />
+                            {/* 2. Persona */}
+                            <div className="space-y-4">
+                                <PersonaSelector
+                                    activePersonaId={formData.personaId || 'prompt-engineer'}
+                                    setActivePersonaId={(id) => handleChange('personaId', id)}
+                                    className=""
+                                />
+                            </div>
 
-                        {/* 4. Tone */}
-                        <UnifiedSelector
-                            label="Tone"
-                            icon={<MessageSquare size={14} />}
-                            value={formData.tone || ''}
-                            onChange={(val) => handleChange('tone', val)}
-                            placeholder="Select Tone"
-                            searchable={true}
-                            options={TONES.map(t => ({
-                                value: t.value,
-                                label: t.label,
-                                description: t.description,
-                                icon: <MessageSquare size={18} />
-                            }))}
-                        />
-                    </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                {/* 3. Complexity */}
+                                <UnifiedSelector
+                                    label="Complexity"
+                                    icon={<Gauge size={14} />}
+                                    value={formData.complexity || 'medium'}
+                                    onChange={(val) => handleChange('complexity', val)}
+                                    options={COMPLEXITY_OPTIONS.map(opt => ({
+                                        value: opt.value,
+                                        label: opt.label.split(' - ')[0],
+                                        description: opt.label.split(' - ')[1],
+                                        icon: <Gauge size={18} />
+                                    }))}
+                                />
+
+                                {/* 4. Tone */}
+                                <UnifiedSelector
+                                    label="Tone"
+                                    icon={<MessageSquare size={14} />}
+                                    value={formData.tone || ''}
+                                    onChange={(val) => handleChange('tone', val)}
+                                    placeholder="Select Tone"
+                                    searchable={true}
+                                    options={TONES.map(t => ({
+                                        value: t.value,
+                                        label: t.label,
+                                        description: t.description,
+                                        icon: <MessageSquare size={18} />
+                                    }))}
+                                />
+                            </div>
+                        </>
+                    )}
 
                     {/* 5, 6. Prompt Input & Auto-Fill */}
                     <div className="space-y-3 pt-4 border-t border-slate-100">
                         <div className="flex items-center justify-between">
                             <label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">
-                                Prompt Content
+                                {formData.toolType === 'web' ? 'Search Query' : formData.toolType === 'code' ? 'JavaScript Code' : 'Prompt Content'}
                             </label>
                             <div className="flex items-center gap-2">
                                 <Button
