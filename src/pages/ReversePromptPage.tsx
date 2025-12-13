@@ -232,20 +232,71 @@ export const ReversePrompt: React.FC<ReversePromptProps> = ({ isSidebarOpen = fa
                 const parser = new DOMParser();
                 const doc = parser.parseFromString(data.contents, 'text/html');
 
-                // Remove scripts and styles
-                const scripts = doc.querySelectorAll('script, style, noscript, iframe, svg');
+                // 1. Extract Metadata (Critical for Context)
+                const title = doc.title;
+                const description = doc.querySelector('meta[name="description"]')?.getAttribute('content') || '';
+                const keywords = doc.querySelector('meta[name="keywords"]')?.getAttribute('content') || '';
+                const author = doc.querySelector('meta[name="author"]')?.getAttribute('content') || '';
+
+                // 2. Extract Information Architecture (Navigation)
+                const navItems: string[] = [];
+                doc.querySelectorAll('nav a, header a').forEach(a => {
+                    const text = a.textContent?.trim();
+                    if (text && text.length < 30) navItems.push(text);
+                });
+                const uniqueNav = [...new Set(navItems)].slice(0, 15).join(' | ');
+
+                // 3. Clean DOM for Main Content Extraction
+                const scripts = doc.querySelectorAll('script, style, noscript, iframe, svg, footer, form');
                 scripts.forEach(script => script.remove());
 
-                // Extract text
-                const text = doc.body.textContent || "";
-                const cleanText = text.replace(/\s+/g, ' ').trim();
+                // 4. Structured Content Extraction
+                let structuredContent = '';
 
-                const metadata = `\n\n=== SOURCE: ${url} ===\nTitle: ${doc.title}\n`;
-                const limit = 20000;
-                const truncatedText = cleanText.length > limit ? cleanText.substring(0, limit) + "...(truncated)" : cleanText;
+                // Headers are good anchors
+                doc.querySelectorAll('h1, h2, h3, p, li').forEach(el => {
+                    const tag = el.tagName.toLowerCase();
+                    const text = el.textContent?.replace(/\s+/g, ' ').trim();
+                    if (!text || text.length < 5) return;
 
-                setInputText(prev => (prev ? prev + '\n\n' : '') + metadata + truncatedText);
-                toast.success('Website content extracted!', { id: toastId });
+                    if (tag === 'h1') structuredContent += `\n# ${text}\n`;
+                    else if (tag === 'h2') structuredContent += `\n## ${text}\n`;
+                    else if (tag === 'h3') structuredContent += `\n### ${text}\n`;
+                    else if (tag === 'li') structuredContent += `- ${text}\n`;
+                    else structuredContent += `${text}\n\n`;
+                });
+
+                // Fail-safe if structured extraction is too empty
+                if (structuredContent.length < 100) {
+                    structuredContent = doc.body.textContent?.replace(/\s+/g, ' ').trim() || '';
+                }
+
+                const limit = 25000; // Increased limit for God Mode
+                const truncatedContent = structuredContent.length > limit ? structuredContent.substring(0, limit) + "...(truncated)" : structuredContent;
+
+                // 5. Construct God Mode "Bible" Input
+                const bibleContext = `
+=================================================================
+GOD MODE SOURCE MATERIAL: WEBSITE REVERSE ENGINEERING
+=================================================================
+URL: ${url}
+TITLE: ${title}
+METADATA: ${description} ${keywords ? `[Keywords: ${keywords}]` : ''}
+AUTHOR/ORG: ${author}
+INFORMATION ARCHITECTURE: ${uniqueNav}
+
+=== STRUCTURAL & CONTENT ANALYSIS ===
+${truncatedContent}
+=================================================================
+INSTRUCTION: Reverse engineer this content into a comprehensive technical and creative "Bible".
+`;
+
+                setInputText(prev => (prev ? prev + '\n\n' : '') + bibleContext.trim());
+
+                // Auto-switch to God Mode
+                setAnalysisMode('god-mode');
+
+                toast.success('Website extracted in God Mode Standard!', { id: toastId });
                 setShowUrlInput(false);
                 setUrl('');
             } else {
@@ -253,7 +304,7 @@ export const ReversePrompt: React.FC<ReversePromptProps> = ({ isSidebarOpen = fa
             }
         } catch (error) {
             console.error(error);
-            toast.error('Failed to fetch URL. This site might block proxies.', { id: toastId });
+            toast.error('Failed to fetch. Site may block proxies.', { id: toastId });
         } finally {
             setIsFetchingUrl(false);
         }
