@@ -16,7 +16,7 @@ import { PageTemplate } from '@/components/ui/PageTemplate';
 import { Button } from '@/components/ui/Button';
 import { PromptNode } from '@/components/chain/PromptNode';
 import { NodeConfigurationDrawer } from '@/components/chain/NodeConfigurationDrawer';
-import { Zap, Plus, Play, Save, Loader2, X, Copy, Sparkles, LayoutList, FileText, FileJson, AlignLeft, FileType, Printer, Upload, Link } from 'lucide-react';
+import { Workflow, Plus, Play, Save, Loader2, X, Copy, Sparkles, LayoutList, FileText, FileJson, AlignLeft, FileType, Printer, Upload, Link } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import toast from 'react-hot-toast';
@@ -572,7 +572,7 @@ export const ChainReactionPage: React.FC<ChainReactionPageProps> = ({ isSidebarO
         <PageTemplate
             title="Chain Reaction"
             subtitle="Automated multi-step prompt chaining workflows"
-            icon={Zap}
+            icon={Workflow}
             iconGradient="from-yellow-400 to-orange-500"
             shadowColor="shadow-yellow-500/30"
             isSidebarOpen={isSidebarOpen}

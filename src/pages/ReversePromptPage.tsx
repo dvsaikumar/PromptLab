@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { RotateCcw, HelpCircle, Sparkles, Paperclip, Loader2, Save, Copy, FileText, X, Settings2, Eye, ChevronRight, Wand2, ArrowRight } from 'lucide-react';
+import { RotateCcw, HelpCircle, Sparkles, Paperclip, Loader2, Save, Copy, FileText, X, Settings2, Eye, ChevronRight, Wand2, ArrowRight, Microscope } from 'lucide-react';
 import { PageTemplate } from '@/components/ui/PageTemplate';
 import { Button } from '@/components/ui/Button';
 import { usePrompt } from '@/contexts/PromptContext';
@@ -319,7 +319,7 @@ export const ReversePrompt: React.FC<ReversePromptProps> = ({ isSidebarOpen = fa
         <PageTemplate
             title="Reverse Engineering Lab"
             subtitle="Deconstruct apps, code, and designs"
-            icon={RotateCcw}
+            icon={Microscope}
             iconGradient="from-orange-500 to-amber-600"
             isSidebarOpen={isSidebarOpen}
             rightContent={HeaderButtons}
