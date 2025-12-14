@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { PageTemplate } from '@/components/ui/PageTemplate';
-import { Zap, Bot, RefreshCw, Sparkles, Brain, Cpu, CheckCircle2, BookOpen, Timer, X, Target, Play } from 'lucide-react';
+import { Zap, Bot, RefreshCw, Sparkles, Brain, Cpu, CheckCircle2, BookOpen, Timer, X, Target, Play, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -343,39 +343,69 @@ You are a world-class expert. Please analyze the input and provide detailed reas
         if (!stats?.tokenBreakdown) return "Estimated Usage";
 
         return (
-            <div className="flex gap-4 p-2 min-w-[320px]">
-                {/* Input Column */}
-                <div className="flex-1 flex flex-col gap-2 border-r border-slate-100 pr-4">
-                    <h4 className="font-extrabold text-[10px] text-slate-400 uppercase tracking-widest mb-1">Input</h4>
-                    <div className="space-y-1.5">
-                        {stats.tokenBreakdown.input.map((item, i) => (
-                            <div key={i} className="flex justify-between items-center text-xs">
-                                <span className="text-slate-500 font-medium">{item.label}</span>
-                                <span className="font-mono text-slate-700">{item.count}</span>
+            <div className="flex flex-col gap-4 min-w-[420px] p-1">
+                <div className="flex gap-6">
+                    {/* Left: Input Breakdown (Emerald) */}
+                    <div className="flex-1 flex flex-col gap-3">
+                        <div className="flex items-center gap-2 pb-2 border-b border-emerald-100">
+                            <FileText size={14} className="text-emerald-600" />
+                            <span className="text-xs font-bold text-emerald-700 uppercase tracking-wider">Input Tokens</span>
+                        </div>
+                        <div className="flex flex-col h-full">
+                            <div className="space-y-2 flex-1">
+                                {stats.tokenBreakdown.input.map((item, i) => (
+                                    <div key={i} className="flex items-start gap-2.5 text-xs text-slate-600/90">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1.5 shrink-0" />
+                                        <div className="flex-1 flex justify-between gap-4">
+                                            <span>{item.label}</span>
+                                            <span className="font-semibold text-slate-800">{item.count}</span>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
-                        ))}
+                            <div className="mt-2 flex items-start gap-2.5 text-xs pt-1.5 border-t border-dashed border-emerald-100">
+                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-600 mt-1.5 shrink-0" />
+                                <div className="flex-1 flex justify-between gap-4 font-bold text-emerald-800">
+                                    <span className="uppercase tracking-wider text-[10px]">Total Input</span>
+                                    <span>{stats.inputTokens}</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div className="mt-auto pt-3 border-t border-slate-100 flex justify-between items-center text-xs">
-                        <span className="font-bold text-slate-900">Total Input</span>
-                        <span className="font-mono font-bold text-indigo-600">{stats.inputTokens}</span>
+
+                    {/* Right: Output Breakdown (Amber) */}
+                    <div className="flex-1 flex flex-col gap-3">
+                        <div className="flex items-center gap-2 pb-2 border-b border-amber-100">
+                            <Zap size={14} className="text-amber-600" />
+                            <span className="text-xs font-bold text-amber-700 uppercase tracking-wider">Output Tokens</span>
+                        </div>
+                        <div className="flex flex-col h-full">
+                            <div className="space-y-2 flex-1">
+                                {stats.tokenBreakdown.output.map((item, i) => (
+                                    <div key={i} className="flex items-start gap-2.5 text-xs text-slate-600/90">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-amber-400 mt-1.5 shrink-0" />
+                                        <div className="flex-1 flex justify-between gap-4">
+                                            <span>{item.label}</span>
+                                            <span className="font-semibold text-slate-800">{item.count}</span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="mt-2 flex items-start gap-2.5 text-xs pt-1.5 border-t border-dashed border-amber-100">
+                                <div className="w-1.5 h-1.5 rounded-full bg-amber-600 mt-1.5 shrink-0" />
+                                <div className="flex-1 flex justify-between gap-4 font-bold text-amber-800">
+                                    <span className="uppercase tracking-wider text-[10px]">Total Output</span>
+                                    <span>{stats.outputTokens}</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                {/* Output Column */}
-                <div className="flex-1 flex flex-col gap-2 pl-2">
-                    <h4 className="font-extrabold text-[10px] text-slate-400 uppercase tracking-widest mb-1">Output</h4>
-                    <div className="space-y-1.5">
-                        {stats.tokenBreakdown.output.map((item, i) => (
-                            <div key={i} className="flex justify-between items-center text-xs">
-                                <span className="text-slate-500 font-medium">{item.label}</span>
-                                <span className="font-mono text-slate-700">{item.count}</span>
-                            </div>
-                        ))}
-                    </div>
-                    <div className="mt-auto pt-3 border-t border-slate-100 flex justify-between items-center text-xs">
-                        <span className="font-bold text-slate-900">Total Output</span>
-                        <span className="font-mono font-bold text-indigo-600">{stats.outputTokens}</span>
-                    </div>
+                {/* Grand Total Footer */}
+                <div className="flex items-center justify-between bg-slate-50 p-3 rounded-lg border border-slate-100">
+                    <span className="text-slate-500 font-medium text-xs uppercase tracking-wider">Grand Total Usage</span>
+                    <span className="text-indigo-600 text-sm font-extrabold tabular-nums">{stats.inputTokens + stats.outputTokens} tokens</span>
                 </div>
             </div>
         );
