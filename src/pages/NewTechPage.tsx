@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { PageTemplate } from '@/components/ui/PageTemplate';
-import { Zap, Bot, RefreshCw, Sparkles, Brain, Cpu, CheckCircle2, BookOpen, Timer, X, Target, Play, FileText, ArrowRight, Code2, GitCompare, Workflow, Lightbulb, Check, ChevronRight, Layers, LayoutTemplate } from 'lucide-react';
+import { Zap, Bot, RefreshCw, Sparkles, Brain, Cpu, CheckCircle2, BookOpen, Timer, X, Target, Play, FileText, ArrowRight, GitCompare, Workflow, Lightbulb, ChevronRight, Layers } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -10,7 +10,6 @@ import { LLMSelector } from '@/components/ui/LLMSelector';
 import { LLMProviderId } from '@/types';
 import { Tooltip } from '@/components/ui/Tooltip';
 import { estimateTokens } from '@/utils/tokenEstimator';
-import ReactMarkdown from 'react-markdown';
 
 interface NewTechPageProps {
     isSidebarOpen?: boolean;
@@ -245,10 +244,19 @@ export const NewTechPage: React.FC<NewTechPageProps> = ({ isSidebarOpen }) => {
         const steps = [
             `Connecting to ${selectedProvider} (${selectedModel || 'Default'})...`,
             "Initializing DSPy Module...",
+            "Inferring Semantic Roles (Input vs Output)...",
             `Defining Metric: Optimize for ${optimizationMetric.toUpperCase()}...`,
-            "Bootstrapping 3-shot examples...",
+            "Designing Multi-Hop Control Flow...",
+            "Selecting Inference Strategy (CoT, ReAct, PoT)...",
+            "Defining Robust Metric Function...",
+            "Configuring Optimizer (MIPROv2)...",
+            "Synthesizing Guardrail Assertions...",
+            "Mining Execution Traces (Bootstrapping)...",
+            "Synthesizing High-Quality Few-Shot Examples...",
             "Compiling prompt signature...",
-            "Running Bayesian Optimization...",
+            "Joint Optimization (Instructions + Few-Shots)...",
+            "Composing Final Optimization Strategy...",
+            "Automating Prompt Discovery...",
             `Validation Score: ${Math.floor(Math.random() * 5 + 94)}/100`
         ];
 
@@ -291,13 +299,69 @@ export const NewTechPage: React.FC<NewTechPageProps> = ({ isSidebarOpen }) => {
                 ${optimizationMetric === 'creativity' ? '- Focus on novel, engaging, and diverse outputs.' : ''}
                 ${optimizationMetric === 'speed' ? '- Focus on conciseness and concise formatting.' : ''}
 
+                **REQUIREMENT 1: Specify Semantic Roles**
+                Use the docstring and explicit fields like \`dspy.InputField\` and \`dspy.OutputField\` to clarify the task.
+                Provide the compiler with semantic information (e.g., distinguishing "context" from "reasoning").
+                
+                **REQUIREMENT 2: Define Constraints (Assertions)**
+                For high-stakes applications requiring explicit validation and trust, utilize advanced features like DSPy Assertions or Guardrails to impose hard and soft computational constraints.
+                - Include 1-2 suggested assertions using \`dspy.Suggest\` or \`dspy.Assert\` in your explanation or code comments.
+                - Example: "dspy.Suggest(len(output) < 100, 'Output must be concise')"
+                
+                **REQUIREMENT 3: Design Custom, Multi-Hop Programs**
+                For complex workflows (like Multi-Hop RAG or multi-stage analysis), define a custom module that inherits from \`dspy.Module\`. 
+                Within the \`forward\` method, interweave multiple Built-in Modules using standard Python control flow (e.g., if-else logic or loops).
+                If the task implies multiple steps, output a \`dspy.Module\` class instead of just a Signature.
+
+                **REQUIREMENT 4: Select Advanced Inference Strategies**
+                Utilize specialized built-in modules that encapsulate state-of-the-art reasoning techniques:
+                - \`dspy.ChainOfThought\` (CoT): For logical tasks requiring step-by-step reasoning.
+                - \`dspy.ReAct\`: For agentic tasks needing tools/search (add a comment about required tools).
+                - \`dspy.ProgramOfThought\` (PoT): For math or structured manipulation.
+                
+                Explicitly mention which module you chose and why in the 'reasoning' field.
+                
+                **REQUIREMENT 5: Define Clear Metrics**
+                Define a robust metric function that objectively measures output quality (e.g., accuracy, Semantic F1, or a custom LLM-as-a-judge function).
+                Suggest a specific metric in your output comments or explanation that the optimizer should use.
+                
+                **REQUIREMENT 6: Use Advanced Optimizers (MIPROv2)**
+                For maximum robustness, suggest using \`dspy.MIPROv2\` (Multi-stage Iterative Prompt Refinement Optimizer) in your comments.
+                - Highlight that MIPROv2 perfroms **joint optimization** of the prompt instructions and 3-shot examples.
+                - **Explicitly state:** "Optimizes both the natural-language instructions (the underlying system prompts) and the few-shot examples (demonstrations)."
+                - Note that this prevents local upstream optimization from breaking downstream components.
+
+                **REQUIREMENT 7: Leverage Few-Shot Synthesis**
+                Explain how \`BootstrapFewShot\` or \`BootstrapFewShotWithRandomSearch\` will be used to automatically synthesize high-quality examples.
+                - Mention that it collects execution traces of successful runs (bootstrapping).
+                - Mention that it validates them against your metric and incorporates the optimal set into the compiled prompt.
+                
+                **REQUIREMENT 8: Compose Optimization Runs**
+                For continuous improvement, mention that the optimized program can be:
+                - Used as input for further compilation (e.g. running MIPROv2 again).
+                - Integrated into a \`dspy.Ensemble\` for robustness.
+                - Used to fine-tune weights via \`dspy.BootstrapFinetune\`.
+                
+                **REQUIREMENT 9: Robust High-Level Logic & Automated Discovery**
+                Combine all above elements to define robust high-level logic.
+                - Goal: Allow the DSPy compiler to **automatically discover** the best possible prompt implementation tailored to the chosen model (${selectedModel}) and metrics (${optimizationMetric}).
+                - Emphasize that the user should focus on defining the *logic* (Signatures, Metrics) rather than string manipulation.
+
+                The specific output format should be a Python Class inheriting from dspy.Signature, optionally with comment annotations for assertions.
+                Example:
+                class TaskName(dspy.Signature):
+                    """Detailed docstring describing the task."""
+                    input_variable = dspy.InputField(desc="...")
+                    output_variable = dspy.OutputField(desc="...")
+                    # Constraint: Ensure output_variable does not contain PII
+
                 STRICT OUTPUT FORMAT:
                 You must return a valid JSON object. Do not include markdown formatting (like \`\`\`json).
                 Structure:
                 {
                     "reasoning": "Explain your Chain-of-Thought on how to improve this...",
                     "critique": "Identify 2-3 weaknesses in the raw prompt...",
-                    "optimized_prompt": "The final, compiled prompt text..."
+                    "optimized_prompt": "The final dspy.Signature class definition..."
                 }`;
 
             const userPart = `\n\nRaw Prompt: "${rawPrompt}"`;
@@ -645,7 +709,7 @@ You are a world-class expert. Please analyze the input and provide detailed reas
                                         </div>
                                     </div>
                                     {/* LLM Selector */}
-                                    <div className="w-56">
+                                    <div className="w-fit">
                                         <LLMSelector
                                             onOpenSettings={handleOpenSettings}
                                             value={selectedProvider}
@@ -658,6 +722,7 @@ You are a world-class expert. Please analyze the input and provide detailed reas
                                                 }
                                             }}
                                             className="mb-0"
+                                            compact
                                         />
                                     </div>
                                 </div>

@@ -15,7 +15,7 @@ interface LLMSelectorProps {
     onChange?: (providerId: LLMProviderId, model?: string) => void;
 }
 
-export const LLMSelector: React.FC<LLMSelectorProps> = ({ onOpenSettings, className, value, model, onChange }) => {
+export const LLMSelector: React.FC<LLMSelectorProps & { compact?: boolean }> = ({ onOpenSettings, className, value, model, onChange, compact }) => {
     const { llmConfig, updateConfig } = usePrompt();
     const [showDropdown, setShowDropdown] = useState(false);
     const [savedConfigs, setSavedConfigs] = useState<LLMConfig[]>([]);
@@ -174,34 +174,54 @@ export const LLMSelector: React.FC<LLMSelectorProps> = ({ onOpenSettings, classN
 
     return (
         <div className={`relative ${className}`}>
-            <label className="flex items-center gap-1.5 text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5 ml-1">
-                <Cpu size={14} />
-                Select AI Model
-            </label>
+            {compact ? (
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 ml-1">
+                    Select Model
+                </label>
+            ) : (
+                <label className="flex items-center gap-1.5 text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5 ml-1">
+                    <Cpu size={14} />
+                    Select AI Model
+                </label>
+            )}
             <div
                 ref={triggerRef}
                 onClick={handleToggle}
-                className="w-full flex items-center justify-between gap-3 px-4 py-3 bg-white hover:bg-slate-50 rounded-xl border border-slate-200 hover:border-indigo-300 transition-all cursor-pointer group shadow-sm"
+                className={`w-full flex items-center justify-between gap-2 ${compact ? 'px-2 py-1.5' : 'px-4 py-3'} bg-white hover:bg-slate-50 rounded-xl border border-slate-200 hover:border-indigo-300 transition-all cursor-pointer group shadow-sm`}
                 title={hasMultipleConfigs ? "Switch LLM provider" : "Click to change LLM settings"}
             >
-                <div className="flex items-center gap-3 overflow-hidden">
-                    <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center border border-indigo-100 shrink-0">
-                        <ProviderIcon providerId={currentProviderId} size={20} />
+                <div className="flex items-center gap-2 overflow-hidden">
+                    <div className={`${compact ? 'w-6 h-6' : 'w-8 h-8'} rounded-lg bg-indigo-50 flex items-center justify-center border border-indigo-100 shrink-0`}>
+                        <ProviderIcon providerId={currentProviderId} size={compact ? 14 : 20} />
                     </div>
                     <div className="flex flex-col min-w-0">
-                        <span className="text-sm font-semibold text-slate-900 truncate">
-                            {getProviderDisplay(currentProviderId)}
-                        </span>
-                        <span className="text-xs text-slate-500 truncate">
-                            {getModelDisplay(currentModel)}
-                        </span>
+                        {compact ? (
+                            <div className="flex items-center gap-1.5 text-xs">
+                                <span className="font-semibold text-slate-800 truncate max-w-[80px]">
+                                    {getProviderDisplay(currentProviderId)}
+                                </span>
+                                <span className="text-slate-300">|</span>
+                                <span className="text-slate-500 truncate max-w-[100px]">
+                                    {getModelDisplay(currentModel)}
+                                </span>
+                            </div>
+                        ) : (
+                            <>
+                                <span className="text-sm font-semibold text-slate-900 truncate">
+                                    {getProviderDisplay(currentProviderId)}
+                                </span>
+                                <span className="text-xs text-slate-500 truncate">
+                                    {getModelDisplay(currentModel)}
+                                </span>
+                            </>
+                        )}
                     </div>
                 </div>
 
                 {hasMultipleConfigs ? (
-                    <ChevronDown size={18} className={`text-slate-400 group-hover:text-indigo-500 transition-transform duration-200 ${showDropdown ? 'rotate-180' : ''}`} />
+                    <ChevronDown size={compact ? 14 : 18} className={`text-slate-400 group-hover:text-indigo-500 transition-transform duration-200 ${showDropdown ? 'rotate-180' : ''}`} />
                 ) : (
-                    <span className="text-xs font-medium text-indigo-600 bg-indigo-50 px-2 py-1 rounded">Configure</span>
+                    <span className={`text-xs font-medium text-indigo-600 bg-indigo-50 px-2 py-1 rounded ${compact ? 'text-[10px] px-1.5 py-0.5' : ''}`}>Configure</span>
                 )}
             </div>
 
