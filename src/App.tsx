@@ -15,6 +15,7 @@ import { SavedPromptsLibrary } from '@/pages/SavedPrompts';
 import { TemplatePage } from '@/pages/TemplatePage';
 import { ChainReactionPage } from '@/pages/ChainReactionPage';
 import { ReversePrompt } from '@/pages/ReversePromptPage';
+import { NewTechPage } from '@/pages/NewTechPage';
 import { promptDB } from '@/services/database';
 
 const AppContent: React.FC = () => {
@@ -76,6 +77,8 @@ const AppContent: React.FC = () => {
                 return <SavedPromptsLibrary isSidebarOpen={isSidebarOpen} onNavigate={handleNavigateWithSection} />;
             case 'template':
                 return <TemplatePage isSidebarOpen={isSidebarOpen} />;
+            case 'new-tech':
+                return <NewTechPage isSidebarOpen={isSidebarOpen} />;
             default:
                 return <MyHub isSidebarOpen={isSidebarOpen} />;
         }

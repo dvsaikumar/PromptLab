@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, Palette, Settings as SettingsIcon, ChevronLeft, ChevronRight, FolderOpen, Microscope, FlaskConical, Workflow } from 'lucide-react';
+import { Home, Palette, Settings as SettingsIcon, ChevronLeft, ChevronRight, FolderOpen, Microscope, FlaskConical, Workflow, Zap } from 'lucide-react';
 import { clsx } from 'clsx';
 
 interface SidebarProps {
@@ -19,6 +19,7 @@ const menuItems = [ // ... existing items ...
     { id: 'reverse-prompt', label: 'Reverse Prompt', icon: Microscope },
     { id: 'chain-reaction', label: 'Chain Reaction', icon: Workflow },
     { id: 'saved-prompts', label: 'Saved Prompts', icon: FolderOpen },
+    { id: 'new-tech', label: 'New Tech', icon: Zap },
     { id: 'tone-shifter', label: 'Tone Shifter', icon: Palette },
     { id: 'settings', label: 'Settings', icon: SettingsIcon },
 ];
