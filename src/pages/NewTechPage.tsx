@@ -478,7 +478,7 @@ You are a world-class expert. Please analyze the input and provide detailed reas
                             <Button
                                 onClick={() => setIsOptimizeModalOpen(true)}
                                 disabled={isOptimizing || !rawPrompt}
-                                className="bg-orange-500 hover:bg-orange-600 text-white gap-2 shadow-orange-200 shadow-lg px-6 h-10 rounded-xl font-bold"
+                                className="bg-orange-500 hover:bg-orange-600 text-white gap-2 px-6 h-10 rounded-xl font-bold"
                             >
                                 {isOptimizing ? <RefreshCw className="animate-spin" size={18} /> : <Play size={18} fill="currentColor" />}
                                 Compile Prompt
