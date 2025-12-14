@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { PageTemplate } from '@/components/ui/PageTemplate';
-import { Zap, Bot, RefreshCw, Sparkles, Brain, Cpu, CheckCircle2, BookOpen, Timer } from 'lucide-react';
+import { Zap, Bot, RefreshCw, Sparkles, Brain, Cpu, CheckCircle2, BookOpen, Timer, X, Target } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -104,6 +104,7 @@ export const NewTechPage: React.FC<NewTechPageProps> = ({ isSidebarOpen }) => {
     const [progress, setProgress] = useState<string[]>([]);
     const [optimizedPrompt, setOptimizedPrompt] = useState('');
     const [optimizationMetric, setOptimizationMetric] = useState<'accuracy' | 'creativity' | 'speed'>('accuracy');
+    const [isOptimizeModalOpen, setIsOptimizeModalOpen] = useState(false);
 
     // LLM State
     const [selectedProvider, setSelectedProvider] = useState<LLMProviderId>('openai');
@@ -151,6 +152,7 @@ export const NewTechPage: React.FC<NewTechPageProps> = ({ isSidebarOpen }) => {
 
     const handleOptimize = async () => {
         if (!rawPrompt.trim()) return;
+        setIsOptimizeModalOpen(false); // Ensure modal is closed
 
         setIsOptimizing(true);
         setOptimizedPrompt('');
@@ -353,7 +355,6 @@ You are a world-class expert. Please analyze the input and provide detailed reas
                                             setSelectedProvider(p);
                                             if (m) {
                                                 setSelectedModel(m);
-                                                // Save preference locally
                                                 localStorage.setItem('dspy_compiler_llm_pref', JSON.stringify({ provider: p, model: m }));
                                             }
                                         }}
@@ -370,7 +371,7 @@ You are a world-class expert. Please analyze the input and provide detailed reas
                             />
                             <div className="mt-4 flex justify-end">
                                 <Button
-                                    onClick={handleOptimize}
+                                    onClick={() => setIsOptimizeModalOpen(true)}
                                     disabled={isOptimizing || !rawPrompt}
                                     className="bg-orange-500 hover:bg-orange-600 text-white gap-2 shadow-orange-200 shadow-lg"
                                 >
@@ -439,70 +440,98 @@ You are a world-class expert. Please analyze the input and provide detailed reas
                         </Card>
                     </div>
 
-                    {/* Floating Control Dock */}
-                    <div className="absolute bottom-8 left-1/2 -translate-x-1/2 bg-slate-900/90 backdrop-blur-md text-white p-1.5 rounded-2xl shadow-2xl border border-slate-700/50 flex items-center gap-4 animate-in slide-in-from-bottom-4 fade-in z-50 transition-all duration-300">
+                    {/* Floating Status Bar (Only Stats) */}
+                    {stats && (
+                        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 bg-slate-900/90 backdrop-blur-md text-white px-3 py-2 rounded-2xl shadow-2xl border border-slate-700/50 flex items-center gap-4 animate-in slide-in-from-bottom-4 fade-in z-50">
+                            <Tooltip content={stats.model} title="Active Model" position="top">
+                                <div className="flex items-center gap-2 bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-700 hover:border-slate-600 transition-colors">
+                                    <Cpu size={14} className="text-orange-400" />
+                                    <span className="font-mono text-xs font-bold text-slate-200">{stats.model}</span>
+                                </div>
+                            </Tooltip>
 
-                        {/* Metric Selector */}
-                        <div className="flex bg-slate-800/50 rounded-xl p-1 border border-slate-700/50">
-                            {[
-                                { id: 'accuracy', icon: CheckCircle2, label: 'Accuracy' },
-                                { id: 'creativity', icon: Sparkles, label: 'Creative' },
-                                { id: 'speed', icon: Zap, label: 'Speed' }
-                            ].map((m) => {
-                                const Icon = m.icon;
-                                const isActive = optimizationMetric === m.id;
-                                return (
-                                    <Tooltip key={m.id} content={`Optimize for ${m.label}`} position="top">
-                                        <button
-                                            onClick={() => setOptimizationMetric(m.id as any)}
-                                            className={`p-2 rounded-lg transition-all ${isActive ? 'bg-slate-700 text-orange-400 shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
-                                        >
-                                            <Icon size={16} />
-                                        </button>
-                                    </Tooltip>
-                                );
-                            })}
-                        </div>
-
-                        {/* Divider */}
-                        <div className="w-px h-8 bg-slate-700/50" />
-
-                        {/* Stats Display (Conditional) */}
-                        {stats ? (
-                            <div className="flex items-center gap-4 px-2 animate-in fade-in slide-in-from-right-4">
-                                <Tooltip content={stats.model} title="Active Model" position="top">
-                                    <div className="flex items-center gap-2">
-                                        <Cpu size={14} className="text-slate-400" />
-                                        <span className="font-mono text-xs font-bold text-slate-200">{stats.model}</span>
+                            <Tooltip content="Estimated Usage" title="Token Breakdown" position="top">
+                                <div className="flex flex-col bg-slate-950/50 rounded-lg border border-slate-700/50 overflow-hidden shrink-0 self-stretch justify-center min-w-[100px]">
+                                    <div className="bg-white/5 px-2 py-0.5 text-[8px] font-bold text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
+                                        Tokens
                                     </div>
-                                </Tooltip>
-
-                                <div className="flex items-center gap-3 bg-slate-950/30 px-3 py-1.5 rounded-lg border border-slate-800/50">
-                                    <div className="flex items-center gap-1.5">
-                                        <span className="text-[10px] uppercase font-bold text-slate-500">In</span>
-                                        <span className="font-mono text-xs text-slate-300">{stats.inputTokens}</span>
-                                    </div>
-                                    <div className="w-px h-3 bg-slate-700" />
-                                    <div className="flex items-center gap-1.5">
-                                        <span className="text-[10px] uppercase font-bold text-indigo-400">Out</span>
-                                        <span className="font-mono text-xs text-indigo-200">{stats.outputTokens}</span>
+                                    <div className="flex divide-x divide-slate-700/50">
+                                        <div className="px-2 py-0.5 flex items-center justify-center gap-1.5 flex-1">
+                                            <span className="text-[8px] text-slate-500 uppercase font-bold">In</span>
+                                            <span className="text-[10px] font-bold text-slate-300 tabular-nums">{stats.inputTokens}</span>
+                                        </div>
+                                        <div className="px-2 py-0.5 flex items-center justify-center gap-1.5 bg-indigo-500/10 flex-1">
+                                            <span className="text-[8px] text-indigo-400 uppercase font-bold">Out</span>
+                                            <span className="text-[10px] font-bold text-indigo-200 tabular-nums">{stats.outputTokens}</span>
+                                        </div>
                                     </div>
                                 </div>
+                            </Tooltip>
 
-                                <Tooltip content="Latency" position="top">
-                                    <div className="flex items-center gap-1.5 min-w-[50px] justify-end">
-                                        <Timer size={14} className="text-emerald-500" />
-                                        <span className="font-mono text-xs font-bold text-slate-300">{(stats.latency / 1000).toFixed(1)}s</span>
+                            <Tooltip content="Generation Time" title="Latency" position="top">
+                                <div className="flex items-center gap-2 bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-700 hover:border-slate-600 transition-colors">
+                                    <Timer size={14} className="text-emerald-400" />
+                                    <span className="font-mono text-xs font-bold text-slate-200">{(stats.latency / 1000).toFixed(2)}s</span>
+                                </div>
+                            </Tooltip>
+                        </div>
+                    )}
+
+                    {/* Optimization Selection Modal */}
+                    {isOptimizeModalOpen && (
+                        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in">
+                            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md animate-in zoom-in-95 duration-200 overflow-hidden">
+                                <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                                    <div>
+                                        <h3 className="text-lg font-bold text-slate-900">Compile Optimization</h3>
+                                        <p className="text-xs text-slate-500">How should DSPy optimize your prompt?</p>
                                     </div>
-                                </Tooltip>
+                                    <button
+                                        onClick={() => setIsOptimizeModalOpen(false)}
+                                        className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400 hover:text-slate-600"
+                                    >
+                                        <X size={20} />
+                                    </button>
+                                </div>
+
+                                <div className="p-6 grid gap-3">
+                                    {[
+                                        { id: 'accuracy', icon: Target, label: 'Optimization for Accuracy', desc: 'Strict adherence to constraints and logic.' },
+                                        { id: 'creativity', icon: Sparkles, label: 'Optimization for Creativity', desc: 'Novel ideas and engaging tone.' },
+                                        { id: 'speed', icon: Zap, label: 'Optimization for Speed', desc: 'Concise, efficient output structure.' }
+                                    ].map((m) => {
+                                        const Icon = m.icon;
+                                        const isActive = optimizationMetric === m.id;
+                                        return (
+                                            <div
+                                                key={m.id}
+                                                onClick={() => setOptimizationMetric(m.id as any)}
+                                                className={`p-4 rounded-xl border-2 cursor-pointer flex items-center gap-4 transition-all ${isActive ? 'border-orange-500 bg-orange-50 shadow-sm' : 'border-slate-100 hover:border-slate-200 hover:bg-slate-50'}`}
+                                            >
+                                                <div className={`p-3 rounded-lg ${isActive ? 'bg-orange-100 text-orange-600' : 'bg-slate-100 text-slate-500'}`}>
+                                                    <Icon size={20} />
+                                                </div>
+                                                <div>
+                                                    <h4 className={`font-bold text-sm ${isActive ? 'text-slate-900' : 'text-slate-700'}`}>{m.label}</h4>
+                                                    <p className="text-xs text-slate-500">{m.desc}</p>
+                                                </div>
+                                                {isActive && <div className="ml-auto text-orange-500"><CheckCircle2 size={18} /></div>}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+
+                                <div className="p-6 border-t border-slate-100 bg-slate-50/50">
+                                    <Button
+                                        onClick={handleOptimize}
+                                        className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-lg shadow-orange-500/20 h-11"
+                                    >
+                                        Start Compilation Process
+                                    </Button>
+                                </div>
                             </div>
-                        ) : (
-                            <div className="px-4 text-xs font-medium text-slate-500 italic flex items-center gap-2">
-                                <Bot size={14} />
-                                <span>Ready to compile</span>
-                            </div>
-                        )}
-                    </div>
+                        </div>
+                    )}
                 </div>
             ) : (
                 <div className="flex-1 overflow-y-auto bg-white p-8">
