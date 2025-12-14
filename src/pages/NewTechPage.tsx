@@ -434,34 +434,37 @@ You are a world-class expert. Please analyze the input and provide detailed reas
                     </div>
 
                     {/* Fixed Footer Status Bar */}
-                    <div className="shrink-0 h-16 bg-slate-900 border-t border-slate-700 flex items-center justify-between px-6 z-40">
-                        {/* Left: System Status */}
-                        <div className="flex items-center gap-4">
-                            <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-800/50 rounded-lg border border-slate-700">
+                    <div className="shrink-0 h-14 bg-slate-900 border-t border-slate-700 flex items-center justify-between px-4 md:px-6 z-40">
+                        {/* Left: System Status & Info */}
+                        <div className="flex items-center gap-2 md:gap-4 overflow-hidden">
+                            {/* Status Indicator */}
+                            <div className="flex items-center gap-2 px-2.5 py-1.5 bg-slate-800/50 rounded-lg border border-slate-700 shrink-0">
                                 <div className={`w-2 h-2 rounded-full ${isOptimizing ? 'bg-orange-500 animate-pulse' : 'bg-emerald-500'}`} />
-                                <span className="text-xs font-bold text-slate-200 uppercase tracking-wider">
-                                    {isOptimizing ? 'Compiling' : 'System Ready'}
+                                <span className="text-xs font-bold text-slate-200 uppercase tracking-wider hidden sm:inline">
+                                    {isOptimizing ? 'Compiling' : 'Ready'}
                                 </span>
                             </div>
 
+                            {/* Model Info (Hidden on mobile) */}
+                            <div className="hidden md:flex items-center gap-4">
+                                <div className="h-6 w-px bg-slate-700/50" />
+                                <Tooltip content={selectedModel || 'No Model Selected'} title="Active Model" position="top">
+                                    <div className="flex items-center gap-2 bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-700 hover:border-slate-600 transition-colors">
+                                        <Cpu size={14} className="text-orange-400" />
+                                        <span className="font-mono text-xs font-bold text-slate-200 truncate max-w-[150px]">
+                                            {selectedModel || selectedProvider}
+                                        </span>
+                                    </div>
+                                </Tooltip>
+                            </div>
 
-                            <div className="h-6 w-px bg-slate-700/50" />
-
-                            <Tooltip content={selectedModel || 'No Model Selected'} title="Active Model" position="top">
-                                <div className="flex items-center gap-2 bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-700 hover:border-slate-600 transition-colors">
-                                    <Cpu size={14} className="text-orange-400" />
-                                    <span className="font-mono text-xs font-bold text-slate-200 truncate max-w-[150px]">
-                                        {selectedModel || selectedProvider}
-                                    </span>
-                                </div>
-                            </Tooltip>
-
-                            <div className="h-6 w-px bg-slate-700/50" />
+                            {/* Stats */}
                             {stats && (
                                 <>
+                                    <div className="h-6 w-px bg-slate-700/50 hidden sm:block" />
                                     <Tooltip content="Estimated Usage" title="Token Breakdown" position="top">
-                                        <div className="flex flex-col bg-slate-950/50 rounded-lg border border-slate-700/50 overflow-hidden shrink-0 self-stretch justify-center min-w-[120px]">
-                                            <div className="bg-white/5 px-2 py-0.5 text-[8px] font-bold text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
+                                        <div className="flex flex-col bg-slate-950/50 rounded-lg border border-slate-700/50 overflow-hidden shrink-0 justify-center min-w-[100px] md:min-w-[120px]">
+                                            <div className="bg-white/5 px-2 py-0.5 text-[8px] font-bold text-slate-400 uppercase tracking-widest text-center whitespace-nowrap hidden sm:block">
                                                 Token Count
                                             </div>
                                             <div className="flex divide-x divide-slate-700/50">
@@ -477,7 +480,7 @@ You are a world-class expert. Please analyze the input and provide detailed reas
                                         </div>
                                     </Tooltip>
                                     <Tooltip content="Latency" position="top">
-                                        <div className="flex items-center gap-2 bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-700 hover:border-slate-600 transition-colors">
+                                        <div className="hidden sm:flex items-center gap-2 bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-700 hover:border-slate-600 transition-colors">
                                             <Timer size={14} className="text-emerald-400" />
                                             <span className="font-mono text-xs font-bold text-slate-200">{(stats.latency / 1000).toFixed(2)}s</span>
                                         </div>
@@ -487,14 +490,15 @@ You are a world-class expert. Please analyze the input and provide detailed reas
                         </div>
 
                         {/* Right: Actions */}
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-3 shrink-0 ml-2">
                             <Button
                                 onClick={() => setIsOptimizeModalOpen(true)}
                                 disabled={isOptimizing || !rawPrompt}
-                                className="bg-orange-500 hover:bg-orange-600 text-white gap-2 px-6 h-10 rounded-xl font-bold"
+                                className="bg-orange-500 hover:bg-orange-600 text-white gap-2 px-4 md:px-6 h-9 md:h-10 rounded-xl font-bold text-xs md:text-sm"
                             >
-                                {isOptimizing ? <RefreshCw className="animate-spin" size={18} /> : <Play size={18} fill="currentColor" />}
-                                Compile Prompt
+                                {isOptimizing ? <RefreshCw className="animate-spin" size={16} /> : <Play size={16} fill="currentColor" />}
+                                <span className="hidden sm:inline">Compile Prompt</span>
+                                <span className="sm:hidden">Compile</span>
                             </Button>
                         </div>
                     </div>
