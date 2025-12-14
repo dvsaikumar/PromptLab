@@ -95,6 +95,17 @@ compiled = teleprompter.compile(joke_module, trainset=data)
 \`\`\`
 `;
 
+interface TokenStats {
+    inputTokens: number;
+    outputTokens: number;
+    latency: number;
+    model: string;
+    tokenBreakdown?: {
+        input: { label: string; count: number }[];
+        output: { label: string; count: number }[];
+    };
+}
+
 export const NewTechPage: React.FC<NewTechPageProps> = ({ isSidebarOpen }) => {
     const [activeTab, setActiveTab] = useState<'compiler' | 'tutorial'>('compiler');
 
@@ -111,12 +122,7 @@ export const NewTechPage: React.FC<NewTechPageProps> = ({ isSidebarOpen }) => {
     const [selectedModel, setSelectedModel] = useState<string>('gpt-3.5-turbo');
 
     // Stats State
-    const [stats, setStats] = useState<{
-        inputTokens: number;
-        outputTokens: number;
-        latency: number;
-        model: string;
-    } | null>(null);
+    const [stats, setStats] = useState<TokenStats | null>(null);
 
     // Persistence: Load saved LLM preference on mount
     useEffect(() => {
@@ -201,8 +207,8 @@ export const NewTechPage: React.FC<NewTechPageProps> = ({ isSidebarOpen }) => {
             const provider = LLMService.getInstance().getProvider(selectedProvider);
             if (!provider) throw new Error(`Provider ${selectedProvider} not available`);
 
-            // Construct specific prompt with Strict JSON Signature
-            const dspySystemPrompt = `Act as a DSPy (Declarative Self-improving Python) Compiler. 
+            // Construct specific prompt breakdown
+            const baseInstructions = `Act as a DSPy (Declarative Self-improving Python) Compiler. 
                 Your goal is to optimize the following raw prompt into a "Perfect Prompt".
                 
                 Optimization Objective: Maximize for ${optimizationMetric.toUpperCase()}.
@@ -217,9 +223,10 @@ export const NewTechPage: React.FC<NewTechPageProps> = ({ isSidebarOpen }) => {
                     "reasoning": "Explain your Chain-of-Thought on how to improve this...",
                     "critique": "Identify 2-3 weaknesses in the raw prompt...",
                     "optimized_prompt": "The final, compiled prompt text..."
-                }
+                }`;
 
-                Raw Prompt: "${rawPrompt}"`;
+            const userPart = `\n\nRaw Prompt: "${rawPrompt}"`;
+            const dspySystemPrompt = baseInstructions + userPart;
 
             let validResponse = null;
             let attempts = 0;
@@ -258,11 +265,39 @@ export const NewTechPage: React.FC<NewTechPageProps> = ({ isSidebarOpen }) => {
             }
 
             const endTime = Date.now();
+
+            // Calculate Token Breakdown
+            const sysCount = estimateTokens(baseInstructions, selectedModel);
+            const userCount = estimateTokens(userPart, selectedModel);
+            const retryOverhead = attempts > 1 ? estimateTokens(lastError + "PREVIOUS ERROR...", selectedModel) : 0;
+
+            let reasonCount = 0;
+            let resultCount = 0;
+            // Crude estimation of output breakdown from JSON
+            if (validResponse) {
+                reasonCount = estimateTokens(validResponse.reasoning || '', selectedModel) + estimateTokens(validResponse.critique || '', selectedModel);
+                resultCount = estimateTokens(validResponse.optimized_prompt || '', selectedModel);
+            } else {
+                resultCount = estimateTokens(finalOutput, selectedModel);
+            }
+
             setStats({
-                inputTokens: estimateTokens(dspySystemPrompt, selectedModel),
+                inputTokens: estimateTokens(dspySystemPrompt, selectedModel) + retryOverhead,
                 outputTokens: estimateTokens(finalOutput, selectedModel),
                 latency: endTime - startTime,
-                model: selectedModel || selectedProvider
+                model: selectedModel || selectedProvider,
+                tokenBreakdown: {
+                    input: [
+                        { label: 'DSPy System', count: sysCount },
+                        { label: 'User Input', count: userCount },
+                        ...(attempts > 1 ? [{ label: 'Retry Overhead', count: retryOverhead }] : [])
+                    ],
+                    output: [
+                        { label: 'CoT Reasoning', count: reasonCount },
+                        { label: 'Final Output', count: resultCount },
+                        { label: 'JSON Overhead', count: Math.max(0, estimateTokens(finalOutput, selectedModel) - (reasonCount + resultCount)) }
+                    ]
+                }
             });
 
             if (validResponse) {
@@ -301,6 +336,49 @@ You are a world-class expert. Please analyze the input and provide detailed reas
         }
 
         setIsOptimizing(false);
+    };
+
+    // Tooltip Content Component
+    const renderTokenBreakdown = () => {
+        if (!stats?.tokenBreakdown) return "Estimated Usage";
+
+        return (
+            <div className="flex gap-4 p-2 min-w-[320px]">
+                {/* Input Column */}
+                <div className="flex-1 flex flex-col gap-2 border-r border-slate-100 pr-4">
+                    <h4 className="font-extrabold text-[10px] text-slate-400 uppercase tracking-widest mb-1">Input</h4>
+                    <div className="space-y-1.5">
+                        {stats.tokenBreakdown.input.map((item, i) => (
+                            <div key={i} className="flex justify-between items-center text-xs">
+                                <span className="text-slate-500 font-medium">{item.label}</span>
+                                <span className="font-mono text-slate-700">{item.count}</span>
+                            </div>
+                        ))}
+                    </div>
+                    <div className="mt-auto pt-3 border-t border-slate-100 flex justify-between items-center text-xs">
+                        <span className="font-bold text-slate-900">Total Input</span>
+                        <span className="font-mono font-bold text-indigo-600">{stats.inputTokens}</span>
+                    </div>
+                </div>
+
+                {/* Output Column */}
+                <div className="flex-1 flex flex-col gap-2 pl-2">
+                    <h4 className="font-extrabold text-[10px] text-slate-400 uppercase tracking-widest mb-1">Output</h4>
+                    <div className="space-y-1.5">
+                        {stats.tokenBreakdown.output.map((item, i) => (
+                            <div key={i} className="flex justify-between items-center text-xs">
+                                <span className="text-slate-500 font-medium">{item.label}</span>
+                                <span className="font-mono text-slate-700">{item.count}</span>
+                            </div>
+                        ))}
+                    </div>
+                    <div className="mt-auto pt-3 border-t border-slate-100 flex justify-between items-center text-xs">
+                        <span className="font-bold text-slate-900">Total Output</span>
+                        <span className="font-mono font-bold text-indigo-600">{stats.outputTokens}</span>
+                    </div>
+                </div>
+            </div>
+        );
     };
 
     return (
@@ -462,7 +540,7 @@ You are a world-class expert. Please analyze the input and provide detailed reas
                             {stats && (
                                 <>
                                     <div className="h-6 w-px bg-slate-700/50 hidden sm:block" />
-                                    <Tooltip content="Estimated Usage" title="Token Breakdown" position="top">
+                                    <Tooltip content={renderTokenBreakdown()} title="Detailed Token Breakdown" position="top">
                                         <div className="flex flex-col bg-slate-950/50 rounded-lg border border-slate-700/50 overflow-hidden shrink-0 justify-center min-w-[100px] md:min-w-[120px]">
                                             <div className="bg-white/5 px-2 py-0.5 text-[8px] font-bold text-slate-400 uppercase tracking-widest text-center whitespace-nowrap hidden sm:block">
                                                 Token Count
@@ -504,63 +582,61 @@ You are a world-class expert. Please analyze the input and provide detailed reas
                     </div>
 
                     {/* Optimization Selection Modal */}
-                    {
-                        isOptimizeModalOpen && (
-                            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in">
-                                <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md animate-in zoom-in-95 duration-200 overflow-hidden">
-                                    <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                                        <div>
-                                            <h3 className="text-lg font-bold text-slate-900">Compile Optimization</h3>
-                                            <p className="text-xs text-slate-500">How should DSPy optimize your prompt?</p>
-                                        </div>
-                                        <button
-                                            onClick={() => setIsOptimizeModalOpen(false)}
-                                            className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400 hover:text-slate-600"
-                                        >
-                                            <X size={20} />
-                                        </button>
+                    {isOptimizeModalOpen && (
+                        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in">
+                            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md animate-in zoom-in-95 duration-200 overflow-hidden">
+                                <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                                    <div>
+                                        <h3 className="text-lg font-bold text-slate-900">Compile Optimization</h3>
+                                        <p className="text-xs text-slate-500">How should DSPy optimize your prompt?</p>
                                     </div>
+                                    <button
+                                        onClick={() => setIsOptimizeModalOpen(false)}
+                                        className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400 hover:text-slate-600"
+                                    >
+                                        <X size={20} />
+                                    </button>
+                                </div>
 
-                                    <div className="p-6 grid gap-3">
-                                        {[
-                                            { id: 'accuracy', icon: Target, label: 'Optimization for Accuracy', desc: 'Strict adherence to constraints and logic.' },
-                                            { id: 'creativity', icon: Sparkles, label: 'Optimization for Creativity', desc: 'Novel ideas and engaging tone.' },
-                                            { id: 'speed', icon: Zap, label: 'Optimization for Speed', desc: 'Concise, efficient output structure.' }
-                                        ].map((m) => {
-                                            const Icon = m.icon;
-                                            const isActive = optimizationMetric === m.id;
-                                            return (
-                                                <div
-                                                    key={m.id}
-                                                    onClick={() => setOptimizationMetric(m.id as any)}
-                                                    className={`p-4 rounded-xl border-2 cursor-pointer flex items-center gap-4 transition-all ${isActive ? 'border-orange-500 bg-orange-50 shadow-sm' : 'border-slate-100 hover:border-slate-200 hover:bg-slate-50'}`}
-                                                >
-                                                    <div className={`p-3 rounded-lg ${isActive ? 'bg-orange-100 text-orange-600' : 'bg-slate-100 text-slate-500'}`}>
-                                                        <Icon size={20} />
-                                                    </div>
-                                                    <div>
-                                                        <h4 className={`font-bold text-sm ${isActive ? 'text-slate-900' : 'text-slate-700'}`}>{m.label}</h4>
-                                                        <p className="text-xs text-slate-500">{m.desc}</p>
-                                                    </div>
-                                                    {isActive && <div className="ml-auto text-orange-500"><CheckCircle2 size={18} /></div>}
+                                <div className="p-6 grid gap-3">
+                                    {[
+                                        { id: 'accuracy', icon: Target, label: 'Optimization for Accuracy', desc: 'Strict adherence to constraints and logic.' },
+                                        { id: 'creativity', icon: Sparkles, label: 'Optimization for Creativity', desc: 'Novel ideas and engaging tone.' },
+                                        { id: 'speed', icon: Zap, label: 'Optimization for Speed', desc: 'Concise, efficient output structure.' }
+                                    ].map((m) => {
+                                        const Icon = m.icon;
+                                        const isActive = optimizationMetric === m.id;
+                                        return (
+                                            <div
+                                                key={m.id}
+                                                onClick={() => setOptimizationMetric(m.id as any)}
+                                                className={`p-4 rounded-xl border-2 cursor-pointer flex items-center gap-4 transition-all ${isActive ? 'border-orange-500 bg-orange-50 shadow-sm' : 'border-slate-100 hover:border-slate-200 hover:bg-slate-50'}`}
+                                            >
+                                                <div className={`p-3 rounded-lg ${isActive ? 'bg-orange-100 text-orange-600' : 'bg-slate-100 text-slate-500'}`}>
+                                                    <Icon size={20} />
                                                 </div>
-                                            );
-                                        })}
-                                    </div>
+                                                <div>
+                                                    <h4 className={`font-bold text-sm ${isActive ? 'text-slate-900' : 'text-slate-700'}`}>{m.label}</h4>
+                                                    <p className="text-xs text-slate-500">{m.desc}</p>
+                                                </div>
+                                                {isActive && <div className="ml-auto text-orange-500"><CheckCircle2 size={18} /></div>}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
 
-                                    <div className="p-6 border-t border-slate-100 bg-slate-50/50">
-                                        <Button
-                                            onClick={handleOptimize}
-                                            className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-lg shadow-orange-500/20 h-11"
-                                        >
-                                            Start Compilation Process
-                                        </Button>
-                                    </div>
+                                <div className="p-6 border-t border-slate-100 bg-slate-50/50">
+                                    <Button
+                                        onClick={handleOptimize}
+                                        className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-lg shadow-orange-500/20 h-11"
+                                    >
+                                        Start Compilation Process
+                                    </Button>
                                 </div>
                             </div>
-                        )
-                    }
-                </div >
+                        </div>
+                    )}
+                </div>
             ) : (
                 <div className="flex-1 overflow-y-auto bg-white p-8">
                     <div className="max-w-4xl mx-auto prose prose-slate prose-headings:font-bold prose-h1:text-3xl prose-h2:text-xl prose-pre:bg-slate-900 prose-pre:text-slate-200 prose-code:text-indigo-600 prose-code:bg-indigo-50 prose-code:px-1 prose-code:rounded">
@@ -570,6 +646,6 @@ You are a world-class expert. Please analyze the input and provide detailed reas
                     </div>
                 </div>
             )}
-        </PageTemplate >
+        </PageTemplate>
     );
 };
