@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { PageTemplate } from '@/components/ui/PageTemplate';
-import { Zap, Bot, RefreshCw, Sparkles, Brain, Cpu, CheckCircle2, BookOpen } from 'lucide-react';
+import { Zap, Bot, RefreshCw, Sparkles, Brain, Cpu, CheckCircle2, BookOpen, Activity, Hash, Timer } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -106,6 +106,14 @@ export const NewTechPage: React.FC<NewTechPageProps> = ({ isSidebarOpen }) => {
     const [selectedProvider, setSelectedProvider] = useState<LLMProviderId>('openai');
     const [selectedModel, setSelectedModel] = useState<string>('gpt-3.5-turbo');
 
+    // Stats State
+    const [stats, setStats] = useState<{
+        inputTokens: number;
+        outputTokens: number;
+        latency: number;
+        model: string;
+    } | null>(null);
+
     const handleOpenSettings = () => {
         window.dispatchEvent(new Event('open-settings-modal'));
     };
@@ -116,6 +124,9 @@ export const NewTechPage: React.FC<NewTechPageProps> = ({ isSidebarOpen }) => {
         setIsOptimizing(true);
         setOptimizedPrompt('');
         setProgress([]);
+        setStats(null);
+
+        const startTime = Date.now();
 
         const steps = [
             `Connecting to ${selectedProvider} (${selectedModel || 'Default'})...`,
@@ -137,16 +148,14 @@ export const NewTechPage: React.FC<NewTechPageProps> = ({ isSidebarOpen }) => {
             const allConfigs = await llmConfigDB.getAllConfigs();
             let config = allConfigs.find(c => c.providerId === selectedProvider && c.model === selectedModel);
 
-            // Fallback: If no exact model match, try to find ANY config for this provider
             if (!config) {
                 config = allConfigs.find(c => c.providerId === selectedProvider);
             }
 
-            // Fallback: Default for OpenAI if not found (simulating first run)
             if (!config && selectedProvider === 'openai') {
                 config = {
                     providerId: 'openai',
-                    apiKey: '', // Will fail if not set, but allows error message
+                    apiKey: '',
                     model: selectedModel,
                     baseUrl: ''
                 };
@@ -154,14 +163,11 @@ export const NewTechPage: React.FC<NewTechPageProps> = ({ isSidebarOpen }) => {
 
             if (!config) throw new Error(`No saved configuration for ${selectedProvider}. Please click the 'Settings' gear or 'Configure' button to set your API key.`);
 
-            // Ensure model is set in config if we overrode it
             const executionConfig = { ...config, model: selectedModel || config.model };
 
-            // 2. Get Provider
             const provider = LLMService.getInstance().getProvider(selectedProvider);
             if (!provider) throw new Error(`Provider ${selectedProvider} not available`);
 
-            // 3. Execute
             const improved = await provider.generateCompletion({
                 config: executionConfig,
                 userPrompt: `Act as a DSPy (Declarative Self-improving Python) Compiler. 
@@ -178,6 +184,15 @@ export const NewTechPage: React.FC<NewTechPageProps> = ({ isSidebarOpen }) => {
                 Output ONLY the optimized prompt.`,
                 temperature: 0.7
             });
+
+            const endTime = Date.now();
+            setStats({
+                inputTokens: Math.ceil(rawPrompt.length / 4),
+                outputTokens: Math.ceil(improved.length / 4),
+                latency: endTime - startTime,
+                model: selectedModel || selectedProvider
+            });
+
             setOptimizedPrompt(improved);
         } catch (e) {
             console.warn(e);
@@ -230,7 +245,7 @@ You are a world-class expert. Please analyze the input and provide detailed reas
             }
         >
             {activeTab === 'compiler' ? (
-                <div className="flex h-full gap-6 p-6 bg-slate-50 overflow-hidden">
+                <div className="flex h-full gap-6 p-6 bg-slate-50 overflow-hidden relative">
                     {/* Left: Input */}
                     <div className="flex-1 flex flex-col gap-4">
                         <Card className="flex-1 flex flex-col p-6 shadow-sm border-slate-200">
@@ -335,6 +350,26 @@ You are a world-class expert. Please analyze the input and provide detailed reas
                             </div>
                         </Card>
                     </div>
+
+                    {/* Floating Status Bar */}
+                    {stats && (
+                        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 bg-slate-900/90 backdrop-blur-md text-white px-6 py-3 rounded-full shadow-2xl border border-slate-700/50 flex items-center gap-6 animate-in slide-in-from-bottom-4 fade-in z-50">
+                            <div className="flex items-center gap-2">
+                                <Cpu size={16} className="text-orange-400" />
+                                <span className="font-mono text-sm font-bold">{stats.model}</span>
+                            </div>
+                            <div className="w-px h-4 bg-slate-700" />
+                            <div className="flex items-center gap-2">
+                                <Hash size={16} className="text-blue-400" />
+                                <span className="font-mono text-sm">{stats.inputTokens + stats.outputTokens} toks</span>
+                            </div>
+                            <div className="w-px h-4 bg-slate-700" />
+                            <div className="flex items-center gap-2">
+                                <Timer size={16} className="text-emerald-400" />
+                                <span className="font-mono text-sm">{(stats.latency / 1000).toFixed(2)}s</span>
+                            </div>
+                        </div>
+                    )}
                 </div>
             ) : (
                 <div className="flex-1 overflow-y-auto bg-white p-8">
