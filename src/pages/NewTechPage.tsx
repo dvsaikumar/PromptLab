@@ -171,48 +171,85 @@ export const NewTechPage: React.FC<NewTechPageProps> = ({ isSidebarOpen }) => {
             const provider = LLMService.getInstance().getProvider(selectedProvider);
             if (!provider) throw new Error(`Provider ${selectedProvider} not available`);
 
-            // Construct specific prompt
-            const dspySystemPrompt = `Act as a DSPy (Declarative Self-improving Python) Architect. 
-                Your goal is to optimize the following raw prompt into a "Perfect Prompt" and define its Python Signature.
+            // Construct specific prompt with Strict JSON Signature
+            const dspySystemPrompt = `Act as a DSPy (Declarative Self-improving Python) Compiler. 
+                Your goal is to optimize the following raw prompt into a "Perfect Prompt".
                 
                 Optimization Objective: Maximize for ${optimizationMetric.toUpperCase()}.
                 ${optimizationMetric === 'accuracy' ? '- Focus on precision, constraints, and error avoidance.' : ''}
                 ${optimizationMetric === 'creativity' ? '- Focus on novel, engaging, and diverse outputs.' : ''}
                 ${optimizationMetric === 'speed' ? '- Focus on conciseness and concise formatting.' : ''}
 
-                Rules:
-                1. Define the DSPy Signature class first (inputs/outputs with docstrings).
-                2. Then provide the final optimized System Prompt.
-                
-                Raw Input: "${rawPrompt}"
-                
-                Output Format (Markdown):
-                
-                ## 1. DSPy Signature
-                \`\`\`python
-                import dspy
-                class ...
-                \`\`\`
+                STRICT OUTPUT FORMAT:
+                You must return a valid JSON object. Do not include markdown formatting (like \`\`\`json).
+                Structure:
+                {
+                    "reasoning": "Explain your Chain-of-Thought on how to improve this...",
+                    "critique": "Identify 2-3 weaknesses in the raw prompt...",
+                    "optimized_prompt": "The final, compiled prompt text..."
+                }
 
-                ## 2. Optimized Prompt
-                (The final prompt text here)
-                `;
+                Raw Prompt: "${rawPrompt}"`;
 
-            const improved = await provider.generateCompletion({
-                config: executionConfig,
-                userPrompt: dspySystemPrompt,
-                temperature: optimizationMetric === 'creativity' ? 0.9 : 0.4
-            });
+            let validResponse = null;
+            let attempts = 0;
+            const maxRetries = 2;
+            let lastError = "";
+            let finalOutput = "";
+
+            // Retry Loop (Simulating DSPy assertions)
+            while (!validResponse && attempts <= maxRetries) {
+                attempts++;
+
+                // Add error context if retrying
+                const currentPrompt = attempts === 1 ? dspySystemPrompt :
+                    `${dspySystemPrompt}\n\nPREVIOUS ERROR: The last output was not valid JSON (${lastError}). Please correct the format to be strict JSON.`;
+
+                if (attempts > 1) {
+                    setProgress(prev => [...prev, `Assert Failed (Attempt ${attempts}): Retrying compilation...`]);
+                }
+
+                const responseText = await provider.generateCompletion({
+                    config: executionConfig,
+                    userPrompt: currentPrompt,
+                    temperature: optimizationMetric === 'creativity' ? 0.9 : 0.4
+                });
+
+                finalOutput = responseText; // Store raw text for fallback
+
+                try {
+                    // Clean input (remove markdown)
+                    const cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+                    validResponse = JSON.parse(cleanJson);
+                } catch (e) {
+                    lastError = (e as Error).message;
+                    console.warn(`JSON Parse failed attempt ${attempts}:`, e);
+                }
+            }
 
             const endTime = Date.now();
             setStats({
                 inputTokens: estimateTokens(dspySystemPrompt, selectedModel),
-                outputTokens: estimateTokens(improved, selectedModel),
+                outputTokens: estimateTokens(finalOutput, selectedModel),
                 latency: endTime - startTime,
                 model: selectedModel || selectedProvider
             });
 
-            setOptimizedPrompt(improved);
+            if (validResponse) {
+                // Update Progress with internal thought
+                setProgress(prev => [...prev, "Compiling Reasoning Trace...", "Finalizing Output..."]);
+                setOptimizedPrompt(validResponse.optimized_prompt);
+
+                // Optional: We could log the "validResponse.reasoning" to the UI if we wanted
+                if (validResponse.reasoning) {
+                    setProgress(prev => [...prev, `Reasoning: ${validResponse.reasoning.substring(0, 50)}...`]);
+                }
+            } else {
+                // Fallback if structured output completely fails
+                setOptimizedPrompt(finalOutput);
+                setProgress(prev => [...prev, "Warning: Strict JSON validation failed. Showing raw output."]);
+            }
+
         } catch (e) {
             console.warn(e);
             let errorMsg = (e as Error).message;
@@ -364,14 +401,8 @@ You are a world-class expert. Please analyze the input and provide detailed reas
                                 {optimizedPrompt && <Badge variant="default" className="ml-auto bg-emerald-500"> Optimized </Badge>}
                             </div>
 
-                            <div className="flex-1 w-full bg-slate-50 rounded-xl border border-slate-100 p-4 font-mono text-sm text-slate-700 overflow-y-auto custom-scrollbar prose prose-sm prose-slate max-w-none prose-pre:bg-slate-900 prose-pre:text-slate-200">
-                                {optimizedPrompt ? (
-                                    <ReactMarkdown>
-                                        {optimizedPrompt}
-                                    </ReactMarkdown>
-                                ) : (
-                                    <span className="text-slate-400 italic">Optimized result will appear here...</span>
-                                )}
+                            <div className="flex-1 w-full bg-slate-50 rounded-xl border border-slate-100 p-4 font-mono text-sm text-slate-700 whitespace-pre-wrap overflow-y-auto custom-scrollbar">
+                                {optimizedPrompt || <span className="text-slate-400 italic">Optimized result will appear here...</span>}
                             </div>
                         </Card>
                     </div>
