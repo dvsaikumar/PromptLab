@@ -440,8 +440,8 @@ You are a world-class expert. Please analyze the input and provide detailed reas
             }
         >
             {activeTab === 'compiler' ? (
-                <div className="h-full flex flex-col bg-slate-50">
-                    <div className="flex-1 flex gap-3 p-4 overflow-hidden">
+                <div className="h-full flex flex-col bg-slate-50 relative">
+                    <div className="flex-1 flex gap-3 p-4 pb-24 overflow-hidden">
                         {/* Left: Input */}
                         <div className="flex-1 flex flex-col gap-3">
                             <Card className="flex-1 flex flex-col p-4 shadow-sm border-slate-200">
@@ -541,73 +541,85 @@ You are a world-class expert. Please analyze the input and provide detailed reas
                         </div>
                     </div>
 
-                    {/* Fixed Footer Status Bar */}
-                    <div className="shrink-0 h-14 bg-slate-900 border-t border-slate-700 flex items-center justify-between px-4 md:px-6 z-40">
-                        {/* Left: System Status & Info */}
-                        <div className="flex items-center gap-2 md:gap-4 min-w-0">
-                            {/* Status Indicator */}
-                            <div className="flex items-center gap-2 px-2.5 py-1.5 bg-slate-800/50 rounded-lg border border-slate-700 shrink-0">
-                                <div className={`w-2 h-2 rounded-full ${isOptimizing ? 'bg-orange-500 animate-pulse' : 'bg-emerald-500'}`} />
-                                <span className="text-xs font-bold text-slate-200 uppercase tracking-wider hidden sm:inline">
-                                    {isOptimizing ? 'Compiling' : 'Ready'}
-                                </span>
-                            </div>
-
-                            {/* Model Info (Hidden on mobile) */}
-                            <div className="hidden md:flex items-center gap-4">
-                                <div className="h-6 w-px bg-slate-700/50" />
-                                <Tooltip content={selectedModel || 'No Model Selected'} title="Active Model" position="top">
-                                    <div className="flex items-center gap-2 bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-700 hover:border-slate-600 transition-colors">
-                                        <Cpu size={14} className="text-orange-400" />
-                                        <span className="font-mono text-xs font-bold text-slate-200 truncate max-w-[150px]">
-                                            {selectedModel || selectedProvider}
+                    {/* Fixed Footer Floating Bar */}
+                    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-fit max-w-[95vw] px-4 z-50">
+                        <div className="bg-slate-900/90 backdrop-blur-xl border border-white/10 text-white p-2 rounded-2xl shadow-2xl flex items-center justify-between gap-4 ring-1 ring-white/20">
+                            {/* Left: System Status & Info */}
+                            <div className="flex items-center gap-3 px-2">
+                                <div className="grid grid-cols-2 md:grid-flow-col auto-cols-max gap-1.5 shrink-0">
+                                    {/* Status Indicator */}
+                                    <div className="flex items-center gap-2 px-2.5 py-1.5 bg-slate-800/50 rounded-lg border border-slate-700 shrink-0">
+                                        <div className={`w-2 h-2 rounded-full ${isOptimizing ? 'bg-orange-500 animate-pulse' : 'bg-emerald-500'}`} />
+                                        <span className="text-xs font-bold text-slate-200 uppercase tracking-wider hidden sm:inline">
+                                            {isOptimizing ? 'Compiling' : 'Ready'}
                                         </span>
                                     </div>
-                                </Tooltip>
+
+                                    {/* Model Info */}
+                                    <Tooltip content={selectedModel || 'No Model Selected'} title="Active Model" position="top">
+                                        <div className="flex items-center gap-1.5 bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-700 hover:border-slate-600 transition-colors cursor-pointer">
+                                            <Cpu size={14} className="text-orange-400" />
+                                            <span className="font-mono text-xs font-bold text-slate-200 truncate max-w-[150px]">
+                                                {selectedModel || selectedProvider}
+                                            </span>
+                                        </div>
+                                    </Tooltip>
+
+                                    {/* Optimization Mode */}
+                                    <Tooltip content={`Optimizing for ${optimizationMetric}`} title="Metric" position="top">
+                                        <div className="flex items-center gap-1.5 bg-indigo-500/10 px-2 py-1.5 rounded border border-indigo-500/20 text-indigo-100 overflow-hidden cursor-pointer">
+                                            <Target size={14} className="text-indigo-300 shrink-0" />
+                                            <span className="font-bold capitalize text-[10px] leading-none">{optimizationMetric}</span>
+                                        </div>
+                                    </Tooltip>
+                                </div>
+
+                                <div className="w-px h-8 bg-white/10 shrink-0 hidden md:block" />
+
+                                {/* Stats */}
+                                {stats && (
+                                    <>
+                                        <Tooltip content={renderTokenBreakdown()} title="Detailed Token Breakdown" position="top">
+                                            <div className="flex flex-col bg-slate-950/30 rounded-lg border border-white/10 overflow-hidden shrink-0 justify-center min-w-[100px] md:min-w-[120px] cursor-pointer">
+                                                <div className="bg-white/5 px-2 py-0.5 text-[8px] font-bold text-slate-400 uppercase tracking-widest text-center whitespace-nowrap hidden sm:block">
+                                                    Token Count
+                                                </div>
+                                                <div className="flex divide-x divide-slate-700/50">
+                                                    <div className="px-2 py-0.5 flex items-center justify-center gap-1.5 flex-1">
+                                                        <span className="text-[8px] text-slate-500 uppercase font-bold">In</span>
+                                                        <span className="text-[10px] font-bold text-slate-300 tabular-nums">{stats.inputTokens}</span>
+                                                    </div>
+                                                    <div className="px-2 py-0.5 flex items-center justify-center gap-1.5 bg-indigo-500/10 flex-1">
+                                                        <span className="text-[8px] text-indigo-400 uppercase font-bold">Out</span>
+                                                        <span className="text-[10px] font-bold text-indigo-200 tabular-nums">{stats.outputTokens}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </Tooltip>
+
+                                        <Tooltip content="Latency" position="top">
+                                            <div className="hidden sm:flex items-center gap-2 bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-700 hover:border-slate-600 transition-colors cursor-pointer">
+                                                <Timer size={14} className="text-emerald-400" />
+                                                <span className="font-mono text-xs font-bold text-slate-200">{(stats.latency / 1000).toFixed(2)}s</span>
+                                            </div>
+                                        </Tooltip>
+                                    </>
+                                )}
                             </div>
 
-                            {/* Stats */}
-                            {stats && (
-                                <>
-                                    <div className="h-6 w-px bg-slate-700/50 hidden sm:block" />
-                                    <Tooltip content={renderTokenBreakdown()} title="Detailed Token Breakdown" position="top">
-                                        <div className="flex flex-col bg-slate-950/50 rounded-lg border border-slate-700/50 overflow-hidden shrink-0 justify-center min-w-[100px] md:min-w-[120px]">
-                                            <div className="bg-white/5 px-2 py-0.5 text-[8px] font-bold text-slate-400 uppercase tracking-widest text-center whitespace-nowrap hidden sm:block">
-                                                Token Count
-                                            </div>
-                                            <div className="flex divide-x divide-slate-700/50">
-                                                <div className="px-2 py-0.5 flex items-center justify-center gap-1.5 flex-1">
-                                                    <span className="text-[8px] text-slate-500 uppercase font-bold">In</span>
-                                                    <span className="text-[10px] font-bold text-slate-300 tabular-nums">{stats.inputTokens}</span>
-                                                </div>
-                                                <div className="px-2 py-0.5 flex items-center justify-center gap-1.5 bg-indigo-500/10 flex-1">
-                                                    <span className="text-[8px] text-indigo-400 uppercase font-bold">Out</span>
-                                                    <span className="text-[10px] font-bold text-indigo-200 tabular-nums">{stats.outputTokens}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </Tooltip>
-                                    <Tooltip content="Latency" position="top">
-                                        <div className="hidden sm:flex items-center gap-2 bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-700 hover:border-slate-600 transition-colors">
-                                            <Timer size={14} className="text-emerald-400" />
-                                            <span className="font-mono text-xs font-bold text-slate-200">{(stats.latency / 1000).toFixed(2)}s</span>
-                                        </div>
-                                    </Tooltip>
-                                </>
-                            )}
-                        </div>
-
-                        {/* Right: Actions */}
-                        <div className="flex items-center gap-3 shrink-0 ml-2">
-                            <Button
-                                onClick={() => setIsOptimizeModalOpen(true)}
-                                disabled={isOptimizing || !rawPrompt}
-                                className="bg-orange-500 hover:bg-orange-600 text-white gap-2 px-4 md:px-6 h-9 md:h-10 rounded-xl font-bold text-xs md:text-sm"
-                            >
-                                {isOptimizing ? <RefreshCw className="animate-spin" size={16} /> : <Play size={16} fill="currentColor" />}
-                                <span className="hidden sm:inline">Compile Prompt</span>
-                                <span className="sm:hidden">Compile</span>
-                            </Button>
+                            {/* Right: Actions */}
+                            <div className="flex items-center gap-3 shrink-0 ml-2">
+                                <div className="w-px h-4 bg-slate-700 mx-1 hidden sm:block"></div>
+                                <Button
+                                    onClick={() => setIsOptimizeModalOpen(true)}
+                                    disabled={isOptimizing || !rawPrompt}
+                                    className="bg-orange-500 hover:bg-orange-600 text-white gap-2 px-4 md:px-6 h-9 md:h-10 rounded-xl font-bold text-xs md:text-sm shadow-lg shadow-orange-500/20"
+                                >
+                                    {isOptimizing ? <RefreshCw className="animate-spin" size={16} /> : <Play size={16} fill="currentColor" />}
+                                    <span className="hidden sm:inline">Compile Prompt</span>
+                                    <span className="sm:hidden">Compile</span>
+                                </Button>
+                            </div>
                         </div>
                     </div>
 
