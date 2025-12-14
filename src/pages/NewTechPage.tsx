@@ -544,7 +544,7 @@ You are a world-class expert. Please analyze the input and provide detailed reas
                     {/* Fixed Footer Floating Bar */}
                     <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-fit max-w-[95vw] px-4 z-50">
                         <div className="bg-slate-900/90 backdrop-blur-xl border border-white/10 text-white p-2 rounded-2xl shadow-2xl flex items-center justify-between gap-6 ring-1 ring-white/20">
-                            <div className="flex items-center gap-2 px-2 flex-1 min-w-0 overflow-hidden">
+                            <div className="flex items-center gap-2 px-2 flex-1 min-w-0">
                                 <div className="grid grid-cols-2 md:grid-flow-col auto-cols-max gap-1.5 shrink-0">
                                     {/* Status Indicator */}
                                     <div className="flex items-center gap-1.5 px-2 py-1 bg-slate-800/50 rounded-lg border border-slate-700 shrink-0">
