@@ -331,8 +331,8 @@ You are a world-class expert. Please analyze the input and provide detailed reas
             }
         >
             {activeTab === 'compiler' ? (
-                <div className="h-full relative flex flex-col bg-slate-50">
-                    <div className="flex-1 flex gap-6 p-6 pb-28 overflow-hidden">
+                <div className="h-full flex flex-col bg-slate-50">
+                    <div className="flex-1 flex gap-6 p-6 overflow-hidden">
                         {/* Left: Input */}
                         <div className="flex-1 flex flex-col gap-4">
                             <Card className="flex-1 flex flex-col p-6 shadow-sm border-slate-200">
@@ -432,58 +432,56 @@ You are a world-class expert. Please analyze the input and provide detailed reas
                         </div>
                     </div>
 
-                    {/* Footer Dock */}
-                    <div className="absolute inset-x-0 bottom-0 p-6 z-40 pointer-events-none">
-                        <div className="pointer-events-auto bg-slate-900/90 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-3 shadow-2xl flex items-center justify-between gap-4">
-                            {/* Left: System Status */}
-                            <div className="flex items-center gap-4">
-                                <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-800/50 rounded-lg border border-slate-700">
-                                    <div className={`w-2 h-2 rounded-full ${isOptimizing ? 'bg-orange-500 animate-pulse' : 'bg-emerald-500'}`} />
-                                    <span className="text-xs font-bold text-slate-200 uppercase tracking-wider">
-                                        {isOptimizing ? 'Compiling' : 'System Ready'}
-                                    </span>
-                                </div>
-                                <div className="h-6 w-px bg-slate-700/50" />
-                                {stats && (
-                                    <>
-                                        <Tooltip content="Estimated Usage" title="Token Breakdown" position="top">
-                                            <div className="flex flex-col bg-slate-950/50 rounded-lg border border-slate-700/50 overflow-hidden shrink-0 self-stretch justify-center min-w-[120px]">
-                                                <div className="bg-white/5 px-2 py-0.5 text-[8px] font-bold text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
-                                                    Token Count
-                                                </div>
-                                                <div className="flex divide-x divide-slate-700/50">
-                                                    <div className="px-2 py-0.5 flex items-center justify-center gap-1.5 flex-1">
-                                                        <span className="text-[8px] text-slate-500 uppercase font-bold">In</span>
-                                                        <span className="text-[10px] font-bold text-slate-300 tabular-nums">{stats.inputTokens}</span>
-                                                    </div>
-                                                    <div className="px-2 py-0.5 flex items-center justify-center gap-1.5 bg-indigo-500/10 flex-1">
-                                                        <span className="text-[8px] text-indigo-400 uppercase font-bold">Out</span>
-                                                        <span className="text-[10px] font-bold text-indigo-200 tabular-nums">{stats.outputTokens}</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </Tooltip>
-                                        <Tooltip content="Latency" position="top">
-                                            <div className="flex items-center gap-2 bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-700 hover:border-slate-600 transition-colors">
-                                                <Timer size={14} className="text-emerald-400" />
-                                                <span className="font-mono text-xs font-bold text-slate-200">{(stats.latency / 1000).toFixed(2)}s</span>
-                                            </div>
-                                        </Tooltip>
-                                    </>
-                                )}
+                    {/* Fixed Footer Status Bar */}
+                    <div className="shrink-0 h-16 bg-slate-900 border-t border-slate-700 flex items-center justify-between px-6 z-40">
+                        {/* Left: System Status */}
+                        <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-800/50 rounded-lg border border-slate-700">
+                                <div className={`w-2 h-2 rounded-full ${isOptimizing ? 'bg-orange-500 animate-pulse' : 'bg-emerald-500'}`} />
+                                <span className="text-xs font-bold text-slate-200 uppercase tracking-wider">
+                                    {isOptimizing ? 'Compiling' : 'System Ready'}
+                                </span>
                             </div>
+                            <div className="h-6 w-px bg-slate-700/50" />
+                            {stats && (
+                                <>
+                                    <Tooltip content="Estimated Usage" title="Token Breakdown" position="top">
+                                        <div className="flex flex-col bg-slate-950/50 rounded-lg border border-slate-700/50 overflow-hidden shrink-0 self-stretch justify-center min-w-[120px]">
+                                            <div className="bg-white/5 px-2 py-0.5 text-[8px] font-bold text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
+                                                Token Count
+                                            </div>
+                                            <div className="flex divide-x divide-slate-700/50">
+                                                <div className="px-2 py-0.5 flex items-center justify-center gap-1.5 flex-1">
+                                                    <span className="text-[8px] text-slate-500 uppercase font-bold">In</span>
+                                                    <span className="text-[10px] font-bold text-slate-300 tabular-nums">{stats.inputTokens}</span>
+                                                </div>
+                                                <div className="px-2 py-0.5 flex items-center justify-center gap-1.5 bg-indigo-500/10 flex-1">
+                                                    <span className="text-[8px] text-indigo-400 uppercase font-bold">Out</span>
+                                                    <span className="text-[10px] font-bold text-indigo-200 tabular-nums">{stats.outputTokens}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </Tooltip>
+                                    <Tooltip content="Latency" position="top">
+                                        <div className="flex items-center gap-2 bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-700 hover:border-slate-600 transition-colors">
+                                            <Timer size={14} className="text-emerald-400" />
+                                            <span className="font-mono text-xs font-bold text-slate-200">{(stats.latency / 1000).toFixed(2)}s</span>
+                                        </div>
+                                    </Tooltip>
+                                </>
+                            )}
+                        </div>
 
-                            {/* Right: Actions */}
-                            <div className="flex items-center gap-3">
-                                <Button
-                                    onClick={() => setIsOptimizeModalOpen(true)}
-                                    disabled={isOptimizing || !rawPrompt}
-                                    className="bg-orange-500 hover:bg-orange-600 text-white gap-2 shadow-orange-200 shadow-lg px-6 h-10 rounded-xl font-bold"
-                                >
-                                    {isOptimizing ? <RefreshCw className="animate-spin" size={18} /> : <Play size={18} fill="currentColor" />}
-                                    Compile Prompt
-                                </Button>
-                            </div>
+                        {/* Right: Actions */}
+                        <div className="flex items-center gap-3">
+                            <Button
+                                onClick={() => setIsOptimizeModalOpen(true)}
+                                disabled={isOptimizing || !rawPrompt}
+                                className="bg-orange-500 hover:bg-orange-600 text-white gap-2 shadow-orange-200 shadow-lg px-6 h-10 rounded-xl font-bold"
+                            >
+                                {isOptimizing ? <RefreshCw className="animate-spin" size={18} /> : <Play size={18} fill="currentColor" />}
+                                Compile Prompt
+                            </Button>
                         </div>
                     </div>
 
