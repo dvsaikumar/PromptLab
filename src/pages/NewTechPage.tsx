@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PageTemplate } from '@/components/ui/PageTemplate';
 import { Zap, Bot, RefreshCw, Sparkles, Brain, Cpu, CheckCircle2, BookOpen, Timer } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
@@ -116,6 +116,34 @@ export const NewTechPage: React.FC<NewTechPageProps> = ({ isSidebarOpen }) => {
         latency: number;
         model: string;
     } | null>(null);
+
+    // Persistence: Load saved LLM preference on mount
+    useEffect(() => {
+        const loadPreferences = async () => {
+            try {
+                // 1. Check local storage for this specific tool's last state
+                const saved = localStorage.getItem('dspy_compiler_llm_pref');
+                if (saved) {
+                    const { provider, model } = JSON.parse(saved);
+                    if (provider && model) {
+                        setSelectedProvider(provider);
+                        setSelectedModel(model);
+                        return;
+                    }
+                }
+
+                // 2. Fallback to global active config if no local pref
+                const activeConfig = await llmConfigDB.getActiveConfig();
+                if (activeConfig) {
+                    setSelectedProvider(activeConfig.providerId);
+                    setSelectedModel(activeConfig.model);
+                }
+            } catch (e) {
+                console.warn("Failed to load LLM preferences:", e);
+            }
+        };
+        loadPreferences();
+    }, []);
 
     const handleOpenSettings = () => {
         window.dispatchEvent(new Event('open-settings-modal'));
@@ -323,7 +351,11 @@ You are a world-class expert. Please analyze the input and provide detailed reas
                                         model={selectedModel}
                                         onChange={(p, m) => {
                                             setSelectedProvider(p);
-                                            if (m) setSelectedModel(m);
+                                            if (m) {
+                                                setSelectedModel(m);
+                                                // Save preference locally
+                                                localStorage.setItem('dspy_compiler_llm_pref', JSON.stringify({ provider: p, model: m }));
+                                            }
                                         }}
                                         className="mb-0"
                                     />
