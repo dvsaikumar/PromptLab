@@ -443,6 +443,19 @@ You are a world-class expert. Please analyze the input and provide detailed reas
                                     {isOptimizing ? 'Compiling' : 'System Ready'}
                                 </span>
                             </div>
+
+
+                            <div className="h-6 w-px bg-slate-700/50" />
+
+                            <Tooltip content={selectedModel || 'No Model Selected'} title="Active Model" position="top">
+                                <div className="flex items-center gap-2 bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-700 hover:border-slate-600 transition-colors">
+                                    <Cpu size={14} className="text-orange-400" />
+                                    <span className="font-mono text-xs font-bold text-slate-200 truncate max-w-[150px]">
+                                        {selectedModel || selectedProvider}
+                                    </span>
+                                </div>
+                            </Tooltip>
+
                             <div className="h-6 w-px bg-slate-700/50" />
                             {stats && (
                                 <>
@@ -487,61 +500,63 @@ You are a world-class expert. Please analyze the input and provide detailed reas
                     </div>
 
                     {/* Optimization Selection Modal */}
-                    {isOptimizeModalOpen && (
-                        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in">
-                            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md animate-in zoom-in-95 duration-200 overflow-hidden">
-                                <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                                    <div>
-                                        <h3 className="text-lg font-bold text-slate-900">Compile Optimization</h3>
-                                        <p className="text-xs text-slate-500">How should DSPy optimize your prompt?</p>
+                    {
+                        isOptimizeModalOpen && (
+                            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in">
+                                <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md animate-in zoom-in-95 duration-200 overflow-hidden">
+                                    <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                                        <div>
+                                            <h3 className="text-lg font-bold text-slate-900">Compile Optimization</h3>
+                                            <p className="text-xs text-slate-500">How should DSPy optimize your prompt?</p>
+                                        </div>
+                                        <button
+                                            onClick={() => setIsOptimizeModalOpen(false)}
+                                            className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400 hover:text-slate-600"
+                                        >
+                                            <X size={20} />
+                                        </button>
                                     </div>
-                                    <button
-                                        onClick={() => setIsOptimizeModalOpen(false)}
-                                        className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400 hover:text-slate-600"
-                                    >
-                                        <X size={20} />
-                                    </button>
-                                </div>
 
-                                <div className="p-6 grid gap-3">
-                                    {[
-                                        { id: 'accuracy', icon: Target, label: 'Optimization for Accuracy', desc: 'Strict adherence to constraints and logic.' },
-                                        { id: 'creativity', icon: Sparkles, label: 'Optimization for Creativity', desc: 'Novel ideas and engaging tone.' },
-                                        { id: 'speed', icon: Zap, label: 'Optimization for Speed', desc: 'Concise, efficient output structure.' }
-                                    ].map((m) => {
-                                        const Icon = m.icon;
-                                        const isActive = optimizationMetric === m.id;
-                                        return (
-                                            <div
-                                                key={m.id}
-                                                onClick={() => setOptimizationMetric(m.id as any)}
-                                                className={`p-4 rounded-xl border-2 cursor-pointer flex items-center gap-4 transition-all ${isActive ? 'border-orange-500 bg-orange-50 shadow-sm' : 'border-slate-100 hover:border-slate-200 hover:bg-slate-50'}`}
-                                            >
-                                                <div className={`p-3 rounded-lg ${isActive ? 'bg-orange-100 text-orange-600' : 'bg-slate-100 text-slate-500'}`}>
-                                                    <Icon size={20} />
+                                    <div className="p-6 grid gap-3">
+                                        {[
+                                            { id: 'accuracy', icon: Target, label: 'Optimization for Accuracy', desc: 'Strict adherence to constraints and logic.' },
+                                            { id: 'creativity', icon: Sparkles, label: 'Optimization for Creativity', desc: 'Novel ideas and engaging tone.' },
+                                            { id: 'speed', icon: Zap, label: 'Optimization for Speed', desc: 'Concise, efficient output structure.' }
+                                        ].map((m) => {
+                                            const Icon = m.icon;
+                                            const isActive = optimizationMetric === m.id;
+                                            return (
+                                                <div
+                                                    key={m.id}
+                                                    onClick={() => setOptimizationMetric(m.id as any)}
+                                                    className={`p-4 rounded-xl border-2 cursor-pointer flex items-center gap-4 transition-all ${isActive ? 'border-orange-500 bg-orange-50 shadow-sm' : 'border-slate-100 hover:border-slate-200 hover:bg-slate-50'}`}
+                                                >
+                                                    <div className={`p-3 rounded-lg ${isActive ? 'bg-orange-100 text-orange-600' : 'bg-slate-100 text-slate-500'}`}>
+                                                        <Icon size={20} />
+                                                    </div>
+                                                    <div>
+                                                        <h4 className={`font-bold text-sm ${isActive ? 'text-slate-900' : 'text-slate-700'}`}>{m.label}</h4>
+                                                        <p className="text-xs text-slate-500">{m.desc}</p>
+                                                    </div>
+                                                    {isActive && <div className="ml-auto text-orange-500"><CheckCircle2 size={18} /></div>}
                                                 </div>
-                                                <div>
-                                                    <h4 className={`font-bold text-sm ${isActive ? 'text-slate-900' : 'text-slate-700'}`}>{m.label}</h4>
-                                                    <p className="text-xs text-slate-500">{m.desc}</p>
-                                                </div>
-                                                {isActive && <div className="ml-auto text-orange-500"><CheckCircle2 size={18} /></div>}
-                                            </div>
-                                        );
-                                    })}
-                                </div>
+                                            );
+                                        })}
+                                    </div>
 
-                                <div className="p-6 border-t border-slate-100 bg-slate-50/50">
-                                    <Button
-                                        onClick={handleOptimize}
-                                        className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-lg shadow-orange-500/20 h-11"
-                                    >
-                                        Start Compilation Process
-                                    </Button>
+                                    <div className="p-6 border-t border-slate-100 bg-slate-50/50">
+                                        <Button
+                                            onClick={handleOptimize}
+                                            className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-lg shadow-orange-500/20 h-11"
+                                        >
+                                            Start Compilation Process
+                                        </Button>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    )}
-                </div>
+                        )
+                    }
+                </div >
             ) : (
                 <div className="flex-1 overflow-y-auto bg-white p-8">
                     <div className="max-w-4xl mx-auto prose prose-slate prose-headings:font-bold prose-h1:text-3xl prose-h2:text-xl prose-pre:bg-slate-900 prose-pre:text-slate-200 prose-code:text-indigo-600 prose-code:bg-indigo-50 prose-code:px-1 prose-code:rounded">
@@ -551,6 +566,6 @@ You are a world-class expert. Please analyze the input and provide detailed reas
                     </div>
                 </div>
             )}
-        </PageTemplate>
+        </PageTemplate >
     );
 };
