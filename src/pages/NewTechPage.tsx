@@ -333,11 +333,11 @@ You are a world-class expert. Please analyze the input and provide detailed reas
         >
             {activeTab === 'compiler' ? (
                 <div className="h-full flex flex-col bg-slate-50">
-                    <div className="flex-1 flex gap-6 p-6 overflow-hidden">
+                    <div className="flex-1 flex gap-3 p-4 overflow-hidden">
                         {/* Left: Input */}
-                        <div className="flex-1 flex flex-col gap-4">
-                            <Card className="flex-1 flex flex-col p-6 shadow-sm border-slate-200">
-                                <div className="flex items-center justify-between mb-4">
+                        <div className="flex-1 flex flex-col gap-3">
+                            <Card className="flex-1 flex flex-col p-4 shadow-sm border-slate-200">
+                                <div className="flex items-center justify-between mb-3">
                                     <div className="flex items-center gap-2">
                                         <div className="p-2 bg-slate-100 rounded-lg">
                                             <Bot size={20} className="text-slate-500" />
@@ -375,10 +375,10 @@ You are a world-class expert. Please analyze the input and provide detailed reas
                         </div>
 
                         {/* Middle: Process (Visualizer) */}
-                        <div className="w-80 flex flex-col gap-4">
-                            <Card className="flex-1 p-6 bg-slate-900 text-slate-300 shadow-lg border-slate-800 flex flex-col relative overflow-hidden">
+                        <div className="w-80 flex flex-col gap-3">
+                            <Card className="flex-1 p-4 bg-slate-900 text-slate-300 shadow-lg border-slate-800 flex flex-col relative overflow-hidden">
                                 <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-yellow-500 to-orange-600"></div>
-                                <h3 className="font-mono text-xs font-bold text-orange-400 mb-4 uppercase tracking-widest flex items-center gap-2">
+                                <h3 className="font-mono text-xs font-bold text-orange-400 mb-3 uppercase tracking-widest flex items-center gap-2">
                                     <Cpu size={14} /> Optimization Log
                                 </h3>
 
@@ -413,9 +413,9 @@ You are a world-class expert. Please analyze the input and provide detailed reas
                         </div>
 
                         {/* Right: Output */}
-                        <div className="flex-1 flex flex-col gap-4 min-h-0">
-                            <Card className={`flex-1 flex flex-col p-6 shadow-md transition-all duration-500 min-h-0 ${optimizedPrompt ? 'border-orange-200 bg-white' : 'border-dashed border-slate-200 bg-slate-50/50'}`}>
-                                <div className="flex items-center gap-2 mb-4 shrink-0">
+                        <div className="flex-1 flex flex-col gap-3 min-h-0">
+                            <Card className={`flex-1 flex flex-col p-4 shadow-md transition-all duration-500 min-h-0 ${optimizedPrompt ? 'border-orange-200 bg-white' : 'border-dashed border-slate-200 bg-slate-50/50'}`}>
+                                <div className="flex items-center gap-2 mb-3 shrink-0">
                                     <div className={`p-2 rounded-lg ${optimizedPrompt ? 'bg-orange-100' : 'bg-slate-100'}`}>
                                         <Sparkles size={20} className={optimizedPrompt ? "text-orange-600" : "text-slate-400"} />
                                     </div>
