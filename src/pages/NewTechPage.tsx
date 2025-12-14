@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { PageTemplate } from '@/components/ui/PageTemplate';
-import { Zap, Bot, RefreshCw, Sparkles, Brain, Cpu, CheckCircle2, BookOpen, Timer, X, Target, Play, FileText } from 'lucide-react';
+import { Zap, Bot, RefreshCw, Sparkles, Brain, Cpu, CheckCircle2, BookOpen, Timer, X, Target, Play, FileText, ArrowRight, Code2, GitCompare, Workflow, Lightbulb, Check, ChevronRight, Layers, LayoutTemplate } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -16,84 +16,159 @@ interface NewTechPageProps {
     isSidebarOpen?: boolean;
 }
 
-const EXPERT_TUTORIAL = `
-# LangChain vs. DSPy: A Deep Dive
+const TUTORIAL_MODULES = [
+    {
+        id: 'paradigm',
+        title: 'The Paradigm Shift',
+        icon: GitCompare,
+        content: (
+            <div className="space-y-8 animate-in fade-in duration-500">
+                <div className="bg-gradient-to-br from-indigo-50 to-purple-50 p-8 rounded-2xl border border-indigo-100">
+                    <h2 className="text-2xl font-bold text-indigo-900 mb-4">From "Prompt Engineering" to "Prompt Programming"</h2>
+                    <p className="text-lg text-slate-700 leading-relaxed mb-6">
+                        Traditional prompt engineering is like <b>manual craftsmanship</b>. You tweak words, adjust tone, and hope for the best.
+                        DSPy introduces <b>systematic optimization</b>. You define <i>what</i> you want (the signature), and the system figures out <i>how</i> to get it (the prompt).
+                    </p>
+                    <div className="grid md:grid-cols-2 gap-6 mt-8">
+                        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                            <div className="flex items-center gap-3 mb-4 text-slate-500 uppercase tracking-widest font-bold text-xs">
+                                <FileText size={16} /> The Old Way
+                            </div>
+                            <h3 className="text-xl font-bold text-slate-800 mb-2">Prompt Templates</h3>
+                            <p className="text-slate-600 text-sm mb-4">You write long strings of text with {`{variables}`}.</p>
+                            <div className="bg-slate-900 text-slate-300 p-3 rounded-lg text-xs font-mono">
+                                "You are a helpful assistant. Please summarize {`{text}`}..."
+                            </div>
+                        </div>
+                        <div className="bg-white p-6 rounded-xl shadow-sm border border-indigo-200 ring-1 ring-indigo-100">
+                            <div className="flex items-center gap-3 mb-4 text-indigo-600 uppercase tracking-widest font-bold text-xs">
+                                <Cpu size={16} /> The DSPy Way
+                            </div>
+                            <h3 className="text-xl font-bold text-indigo-900 mb-2">Signatures & Optimizers</h3>
+                            <p className="text-indigo-700 text-sm mb-4">You define Input/Output classes. The compiler writes the prompt.</p>
+                            <div className="bg-indigo-950 text-indigo-200 p-3 rounded-lg text-xs font-mono">
+                                class Summarize(dspy.Signature):<br />
+                                &nbsp;&nbsp;text = dspy.InputField()<br />
+                                &nbsp;&nbsp;summary = dspy.OutputField()
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        )
+    },
+    {
+        id: 'langchain',
+        title: 'The "Assembly Line" (LangChain)',
+        icon: Layers,
+        content: (
+            <div className="space-y-6 animate-in slide-in-from-right-4 duration-500">
+                <div className="flex items-start gap-4 p-6 bg-slate-50 rounded-xl border border-slate-200">
+                    <div className="p-3 bg-blue-100 rounded-lg text-blue-600 shrink-0">
+                        <Workflow size={24} />
+                    </div>
+                    <div>
+                        <h3 className="text-xl font-bold text-slate-900 mb-2">Connecting components</h3>
+                        <p className="text-slate-600 leading-relaxed">
+                            LangChain is excellent for building the <b>pipeline</b> (the assembly line). It connects PDF loaders to splitters, to vector stores, to LLMs.
+                            However, the <i>actual instruction</i> sent to the LLM is still a hard-coded string you must manually maintain.
+                        </p>
+                    </div>
+                </div>
 
-**LangChain** focuses on **connecting** components (Chains). You write the prompt template, and LangChain manages the flow.
+                <div className="bg-slate-900 rounded-xl overflow-hidden shadow-xl">
+                    <div className="bg-slate-800 px-4 py-2 flex items-center gap-2 border-b border-slate-700">
+                        <div className="flex gap-1.5">
+                            <div className="w-3 h-3 rounded-full bg-red-500" />
+                            <div className="w-3 h-3 rounded-full bg-yellow-500" />
+                            <div className="w-3 h-3 rounded-full bg-green-500" />
+                        </div>
+                        <span className="ml-2 text-xs text-slate-400 font-mono">langchain_example.py</span>
+                    </div>
+                    <div className="p-6 font-mono text-sm text-slate-300">
+                        <span className="text-purple-400">from</span> langchain.prompts <span className="text-purple-400">import</span> ChatPromptTemplate<br /><br />
+                        <span className="text-slate-500"># You manually craft the "perfect" prompt</span><br />
+                        template = <span className="text-green-400">"Translate {`{text}`} to {`{language}`}. Be formal."</span><br /><br />
+                        prompt = ChatPromptTemplate.from_template(template)<br />
+                        chain = prompt | model
+                    </div>
+                </div>
+            </div>
+        )
+    },
+    {
+        id: 'dspy',
+        title: 'The Compiler (DSPy)',
+        icon: Zap,
+        content: (
+            <div className="space-y-6 animate-in slide-in-from-right-4 duration-500">
+                <div className="flex items-start gap-4 p-6 bg-orange-50 rounded-xl border border-orange-100">
+                    <div className="p-3 bg-orange-100 rounded-lg text-orange-600 shrink-0">
+                        <Brain size={24} />
+                    </div>
+                    <div>
+                        <h3 className="text-xl font-bold text-orange-900 mb-2">Programming with Semantics</h3>
+                        <p className="text-orange-800 leading-relaxed">
+                            With DSPy, you stop treating prompts as magic spells. You use <b>Modules</b> (like layers in a neural net) and <b>Optimizers</b> (like training algorithms).
+                            If the output isn't good, you don't rewrite the prompt—you <i>compile it with better examples</i>.
+                        </p>
+                    </div>
+                </div>
 
-**DSPy** focuses on **optimizing** parameters. You define the *logic* (Signature) and provide *data*, and DSPy writes/tunes the prompt for you (simulating a Neural Network optimizer).
-
----
-
-## 1. DSPy Compiler vs. Prompt Lab (The Concept)
-
-You might ask: *"How is this different from the normal Prompt Lab?"*
-
-| Feature | Prompt Lab (Generator) | DSPy (Compiler) |
-| :--- | :--- | :--- |
-| **Method** | **Template Filling** | **Optimization** |
-| **Logic** | Uses rules (CO-STAR, RTF) to structure text. | Uses **Data & Metrics** to find the best prompt. |
-| **User Role** | You are the **Writer**. | You are the **Architect**. |
-| **Output** | A clean, human-readable prompt. | A high-performance, model-specific instruction (often messy but works better). |
-| **Analogy** | Writing a speech with a template. | Training a dog with rewards (You don't write the "woof", you reward the logic). |
-
-### When to use which?
-*   **Use Prompt Lab** when you want to *understand* and *edit* the prompt yourself.
-*   **Use DSPy** when you have a dataset of inputs/outputs and want the *highest accuracy* possible.
-
----
-
-## 2. LangChain: The "Assembly Line" Approach
-
-**Philosophy:** Explicitly define every step. You write the \`PromptTemplate\`.
-
-### Code Example: Joke Generator
-
-\`\`\`python
-from langchain.chat_models import ChatOpenAI
-from langchain.prompts import ChatPromptTemplate
-
-# 1. Define Model
-model = ChatOpenAI(model="gpt-4")
-
-# 2. Manual Prompt Template
-prompt = ChatPromptTemplate.from_template(
-    "Tell me a short, funny joke about {topic}."
-)
-
-# 3. Build Chain
-chain = prompt | model
-
-# 4. Run
-chain.invoke({"topic": "Ice Cream"})
-\`\`\`
-
----
-
-## 3. DSPy: The "Compiler" Approach
-
-**Philosophy:** Prompts are weights. You define **Signatures** (Inputs/Outputs).
-
-### Code Example: Joke Generator
-
-\`\`\`python
-import dspy
-
-# 1. Define Logic (Signature)
-class GenerateJoke(dspy.Signature):
-    """Generates a short, funny joke about a topic."""
-    topic = dspy.InputField(desc="The subject")
-    joke = dspy.OutputField(desc="A witty one-liner")
-
-# 2. Define Module
-joke_module = dspy.ChainOfThought(GenerateJoke)
-
-# 3. Optimize (Compile)
-# DSPy writes the prompt for you!
-teleprompter = BootstrapFewShot(metric=humor_metric) 
-compiled = teleprompter.compile(joke_module, trainset=data)
-\`\`\`
-`;
+                <div className="bg-slate-900 rounded-xl overflow-hidden shadow-xl">
+                    <div className="bg-slate-800 px-4 py-2 flex items-center gap-2 border-b border-slate-700">
+                        <div className="flex gap-1.5">
+                            <div className="w-3 h-3 rounded-full bg-red-500" />
+                            <div className="w-3 h-3 rounded-full bg-yellow-500" />
+                            <div className="w-3 h-3 rounded-full bg-green-500" />
+                        </div>
+                        <span className="ml-2 text-xs text-slate-400 font-mono">dspy_example.py</span>
+                    </div>
+                    <div className="p-6 font-mono text-sm text-slate-300">
+                        <span className="text-purple-400">import</span> dspy<br /><br />
+                        <span className="text-slate-500"># 1. Define the Signature (The Interface)</span><br />
+                        <span className="text-purple-400">class</span> <span className="text-yellow-400">Translation</span>(dspy.Signature):<br />
+                        &nbsp;&nbsp;&nbsp;&nbsp;<span className="text-green-400">"Translates text to target language."</span><br />
+                        &nbsp;&nbsp;&nbsp;&nbsp;text = dspy.InputField()<br />
+                        &nbsp;&nbsp;&nbsp;&nbsp;target_lang = dspy.InputField()<br />
+                        &nbsp;&nbsp;&nbsp;&nbsp;translated = dspy.OutputField()<br /><br />
+                        <span className="text-slate-500"># 2. Use a Module (Chain of Thought built-in)</span><br />
+                        translator = dspy.ChainOfThought(Translation)<br /><br />
+                        <span className="text-slate-500"># 3. The Prompt is generated automatically!</span><br />
+                        translator(text=<span className="text-green-400">"Hello"</span>, target_lang=<span className="text-green-400">"Spanish"</span>)
+                    </div>
+                </div>
+            </div>
+        )
+    },
+    {
+        id: 'why',
+        title: 'Why Use a Compiler?',
+        icon: Lightbulb,
+        content: (
+            <div className="grid gap-6 animate-in slide-in-from-right-4 duration-500">
+                <h2 className="text-2xl font-bold text-slate-800">The Power of Compilation</h2>
+                <div className="grid md:grid-cols-3 gap-4">
+                    <div className="p-5 bg-emerald-50 rounded-xl border border-emerald-100">
+                        <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center text-emerald-600 mb-4 font-bold">1</div>
+                        <h4 className="font-bold text-emerald-900 mb-2">Self-Correction</h4>
+                        <p className="text-sm text-emerald-800">Use assertions to automatically retry if the LLM hallucinating or fails format checks.</p>
+                    </div>
+                    <div className="p-5 bg-purple-50 rounded-xl border border-purple-100">
+                        <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center text-purple-600 mb-4 font-bold">2</div>
+                        <h4 className="font-bold text-purple-900 mb-2">Model Agnostic</h4>
+                        <p className="text-sm text-purple-800">Compile once, run anywhere. Optimize the <i>same</i> logic for GPT-4 or a local Llama 3 differently.</p>
+                    </div>
+                    <div className="p-5 bg-blue-50 rounded-xl border border-blue-100">
+                        <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center text-blue-600 mb-4 font-bold">3</div>
+                        <h4 className="font-bold text-blue-900 mb-2">Data-Driven</h4>
+                        <p className="text-sm text-blue-800">Improve performance by feeding more data examples, not by rewording your prompt endlessly.</p>
+                    </div>
+                </div>
+            </div>
+        )
+    }
+];
 
 interface TokenStats {
     inputTokens: number;
@@ -411,6 +486,120 @@ You are a world-class expert. Please analyze the input and provide detailed reas
         );
     };
 
+    const InteractiveTutorial = () => {
+        const [activeStep, setActiveStep] = useState(0);
+
+        return (
+            <div className="flex w-full h-full bg-slate-50">
+                {/* Sidebar Navigation */}
+                <div className="w-72 bg-white border-r border-slate-200 overflow-y-auto flex flex-col">
+                    <div className="p-6 border-b border-slate-100">
+                        <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                            <BookOpen size={20} className="text-indigo-600" />
+                            DSPy Masterclass
+                        </h2>
+                        <p className="text-xs text-slate-500 mt-1">Interactive guide to prompt programming.</p>
+                    </div>
+                    <div className="p-4 space-y-2 flex-1">
+                        {TUTORIAL_MODULES.map((module, index) => {
+                            const Icon = module.icon;
+                            const isActive = activeStep === index;
+                            return (
+                                <button
+                                    key={module.id}
+                                    onClick={() => setActiveStep(index)}
+                                    className={`w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all ${isActive ? 'bg-indigo-50 text-indigo-700 font-semibold ring-1 ring-indigo-200 shadow-sm' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
+                                >
+                                    <div className={`p-2 rounded-md ${isActive ? 'bg-white shadow-sm ring-1 ring-indigo-100' : 'bg-slate-100'}`}>
+                                        <Icon size={16} />
+                                    </div>
+                                    <span className="text-sm">{module.title}</span>
+                                    {isActive && <ChevronRight size={14} className="ml-auto opacity-50" />}
+                                </button>
+                            );
+                        })}
+                    </div>
+                    <div className="p-4 bg-slate-50 border-t border-slate-200">
+                        <div className="p-3 bg-indigo-600 rounded-xl text-white shadow-lg shadow-indigo-500/20">
+                            <div className="flex items-start gap-3">
+                                <Lightbulb size={20} className="text-yellow-300 mt-1 shrink-0" />
+                                <div>
+                                    <h4 className="font-bold text-sm">Pro Tip</h4>
+                                    <p className="text-xs text-indigo-100 mt-1 leading-relaxed">
+                                        Don't optimize for "Short text". Optimize for "Correct Logic" first.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Main Content Area */}
+                <div className="flex-1 overflow-y-auto w-full">
+                    <div className="max-w-full mx-auto p-8 md:p-12 w-full">
+                        {/* Header */}
+                        <div className="mb-8 border-b border-slate-200 pb-6 flex items-center justify-between">
+                            <div>
+                                <h1 className="text-3xl font-bold text-slate-900 mb-2">{TUTORIAL_MODULES[activeStep].title}</h1>
+                                <div className="flex items-center gap-2 text-sm text-slate-500">
+                                    <span>Module {activeStep + 1} of {TUTORIAL_MODULES.length}</span>
+                                    <span className="w-1 h-1 rounded-full bg-slate-300" />
+                                    <span>Estimated time: 2 min</span>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    disabled={activeStep === 0}
+                                    onClick={() => setActiveStep(prev => prev - 1)}
+                                    className="p-2 rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                >
+                                    <ChevronRight size={20} className="rotate-180" />
+                                </button>
+                                <button
+                                    disabled={activeStep === TUTORIAL_MODULES.length - 1}
+                                    onClick={() => setActiveStep(prev => prev + 1)}
+                                    className="p-2 rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                >
+                                    <ChevronRight size={20} />
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Content Body */}
+                        <div className="min-h-[400px]">
+                            {TUTORIAL_MODULES[activeStep].content}
+                        </div>
+
+                        {/* Footer Navigation */}
+                        <div className="mt-12 pt-8 border-t border-slate-200 flex justify-between">
+                            {activeStep > 0 && (
+                                <Button variant="ghost" onClick={() => setActiveStep(prev => prev - 1)}>
+                                    Previous Module
+                                </Button>
+                            )}
+                            {activeStep < TUTORIAL_MODULES.length - 1 ? (
+                                <Button
+                                    className="bg-indigo-600 hover:bg-indigo-700 text-white ml-auto"
+                                    onClick={() => setActiveStep(prev => prev + 1)}
+                                    rightIcon={<ArrowRight size={16} />}
+                                >
+                                    Next: {TUTORIAL_MODULES[activeStep + 1].title}
+                                </Button>
+                            ) : (
+                                <Button
+                                    className="bg-emerald-500 hover:bg-emerald-600 text-white ml-auto"
+                                    onClick={() => setActiveTab('compiler')}
+                                    rightIcon={<Zap size={16} />}
+                                >
+                                    Start Using Compiler
+                                </Button>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    };
     return (
         <PageTemplate
             title="DSPy Prompt Compiler"
@@ -679,14 +868,10 @@ You are a world-class expert. Please analyze the input and provide detailed reas
                     )}
                 </div>
             ) : (
-                <div className="flex-1 overflow-y-auto bg-white p-8">
-                    <div className="max-w-4xl mx-auto prose prose-slate prose-headings:font-bold prose-h1:text-3xl prose-h2:text-xl prose-pre:bg-slate-900 prose-pre:text-slate-200 prose-code:text-indigo-600 prose-code:bg-indigo-50 prose-code:px-1 prose-code:rounded">
-                        <ReactMarkdown>
-                            {EXPERT_TUTORIAL}
-                        </ReactMarkdown>
-                    </div>
+                <div className="flex-1 bg-slate-50 overflow-hidden flex">
+                    <InteractiveTutorial />
                 </div>
             )}
-        </PageTemplate>
+        </PageTemplate >
     );
 };
