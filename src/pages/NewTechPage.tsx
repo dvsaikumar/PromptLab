@@ -172,23 +172,31 @@ export const NewTechPage: React.FC<NewTechPageProps> = ({ isSidebarOpen }) => {
             if (!provider) throw new Error(`Provider ${selectedProvider} not available`);
 
             // Construct specific prompt
-            const dspySystemPrompt = `Act as a DSPy (Declarative Self-improving Python) Compiler. 
-                Your goal is to optimize the following raw prompt into a "Perfect Prompt".
+            const dspySystemPrompt = `Act as a DSPy (Declarative Self-improving Python) Architect. 
+                Your goal is to optimize the following raw prompt into a "Perfect Prompt" and define its Python Signature.
                 
                 Optimization Objective: Maximize for ${optimizationMetric.toUpperCase()}.
                 ${optimizationMetric === 'accuracy' ? '- Focus on precision, constraints, and error avoidance.' : ''}
                 ${optimizationMetric === 'creativity' ? '- Focus on novel, engaging, and diverse outputs.' : ''}
                 ${optimizationMetric === 'speed' ? '- Focus on conciseness and concise formatting.' : ''}
 
-                Rules for DSPy Optimization:
-                1. Explicitly define the Signature (Input -> Output).
-                2. Add Chain-of-Thought reasoning.
-                3. Include 2 few-shot examples.
-                4. Structure properly with clear delimiters.
+                Rules:
+                1. Define the DSPy Signature class first (inputs/outputs with docstrings).
+                2. Then provide the final optimized System Prompt.
                 
-                Raw Prompt: "${rawPrompt}"
+                Raw Input: "${rawPrompt}"
                 
-                Output ONLY the optimized prompt.`;
+                Output Format (Markdown):
+                
+                ## 1. DSPy Signature
+                \`\`\`python
+                import dspy
+                class ...
+                \`\`\`
+
+                ## 2. Optimized Prompt
+                (The final prompt text here)
+                `;
 
             const improved = await provider.generateCompletion({
                 config: executionConfig,
@@ -356,8 +364,14 @@ You are a world-class expert. Please analyze the input and provide detailed reas
                                 {optimizedPrompt && <Badge variant="default" className="ml-auto bg-emerald-500"> Optimized </Badge>}
                             </div>
 
-                            <div className="flex-1 w-full bg-slate-50 rounded-xl border border-slate-100 p-4 font-mono text-sm text-slate-700 whitespace-pre-wrap overflow-y-auto custom-scrollbar">
-                                {optimizedPrompt || <span className="text-slate-400 italic">Optimized result will appear here...</span>}
+                            <div className="flex-1 w-full bg-slate-50 rounded-xl border border-slate-100 p-4 font-mono text-sm text-slate-700 overflow-y-auto custom-scrollbar prose prose-sm prose-slate max-w-none prose-pre:bg-slate-900 prose-pre:text-slate-200">
+                                {optimizedPrompt ? (
+                                    <ReactMarkdown>
+                                        {optimizedPrompt}
+                                    </ReactMarkdown>
+                                ) : (
+                                    <span className="text-slate-400 italic">Optimized result will appear here...</span>
+                                )}
                             </div>
                         </Card>
                     </div>
