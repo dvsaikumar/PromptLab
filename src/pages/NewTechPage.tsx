@@ -436,7 +436,7 @@ You are a world-class expert. Please analyze the input and provide detailed reas
                     {/* Fixed Footer Status Bar */}
                     <div className="shrink-0 h-14 bg-slate-900 border-t border-slate-700 flex items-center justify-between px-4 md:px-6 z-40">
                         {/* Left: System Status & Info */}
-                        <div className="flex items-center gap-2 md:gap-4 overflow-hidden">
+                        <div className="flex items-center gap-2 md:gap-4 min-w-0">
                             {/* Status Indicator */}
                             <div className="flex items-center gap-2 px-2.5 py-1.5 bg-slate-800/50 rounded-lg border border-slate-700 shrink-0">
                                 <div className={`w-2 h-2 rounded-full ${isOptimizing ? 'bg-orange-500 animate-pulse' : 'bg-emerald-500'}`} />
