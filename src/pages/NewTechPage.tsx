@@ -433,7 +433,7 @@ You are a world-class expert. Please analyze the input and provide detailed reas
                     </div>
 
                     {/* Footer Dock */}
-                    <div className="absolute inset-x-0 bottom-0 p-6 bg-gradient-to-t from-slate-200 via-slate-100/80 to-transparent z-40 pointer-events-none">
+                    <div className="absolute inset-x-0 bottom-0 p-6 z-40 pointer-events-none">
                         <div className="pointer-events-auto bg-slate-900/90 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-3 shadow-2xl flex items-center justify-between gap-4">
                             {/* Left: System Status */}
                             <div className="flex items-center gap-4">
