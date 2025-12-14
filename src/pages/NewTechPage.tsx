@@ -9,6 +9,7 @@ import { llmConfigDB } from '@/services/llmConfigDB';
 import { LLMSelector } from '@/components/ui/LLMSelector';
 import { LLMProviderId } from '@/types';
 import { Tooltip } from '@/components/ui/Tooltip';
+import { estimateTokens } from '@/utils/tokenEstimator';
 import ReactMarkdown from 'react-markdown';
 
 interface NewTechPageProps {
@@ -169,27 +170,30 @@ export const NewTechPage: React.FC<NewTechPageProps> = ({ isSidebarOpen }) => {
             const provider = LLMService.getInstance().getProvider(selectedProvider);
             if (!provider) throw new Error(`Provider ${selectedProvider} not available`);
 
-            const improved = await provider.generateCompletion({
-                config: executionConfig,
-                userPrompt: `Act as a DSPy (Declarative Self-improving Python) Compiler. 
+            // Construct specific prompt
+            const dspySystemPrompt = `Act as a DSPy (Declarative Self-improving Python) Compiler. 
                 Your goal is to optimize the following raw prompt into a "Perfect Prompt".
                 
                 Rules for DSPy Optimization:
                 1. Explicitly define the Signature (Input -> Output).
                 2. Add Chain-of-Thought reasoning.
-                3. Include 2 high-quality few-shot examples if applicable.
+                3. Include 2 few-shot examples.
                 4. Structure properly with clear delimiters.
                 
                 Raw Prompt: "${rawPrompt}"
                 
-                Output ONLY the optimized prompt.`,
+                Output ONLY the optimized prompt.`;
+
+            const improved = await provider.generateCompletion({
+                config: executionConfig,
+                userPrompt: dspySystemPrompt,
                 temperature: 0.7
             });
 
             const endTime = Date.now();
             setStats({
-                inputTokens: Math.ceil(rawPrompt.length / 4),
-                outputTokens: Math.ceil(improved.length / 4),
+                inputTokens: estimateTokens(dspySystemPrompt, selectedModel),
+                outputTokens: estimateTokens(improved, selectedModel),
                 latency: endTime - startTime,
                 model: selectedModel || selectedProvider
             });
