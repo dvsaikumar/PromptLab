@@ -23,7 +23,25 @@ const EXPERT_TUTORIAL = `
 
 ---
 
-## 1. LangChain: The "Assembly Line" Approach
+## 1. DSPy Compiler vs. Prompt Lab (The Concept)
+
+You might ask: *"How is this different from the normal Prompt Lab?"*
+
+| Feature | Prompt Lab (Generator) | DSPy (Compiler) |
+| :--- | :--- | :--- |
+| **Method** | **Template Filling** | **Optimization** |
+| **Logic** | Uses rules (CO-STAR, RTF) to structure text. | Uses **Data & Metrics** to find the best prompt. |
+| **User Role** | You are the **Writer**. | You are the **Architect**. |
+| **Output** | A clean, human-readable prompt. | A high-performance, model-specific instruction (often messy but works better). |
+| **Analogy** | Writing a speech with a template. | Training a dog with rewards (You don't write the "woof", you reward the logic). |
+
+### When to use which?
+*   **Use Prompt Lab** when you want to *understand* and *edit* the prompt yourself.
+*   **Use DSPy** when you have a dataset of inputs/outputs and want the *highest accuracy* possible.
+
+---
+
+## 2. LangChain: The "Assembly Line" Approach
 
 **Philosophy:** Explicitly define every step. You write the \`PromptTemplate\`.
 
@@ -50,7 +68,7 @@ chain.invoke({"topic": "Ice Cream"})
 
 ---
 
-## 2. DSPy: The "Compiler" Approach
+## 3. DSPy: The "Compiler" Approach
 
 **Philosophy:** Prompts are weights. You define **Signatures** (Inputs/Outputs).
 
@@ -158,8 +176,7 @@ export const NewTechPage: React.FC<NewTechPageProps> = ({ isSidebarOpen }) => {
                 Raw Prompt: "${rawPrompt}"
                 
                 Output ONLY the optimized prompt.`,
-                temperature: 0.7,
-                model: selectedModel
+                temperature: 0.7
             });
             setOptimizedPrompt(improved);
         } catch (e) {
@@ -300,9 +317,9 @@ You are a world-class expert. Please analyze the input and provide detailed reas
                     </div>
 
                     {/* Right: Output */}
-                    <div className="flex-1 flex flex-col gap-4">
-                        <Card className={`flex-1 flex flex-col p-6 shadow-md transition-all duration-500 ${optimizedPrompt ? 'border-orange-200 bg-white' : 'border-dashed border-slate-200 bg-slate-50/50'}`}>
-                            <div className="flex items-center gap-2 mb-4">
+                    <div className="flex-1 flex flex-col gap-4 min-h-0">
+                        <Card className={`flex-1 flex flex-col p-6 shadow-md transition-all duration-500 min-h-0 ${optimizedPrompt ? 'border-orange-200 bg-white' : 'border-dashed border-slate-200 bg-slate-50/50'}`}>
+                            <div className="flex items-center gap-2 mb-4 shrink-0">
                                 <div className={`p-2 rounded-lg ${optimizedPrompt ? 'bg-orange-100' : 'bg-slate-100'}`}>
                                     <Sparkles size={20} className={optimizedPrompt ? "text-orange-600" : "text-slate-400"} />
                                 </div>
@@ -313,7 +330,7 @@ You are a world-class expert. Please analyze the input and provide detailed reas
                                 {optimizedPrompt && <Badge variant="default" className="ml-auto bg-emerald-500"> Optimized </Badge>}
                             </div>
 
-                            <div className="flex-1 w-full bg-slate-50 rounded-xl border border-slate-100 p-4 font-mono text-sm text-slate-700 whitespace-pre-wrap overflow-y-auto">
+                            <div className="flex-1 w-full bg-slate-50 rounded-xl border border-slate-100 p-4 font-mono text-sm text-slate-700 whitespace-pre-wrap overflow-y-auto custom-scrollbar">
                                 {optimizedPrompt || <span className="text-slate-400 italic">Optimized result will appear here...</span>}
                             </div>
                         </Card>
