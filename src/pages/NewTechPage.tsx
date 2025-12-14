@@ -313,6 +313,7 @@ You are a world-class expert. Please analyze the input and provide detailed reas
             iconSize={20}
             titleClassName="text-lg"
             subtitleClassName="text-xs"
+            className="!p-0"
             rightContent={
                 <div className="flex bg-slate-100 p-1 rounded-lg">
                     <button
