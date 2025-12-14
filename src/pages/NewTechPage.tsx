@@ -14,6 +14,9 @@ export const NewTechPage: React.FC<NewTechPageProps> = ({ isSidebarOpen }) => {
             icon={Zap}
             iconGradient="from-yellow-400 to-orange-500"
             isSidebarOpen={isSidebarOpen}
+            iconSize={20}
+            titleClassName="text-lg"
+            subtitleClassName="text-xs"
         >
             <div className="flex flex-col items-center justify-center h-full p-8 text-center text-slate-500">
                 <div className="mb-4 p-4 bg-slate-100 rounded-full">
