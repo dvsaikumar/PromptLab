@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { LLMService } from '@/services/llm';
+import { llmConfigDB } from '@/services/llmConfigDB';
 import { LLMSelector } from '@/components/ui/LLMSelector';
 import { LLMProviderId } from '@/types';
 import ReactMarkdown from 'react-markdown';
@@ -114,10 +115,37 @@ export const NewTechPage: React.FC<NewTechPageProps> = ({ isSidebarOpen }) => {
         }
 
         try {
+            // 1. Fetch Configuration
+            const allConfigs = await llmConfigDB.getAllConfigs();
+            let config = allConfigs.find(c => c.providerId === selectedProvider && c.model === selectedModel);
+
+            // Fallback: If no exact model match, try to find ANY config for this provider
+            if (!config) {
+                config = allConfigs.find(c => c.providerId === selectedProvider);
+            }
+
+            // Fallback: Default for OpenAI if not found (simulating first run)
+            if (!config && selectedProvider === 'openai') {
+                config = {
+                    providerId: 'openai',
+                    apiKey: '', // Will fail if not set, but allows error message
+                    model: selectedModel,
+                    baseUrl: ''
+                };
+            }
+
+            if (!config) throw new Error(`No saved configuration for ${selectedProvider}. Please click the 'Settings' gear or 'Configure' button to set your API key.`);
+
+            // Ensure model is set in config if we overrode it
+            const executionConfig = { ...config, model: selectedModel || config.model };
+
+            // 2. Get Provider
             const provider = LLMService.getInstance().getProvider(selectedProvider);
             if (!provider) throw new Error(`Provider ${selectedProvider} not available`);
 
+            // 3. Execute
             const improved = await provider.generateCompletion({
+                config: executionConfig,
                 userPrompt: `Act as a DSPy (Declarative Self-improving Python) Compiler. 
                 Your goal is to optimize the following raw prompt into a "Perfect Prompt".
                 
@@ -135,8 +163,23 @@ export const NewTechPage: React.FC<NewTechPageProps> = ({ isSidebarOpen }) => {
             });
             setOptimizedPrompt(improved);
         } catch (e) {
-            console.error(e);
-            setOptimizedPrompt(`### Optimization Failed\n\nCould not connect to **${selectedProvider}**.\n\nError: ${(e as Error).message}\n\nFalling back to simulation...\n\n### Optimized Prompt (Simulation)\n\nYou are a world-class expert. Please analyze the input...`);
+            console.warn(e);
+            let errorMsg = (e as Error).message;
+            if (errorMsg.includes('undefined is not an object')) errorMsg = "API Key not found in configuration.";
+
+            setOptimizedPrompt(`### Optimization Failed
+
+Could not connect to **${selectedProvider}**.
+
+Error: ${errorMsg}
+
+Falling back to simulation...
+
+### Optimized Prompt (Simulation)
+
+You are a world-class expert. Please analyze the input and provide detailed reasoning...
+
+**(Note: To fix this, please ensure you have added a valid API Key for ${selectedProvider} in Settings)**`);
         }
 
         setIsOptimizing(false);
