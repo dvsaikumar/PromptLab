@@ -559,8 +559,14 @@ export const PromptLaboratory: React.FC<PromptLaboratoryProps> = ({ isSidebarOpe
                                 </Button>
                                 <div className="w-px h-4 bg-slate-700 mx-1"></div>
                                 <Button
-                                    onClick={() => setIsComplexitySelectionVisible(true)}
-                                    disabled={isGenerating || !areAllRequiredFieldsFilled}
+                                    onClick={() => {
+                                        if (!areAllRequiredFieldsFilled) {
+                                            toast.error("Please describe your idea and fill in required fields.");
+                                            return;
+                                        }
+                                        setIsComplexitySelectionVisible(true);
+                                    }}
+                                    disabled={isGenerating}
                                     isLoading={isGenerating}
                                     className="h-10 px-6 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 hover:from-indigo-400 hover:to-pink-400 text-white font-semibold rounded-xl shadow-lg shadow-purple-500/25 border-none"
                                 >
