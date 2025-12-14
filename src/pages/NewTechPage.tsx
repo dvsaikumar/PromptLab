@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { PageTemplate } from '@/components/ui/PageTemplate';
-import { Zap, Bot, RefreshCw, Sparkles, Brain, Cpu, CheckCircle2, BookOpen, Activity, Hash, Timer } from 'lucide-react';
+import { Zap, Bot, RefreshCw, Sparkles, Brain, Cpu, CheckCircle2, BookOpen, Timer } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -8,6 +8,7 @@ import { LLMService } from '@/services/llm';
 import { llmConfigDB } from '@/services/llmConfigDB';
 import { LLMSelector } from '@/components/ui/LLMSelector';
 import { LLMProviderId } from '@/types';
+import { Tooltip } from '@/components/ui/Tooltip';
 import ReactMarkdown from 'react-markdown';
 
 interface NewTechPageProps {
@@ -353,21 +354,41 @@ You are a world-class expert. Please analyze the input and provide detailed reas
 
                     {/* Floating Status Bar */}
                     {stats && (
-                        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 bg-slate-900/90 backdrop-blur-md text-white px-6 py-3 rounded-full shadow-2xl border border-slate-700/50 flex items-center gap-6 animate-in slide-in-from-bottom-4 fade-in z-50">
-                            <div className="flex items-center gap-2">
-                                <Cpu size={16} className="text-orange-400" />
-                                <span className="font-mono text-sm font-bold">{stats.model}</span>
-                            </div>
-                            <div className="w-px h-4 bg-slate-700" />
-                            <div className="flex items-center gap-2">
-                                <Hash size={16} className="text-blue-400" />
-                                <span className="font-mono text-sm">{stats.inputTokens + stats.outputTokens} toks</span>
-                            </div>
-                            <div className="w-px h-4 bg-slate-700" />
-                            <div className="flex items-center gap-2">
-                                <Timer size={16} className="text-emerald-400" />
-                                <span className="font-mono text-sm">{(stats.latency / 1000).toFixed(2)}s</span>
-                            </div>
+                        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 bg-slate-900/90 backdrop-blur-md text-white px-3 py-2 rounded-2xl shadow-2xl border border-slate-700/50 flex items-center gap-4 animate-in slide-in-from-bottom-4 fade-in z-50">
+                            {/* Model */}
+                            <Tooltip content={stats.model} title="Active Model" position="top">
+                                <div className="flex items-center gap-2 bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-700 hover:border-slate-600 transition-colors">
+                                    <Cpu size={14} className="text-orange-400" />
+                                    <span className="font-mono text-xs font-bold text-slate-200">{stats.model}</span>
+                                </div>
+                            </Tooltip>
+
+                            {/* Token Count (Prompt Lab Style) */}
+                            <Tooltip content="Estimated Usage" title="Token Breakdown" position="top">
+                                <div className="flex flex-col bg-slate-950/50 rounded-lg border border-slate-700/50 overflow-hidden shrink-0 self-stretch justify-center min-w-[100px]">
+                                    <div className="bg-white/5 px-2 py-0.5 text-[8px] font-bold text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
+                                        Tokens
+                                    </div>
+                                    <div className="flex divide-x divide-slate-700/50">
+                                        <div className="px-2 py-0.5 flex items-center justify-center gap-1.5 flex-1">
+                                            <span className="text-[8px] text-slate-500 uppercase font-bold">In</span>
+                                            <span className="text-[10px] font-bold text-slate-300 tabular-nums">{stats.inputTokens}</span>
+                                        </div>
+                                        <div className="px-2 py-0.5 flex items-center justify-center gap-1.5 bg-indigo-500/10 flex-1">
+                                            <span className="text-[8px] text-indigo-400 uppercase font-bold">Out</span>
+                                            <span className="text-[10px] font-bold text-indigo-200 tabular-nums">{stats.outputTokens}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </Tooltip>
+
+                            {/* Latency */}
+                            <Tooltip content="Generation Time" title="Latency" position="top">
+                                <div className="flex items-center gap-2 bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-700 hover:border-slate-600 transition-colors">
+                                    <Timer size={14} className="text-emerald-400" />
+                                    <span className="font-mono text-xs font-bold text-slate-200">{(stats.latency / 1000).toFixed(2)}s</span>
+                                </div>
+                            </Tooltip>
                         </div>
                     )}
                 </div>
