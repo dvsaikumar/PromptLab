@@ -1,4 +1,5 @@
-import React, { useState, isValidElement } from 'react';
+import React, { useState, useRef, isValidElement } from 'react';
+import { createPortal } from 'react-dom';
 
 interface TooltipProps {
     content: React.ReactNode | string | string[] | { label: string; value: string | number; bold?: boolean; separator?: boolean }[];
@@ -9,22 +10,62 @@ interface TooltipProps {
 
 export const Tooltip: React.FC<TooltipProps> = ({ content, children, title, position = 'top' }) => {
     const [isVisible, setIsVisible] = useState(false);
+    const triggerRef = useRef<HTMLDivElement>(null);
+    const [coords, setCoords] = useState({ top: 0, left: 0 });
+
+    const handleMouseEnter = () => {
+        if (triggerRef.current) {
+            const rect = triggerRef.current.getBoundingClientRect();
+            let top = 0;
+            let left = 0;
+            const offset = 10; // spacing
+
+            switch (position) {
+                case 'top':
+                    top = rect.top - offset;
+                    left = rect.left + (rect.width / 2);
+                    break;
+                case 'bottom':
+                    top = rect.bottom + offset;
+                    left = rect.left + (rect.width / 2);
+                    break;
+                case 'left':
+                    top = rect.top + (rect.height / 2);
+                    left = rect.left - offset;
+                    break;
+                case 'right':
+                    top = rect.top + (rect.height / 2);
+                    left = rect.right + offset;
+                    break;
+            }
+            setCoords({ top, left });
+            setIsVisible(true);
+        }
+    };
 
     return (
-        <div
-            className="relative flex items-center"
-            onMouseEnter={() => setIsVisible(true)}
-            onMouseLeave={() => setIsVisible(false)}
-        >
-            {children}
-            {isVisible && (
-                <div className={`absolute z-50 px-3 py-2 text-xs font-bold text-slate-800 bg-white rounded-lg shadow-xl border border-slate-100 opacity-100 min-w-max animate-in fade-in zoom-in-95 duration-75
-                    ${isValidElement(content) || Array.isArray(content) ? '' : 'whitespace-nowrap'}
-                    ${position === 'top' ? 'bottom-full left-1/2 -translate-x-1/2 mb-2' : ''}
-                    ${position === 'bottom' ? 'top-full left-1/2 -translate-x-1/2 mt-2' : ''}
-                    ${position === 'left' ? 'right-full top-1/2 -translate-y-1/2 mr-2' : ''}
-                    ${position === 'right' ? 'left-full top-1/2 -translate-y-1/2 ml-2' : ''}
-                `}>
+        <>
+            <div
+                ref={triggerRef}
+                className="relative flex items-center"
+                onMouseEnter={handleMouseEnter}
+                onMouseLeave={() => setIsVisible(false)}
+            >
+                {children}
+            </div>
+            {isVisible && createPortal(
+                <div
+                    className="fixed z-[9999] px-3 py-2 text-xs font-bold text-slate-800 bg-white rounded-lg shadow-xl border border-slate-100 opacity-100 min-w-max animate-in fade-in zoom-in-95 duration-75 pointer-events-none"
+                    style={{
+                        top: coords.top,
+                        left: coords.left,
+                        transform:
+                            position === 'top' ? 'translate(-50%, -100%)' :
+                                position === 'bottom' ? 'translate(-50%, 0)' :
+                                    position === 'left' ? 'translate(-100%, -50%)' :
+                                        'translate(0, -50%)' // right
+                    }}
+                >
                     {title && (
                         <div className="mb-2 pb-1 border-b border-slate-100 text-xs text-slate-600 font-extrabold uppercase tracking-wider text-center">
                             {title}
@@ -59,14 +100,15 @@ export const Tooltip: React.FC<TooltipProps> = ({ content, children, title, posi
                     )}
 
                     {/* Arrow */}
-                    <div className={`absolute w-2 h-2 bg-white transform rotate-45
-                        ${position === 'top' ? 'bottom-[-5px] left-1/2 -translate-x-1/2 border-b border-r border-slate-100' : ''}
-                        ${position === 'bottom' ? 'top-[-5px] left-1/2 -translate-x-1/2 border-t border-l border-slate-100' : ''}
-                        ${position === 'left' ? 'right-[-5px] top-1/2 -translate-y-1/2 border-t border-r border-slate-100' : ''}
-                        ${position === 'right' ? 'left-[-5px] top-1/2 -translate-y-1/2 border-b border-l border-slate-100' : ''}
+                    <div className={`absolute w-2 h-2 bg-white transform rotate-45 border-slate-100
+                        ${position === 'top' ? 'bottom-[-5px] left-1/2 -translate-x-1/2 border-b border-r' : ''}
+                        ${position === 'bottom' ? 'top-[-5px] left-1/2 -translate-x-1/2 border-t border-l' : ''}
+                        ${position === 'left' ? 'right-[-5px] top-1/2 -translate-y-1/2 border-t border-r' : ''}
+                        ${position === 'right' ? 'left-[-5px] top-1/2 -translate-y-1/2 border-b border-l' : ''}
                     `}></div>
-                </div>
+                </div>,
+                document.body
             )}
-        </div>
+        </>
     );
 };

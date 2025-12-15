@@ -128,7 +128,8 @@ export const PromptLab: React.FC<PromptLabProps> = ({ isSidebarOpen = false }) =
                 qualityScoreDetails: qualityScore ? JSON.stringify(qualityScore) : undefined,
                 updatedAt: new Date().toISOString(),
                 providerId: llmConfig?.providerId || 'unknown',
-                model: llmConfig?.model || 'unknown'
+                model: llmConfig?.model || 'unknown',
+                source: 'lab'
             });
             toast.success('Changes saved!');
         } catch (error: any) {
@@ -153,7 +154,8 @@ export const PromptLab: React.FC<PromptLabProps> = ({ isSidebarOpen = false }) =
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
                 providerId: llmConfig?.providerId || 'unknown',
-                model: llmConfig?.model || 'unknown'
+                model: llmConfig?.model || 'unknown',
+                source: 'lab'
             });
             toast.success(`✓ "${title}" saved successfully!`);
 

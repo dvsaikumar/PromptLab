@@ -255,7 +255,8 @@ export const ChainReactionPage: React.FC<ChainReactionPageProps> = ({ isSidebarO
                 fields: JSON.stringify(finalResult.steps),
                 tones: '[]',
                 createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString()
+                updatedAt: new Date().toISOString(),
+                source: 'chain' as const
             };
 
             await promptDB.savePrompt(dataToSave);
@@ -534,7 +535,8 @@ export const ChainReactionPage: React.FC<ChainReactionPageProps> = ({ isSidebarO
                 if (stepProviderId !== llmConfig.providerId) {
                     try {
                         const { llmConfigDB } = await import('@/services/llmConfigDB');
-                        const saved = await llmConfigDB.getConfig(stepProviderId);
+                        const allConfigs = await llmConfigDB.getAllConfigs();
+                        const saved = allConfigs.find(c => c.providerId === stepProviderId);
                         if (saved) {
                             effectiveConfig = saved;
                         }

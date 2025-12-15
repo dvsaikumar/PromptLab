@@ -10,11 +10,10 @@ export interface FrameworkSelectorProps {
     isOpen: boolean;
     onToggle: () => void;
     isSidebarOpen?: boolean;
-    hideHeader?: boolean;
     compact?: boolean;
 }
 
-export const FrameworkSelector: React.FC<FrameworkSelectorProps> = ({ hideHeader = false, compact = false }) => {
+export const FrameworkSelector: React.FC<FrameworkSelectorProps> = ({ compact = false }) => {
     const { activeFramework, setFramework } = usePrompt();
 
     return (

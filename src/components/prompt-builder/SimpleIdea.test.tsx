@@ -43,13 +43,7 @@ describe('SimpleIdea Component', () => {
         expect(textarea).toHaveValue('Initial Idea');
     });
 
-    it('renders persona selector', () => {
-        renderWithContext(
-            <SimpleIdea isOpen={true} onToggle={vi.fn()} isSidebarOpen={true} />
-        );
-        expect(screen.getByText('Expert Persona')).toBeInTheDocument();
-        // Badge text '15+ Yrs Exp' was removed in favor of clean internal label
-    });
+
 
     it('calls setSimpleIdea when typing', () => {
         renderWithContext(

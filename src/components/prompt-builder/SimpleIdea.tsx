@@ -1,10 +1,9 @@
 import React, { useRef, useState } from 'react';
-import { Sparkles, Upload, Loader2, FileText, X, Image as ImageIcon, File, Zap, Layers, Brain, BookTemplate, Search, Lightbulb, RefreshCw, SlidersHorizontal } from 'lucide-react';
+import { Sparkles, Upload, Loader2, FileText, X, Image as ImageIcon, File, BookTemplate, Search, RefreshCw } from 'lucide-react';
 import { usePrompt } from '@/contexts/PromptContext';
 import { processFile } from '@/utils/fileProcessor';
 import toast from 'react-hot-toast';
 import { TextStats } from '@/components/ui/TextStats';
-import { SelectionCard } from '@/components/ui/SelectionCard';
 import { estimateTokens } from '@/utils/tokenEstimator';
 
 
@@ -14,14 +13,12 @@ export interface SimpleIdeaProps {
     isOpen: boolean;
     onToggle: () => void;
     isSidebarOpen?: boolean;
-    hideHeader?: boolean;
 }
 
-export const SimpleIdea: React.FC<SimpleIdeaProps> = ({ hideHeader = false }) => {
+export const SimpleIdea: React.FC<SimpleIdeaProps> = () => {
     const {
         simpleIdea, setSimpleIdea, selectedTones, attachments,
-        addAttachment, removeAttachment, expandIdea, complexity,
-        setComplexity, llmConfig, setActivePersonaId, generateSuggestions
+        addAttachment, removeAttachment, expandIdea, llmConfig, setActivePersonaId, generateSuggestions
     } = usePrompt();
     const fileRef = useRef<HTMLInputElement>(null);
     const [isProcessingFile, setIsProcessingFile] = useState(false);
@@ -148,16 +145,7 @@ export const SimpleIdea: React.FC<SimpleIdeaProps> = ({ hideHeader = false }) =>
             {/* Main Input Area - Styled to match ReversePromptPage and Configuration Grid */}
             <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex flex-col min-h-[500px]">
                 <div className="flex items-center justify-between mb-2">
-                    {!hideHeader && (
-                        <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2 uppercase tracking-wide opacity-90">
-                            <div className="p-1 rounded-md bg-amber-100 text-amber-600">
-                                <Sparkles size={14} />
-                            </div>
-                            Core Input
-                        </h3>
-                    )}
-                    {/* Make sure we take up space if header is hidden or keep alignment */}
-                    {hideHeader && <div></div>}
+
 
                     <div className="flex gap-2">
                         <Button

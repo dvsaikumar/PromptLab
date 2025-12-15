@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Trash2, Clock, BookOpen, X, FileText, FolderOpen, Edit, Cpu, Download, Brain, Sparkles } from 'lucide-react';
+import { Search, Trash2, Clock, BookOpen, X, FileText, FolderOpen, Edit, Download, Brain, Sparkles, PenTool, Zap, Microscope, Link2 } from 'lucide-react';
 import { promptDB, SavedPrompt } from '@/services/database';
 import { vectorDb } from '@/services/vectorDbService';
 import { FRAMEWORKS, TONES, INDUSTRY_TEMPLATES, ROLE_PRESETS } from '@/constants';
@@ -38,6 +38,8 @@ export const SavedPromptsLibrary: React.FC<SavedPromptsLibraryPropsExtended> = (
 
     const loadPrompts = async () => {
         const prompts = await promptDB.getAllPrompts();
+        // Sort by newest first
+        prompts.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
         setAllPrompts(prompts);
         setSavedPrompts(prompts);
     };
@@ -51,23 +53,23 @@ export const SavedPromptsLibrary: React.FC<SavedPromptsLibraryPropsExtended> = (
             try {
                 const content = e.target?.result as string;
                 const data = JSON.parse(content);
-                // Support both single prompt object or array of prompts
                 const promptsToImport = Array.isArray(data) ? data : [data];
 
                 let count = 0;
                 for (const p of promptsToImport) {
-                    if (!p.title || !p.prompt) continue; // Basic validation
+                    if (!p.title || !p.prompt) continue;
                     const { id, ...promptData } = p;
-                    // Ensure fields that need to be strings are strings
                     if (typeof promptData.fields === 'object') promptData.fields = JSON.stringify(promptData.fields);
                     if (typeof promptData.tones === 'object') promptData.tones = JSON.stringify(promptData.tones);
                     if (!promptData.createdAt) promptData.createdAt = new Date().toISOString();
                     if (!promptData.updatedAt) promptData.updatedAt = new Date().toISOString();
                     if (!promptData.framework) promptData.framework = 'custom';
 
+                    // Default imported prompts to 'lab' if source missing
+                    if (!promptData.source) promptData.source = 'lab';
+
                     await promptDB.savePrompt(promptData);
 
-                    // Sync Vector DB
                     if (vectorDb.isAvailable()) {
                         try {
                             const vector = vectorDb.generateDummyEmbedding(promptData.prompt);
@@ -84,19 +86,16 @@ export const SavedPromptsLibrary: React.FC<SavedPromptsLibraryPropsExtended> = (
                     }
                     count++;
                 }
-                toast.success(`Imported ${count} prompts from file!`);
+                toast.success(`Imported ${count} prompts successfully`);
                 loadPrompts();
             } catch (err) {
                 console.error(err);
                 toast.error("Failed to parse JSON file");
             }
-            // Reset input
             if (fileInputRef.current) fileInputRef.current.value = '';
         };
         reader.readAsText(file);
     };
-
-
 
     const handleSearch = async (query: string) => {
         setSearchQuery(query);
@@ -107,47 +106,30 @@ export const SavedPromptsLibrary: React.FC<SavedPromptsLibraryPropsExtended> = (
             return;
         }
 
-        if (isSemantic) {
-            if (!vectorDb.isAvailable()) {
-                toast.error("Semantic search requires desktop app or Vector DB", { id: "sem-fail" });
-                // Fallback to text search
-            } else {
-                setIsSearching(true);
-                try {
-                    // Generate embedding (using dummy for now as placeholder for real LLM embedding)
-                    const embedding = vectorDb.generateDummyEmbedding(query);
-                    // Search vector DB
-                    const results = await vectorDb.search('prompts', embedding, 10);
-
-                    // If results found, filter by ID (assuming results have some metadata or we map by title/text matches if ID not returned)
-                    // LanceDB returns rows. We need to match back to our DB IDs.
-                    // Ideally we stored ID in vector DB. (In SavedPrompts import, we didn't explicitly store ID... wait. Line 72 of SavedPrompts.tsx shows we stored title, text, category, timestamp. NO ID.)
-
-                    // Since we didn't store ID, we might need to fuzzy match title? Or text?
-                    // This is a flaw in previous implementation of Import.
-                    // I will check if I can match by text.
-
-                    if (results && results.length > 0) {
-                        const matchedtexts = new Set(results.map((r: any) => r.text));
-                        const filtered = allPrompts.filter(p => matchedtexts.has(p.prompt));
-                        setSavedPrompts(filtered);
-                        setIsSearching(false);
-                        return;
-                    }
-                } catch (e) {
-                    console.error("Vector search failed", e);
+        if (isSemantic && vectorDb.isAvailable()) {
+            setIsSearching(true);
+            try {
+                const embedding = vectorDb.generateDummyEmbedding(query);
+                const results = await vectorDb.search('prompts', embedding, 10);
+                if (results && results.length > 0) {
+                    const matchedtexts = new Set(results.map((r: any) => r.text));
+                    const filtered = allPrompts.filter(p => matchedtexts.has(p.prompt));
+                    setSavedPrompts(filtered);
+                    setIsSearching(false);
+                    return;
                 }
-                setIsSearching(false);
+            } catch (e) {
+                console.error("Vector search failed", e);
             }
+            setIsSearching(false);
         }
 
         const filtered = allPrompts.filter(p => {
             const matches = (text?: string) => text?.toLowerCase().includes(term);
-
-            // Lookup labels for better search (so searching "Healthcare" finds the industry even if ID is 'healthcare')
             const frameworkName = FRAMEWORKS.find(f => f.id === p.framework)?.name;
             const industryLabel = INDUSTRY_TEMPLATES.find(t => t.id === p.industry)?.label;
             const roleLabel = ROLE_PRESETS.find(t => t.id === p.role)?.label;
+            const sourceLabel = getSourceStyle(p.source).label;
 
             let toneKeywords = '';
             try {
@@ -171,7 +153,8 @@ export const SavedPromptsLibrary: React.FC<SavedPromptsLibraryPropsExtended> = (
                 matches(roleLabel) ||
                 matches(toneKeywords) ||
                 matches(p.providerId) ||
-                matches(p.model)
+                matches(p.model) ||
+                matches(sourceLabel)
             );
         });
         setSavedPrompts(filtered);
@@ -179,7 +162,6 @@ export const SavedPromptsLibrary: React.FC<SavedPromptsLibraryPropsExtended> = (
 
     const handleDeletePrompt = async (id: number) => {
         if (!confirm('Are you sure you want to delete this prompt?')) return;
-
         try {
             await promptDB.deletePrompt(id);
             toast.success('Prompt deleted');
@@ -189,7 +171,6 @@ export const SavedPromptsLibrary: React.FC<SavedPromptsLibraryPropsExtended> = (
             }
         } catch (error) {
             toast.error('Failed to delete prompt');
-            console.error(error);
         }
     };
 
@@ -203,11 +184,8 @@ export const SavedPromptsLibrary: React.FC<SavedPromptsLibraryPropsExtended> = (
             toast.success('Prompt loaded into editor');
         } catch (error) {
             toast.error('Failed to load prompt');
-            console.error(error);
         }
     };
-
-
 
     const handleExportBackup = async () => {
         try {
@@ -216,7 +194,6 @@ export const SavedPromptsLibrary: React.FC<SavedPromptsLibraryPropsExtended> = (
                 toast.error("No prompts to export");
                 return;
             }
-
             const backupData = JSON.stringify(prompts, null, 2);
             const blob = new Blob([backupData], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
@@ -229,7 +206,6 @@ export const SavedPromptsLibrary: React.FC<SavedPromptsLibraryPropsExtended> = (
             URL.revokeObjectURL(url);
             toast.success(`Exported ${prompts.length} prompts`);
         } catch (error) {
-            console.error(error);
             toast.error("Export failed");
         }
     };
@@ -247,12 +223,9 @@ export const SavedPromptsLibrary: React.FC<SavedPromptsLibraryPropsExtended> = (
             mime = 'text/plain';
         } else if (format === 'json') {
             content = JSON.stringify({
-                title: prompt.title,
-                framework: prompt.framework,
-                prompt: prompt.prompt,
-                fields: JSON.parse(prompt.fields),
-                tones: JSON.parse(prompt.tones),
-                createdAt: prompt.createdAt
+                ...prompt,
+                fields: JSON.parse(prompt.fields || '{}'),
+                tones: JSON.parse(prompt.tones || '[]'),
             }, null, 2);
             mime = 'application/json';
         }
@@ -278,21 +251,52 @@ export const SavedPromptsLibrary: React.FC<SavedPromptsLibraryPropsExtended> = (
         return FRAMEWORKS.find(f => f.id === frameworkId)?.name || frameworkId;
     };
 
-    const getProviderColor = (providerId?: string) => {
-        switch (providerId) {
-            case 'openai': return 'bg-emerald-600 text-white border-emerald-700';
-            case 'anthropic': return 'bg-amber-600 text-white border-amber-700';
-            case 'gemini': return 'bg-blue-600 text-white border-blue-700';
-            case 'deepseek': return 'bg-violet-600 text-white border-violet-700';
-            case 'grok': return 'bg-slate-900 text-white border-slate-950';
-            case 'local': return 'bg-stone-600 text-white border-stone-700';
-            case 'qwen': return 'bg-purple-600 text-white border-purple-700';
-            case 'openrouter': return 'bg-fuchsia-600 text-white border-fuchsia-700';
-            default: return 'bg-indigo-600 text-white border-indigo-700';
+    const getSourceStyle = (source?: string) => {
+        switch (source) {
+            case 'compiler':
+                return {
+                    label: 'Prompt Compiler',
+                    icon: Zap,
+                    bg: 'bg-gradient-to-br from-amber-50 to-orange-50',
+                    border: 'border-amber-200',
+                    accent: 'text-amber-600',
+                    badge: 'bg-amber-100 text-amber-700 border-amber-200',
+                    ring: 'ring-amber-500'
+                };
+            case 'reverse':
+                return {
+                    label: 'Reverse Engineering',
+                    icon: Microscope,
+                    bg: 'bg-gradient-to-br from-violet-50 to-purple-50',
+                    border: 'border-violet-200',
+                    accent: 'text-violet-600',
+                    badge: 'bg-violet-100 text-violet-700 border-violet-200',
+                    ring: 'ring-violet-500'
+                };
+            case 'chain':
+                return {
+                    label: 'Chain Reaction',
+                    icon: Link2,
+                    bg: 'bg-gradient-to-br from-fuchsia-50 to-pink-50',
+                    border: 'border-fuchsia-200',
+                    accent: 'text-fuchsia-600',
+                    badge: 'bg-fuchsia-100 text-fuchsia-700 border-fuchsia-200',
+                    ring: 'ring-fuchsia-500'
+                };
+            case 'lab':
+            default:
+                return {
+                    label: 'Prompt Lab',
+                    icon: PenTool,
+                    bg: 'bg-gradient-to-br from-slate-50 to-indigo-50/30',
+                    border: 'border-indigo-100',
+                    accent: 'text-indigo-600',
+                    badge: 'bg-indigo-100 text-indigo-700 border-indigo-200',
+                    ring: 'ring-indigo-500'
+                };
         }
     };
 
-    // Search Bar as right content for header
     const SearchBar = (
         <div className="flex items-center gap-2">
             <Button
@@ -302,14 +306,14 @@ export const SavedPromptsLibrary: React.FC<SavedPromptsLibraryPropsExtended> = (
                 className="gap-2 text-slate-600 border-slate-300 hover:bg-slate-100"
             >
                 <FolderOpen size={16} />
-                Import JSON
+                Import
             </Button>
             <Button
                 variant="outline"
                 size="sm"
                 onClick={handleExportBackup}
                 className="gap-2 text-slate-600 border-slate-300 hover:bg-slate-100"
-                title="Export all prompts to JSON"
+                title="Backup Library"
             >
                 <Download size={16} />
                 Backup
@@ -323,7 +327,7 @@ export const SavedPromptsLibrary: React.FC<SavedPromptsLibraryPropsExtended> = (
                         value={searchQuery}
                         onChange={(e) => handleSearch(e.target.value)}
                         placeholder={isSemantic ? "Semantic Search (Concept)..." : "Search prompts..."}
-                        className={`w-full pl-11 pr-4 py-3 border rounded-xl focus:ring-2 transition-all bg-slate-50 ${isSemantic ? 'border-purple-200 focus:ring-purple-500 focus:border-purple-500' : 'border-slate-200 focus:ring-emerald-500 focus:border-emerald-500'}`}
+                        className={`w-full pl-11 pr-4 py-2 text-sm border rounded-xl focus:ring-2 transition-all bg-white shadow-sm ${isSemantic ? 'border-purple-200 focus:ring-purple-500 focus:border-purple-500' : 'border-slate-200 focus:ring-indigo-500 focus:border-indigo-500'}`}
                     />
                     {isSearching && (
                         <div className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -337,7 +341,7 @@ export const SavedPromptsLibrary: React.FC<SavedPromptsLibraryPropsExtended> = (
                         setSavedPrompts(allPrompts);
                         setSearchQuery('');
                     }}
-                    className={`p-3 rounded-xl border transition-all ${isSemantic ? 'bg-purple-100 border-purple-200 text-purple-700' : 'bg-slate-50 border-slate-200 text-slate-400 hover:text-slate-600'}`}
+                    className={`p-2 rounded-xl border transition-all ${isSemantic ? 'bg-purple-100 border-purple-200 text-purple-700' : 'bg-white border-slate-200 text-slate-400 hover:text-slate-600'}`}
                     title="Toggle Semantic Search"
                 >
                     <Brain size={20} />
@@ -353,180 +357,243 @@ export const SavedPromptsLibrary: React.FC<SavedPromptsLibraryPropsExtended> = (
                 title="Saved Prompts"
                 subtitle="Manage and export your prompt library"
                 icon={FolderOpen}
-                iconGradient="from-emerald-500 to-teal-600"
-                shadowColor="shadow-emerald-500/30"
+                iconGradient="from-indigo-500 to-violet-600"
+                shadowColor="shadow-indigo-500/30"
                 rightContent={SearchBar}
                 isSidebarOpen={isSidebarOpen}
                 className="flex flex-col !p-0"
-                headerClassName="!px-4"
-                iconSize={20}
-                titleClassName="text-lg"
-                subtitleClassName="text-xs"
+                headerClassName="!px-6 !py-4"
+                iconSize={24}
             >
-                <div className="h-full overflow-y-auto bg-slate-50 p-6">
+                <div className="h-full overflow-y-auto bg-slate-50/50 p-6">
                     {savedPrompts.length === 0 ? (
-                        <Card className="text-center py-16">
-                            <FileText size={56} className="mx-auto text-slate-300 mb-4" />
+                        <div className="flex flex-col items-center justify-center h-[60vh] text-center">
+                            <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mb-6">
+                                <FileText size={40} className="text-slate-300" />
+                            </div>
                             <h3 className="text-xl font-bold text-slate-700 mb-2">No saved prompts yet</h3>
-                            <p className="text-slate-500">Generate a prompt and save it from the Output section</p>
-                        </Card>
+                            <p className="text-slate-500 max-w-md mx-auto">
+                                Generate amazing prompts using the text editor, compiler, or reverse engineering tools and save them here.
+                            </p>
+                        </div>
                     ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {savedPrompts.map((savedPrompt) => (
-                                <Card
-                                    key={savedPrompt.id}
-                                    className={`cursor-pointer transition-all hover:shadow-xl hover:-translate-y-1 ${selectedPrompt?.id === savedPrompt.id ? 'ring-2 ring-emerald-500 shadow-lg' : ''
-                                        }`}
-                                    onClick={() => setSelectedPrompt(savedPrompt)}
-                                >
-                                    <div className="flex items-start justify-between mb-3">
-                                        <h3 className="font-bold text-slate-900 text-lg line-clamp-1">{savedPrompt.title}</h3>
-                                        <div className="flex items-center gap-1">
-                                            <button
-                                                onClick={(e) => handleEdit(savedPrompt, e)}
-                                                className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                                                title="Edit prompt"
-                                            >
-                                                <Edit size={16} />
-                                            </button>
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleDeletePrompt(savedPrompt.id!);
-                                                }}
-                                                className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                                                title="Delete prompt"
-                                            >
-                                                <Trash2 size={16} />
-                                            </button>
-                                        </div>
-                                    </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                            {savedPrompts.map((savedPrompt) => {
+                                const style = getSourceStyle(savedPrompt.source);
+                                const SourceIcon = style.icon;
 
-                                    <div className="flex flex-wrap items-center gap-2 mb-3">
-                                        <Badge variant="purple" className="gap-1">
-                                            <BookOpen size={10} />
-                                            {getFrameworkName(savedPrompt.framework)}
-                                        </Badge>
-                                        {savedPrompt.industry && (
-                                            <Badge variant="blue" className="gap-1">
-                                                {INDUSTRY_TEMPLATES.find(t => t.id === savedPrompt.industry)?.label || savedPrompt.industry}
-                                            </Badge>
-                                        )}
-                                        {savedPrompt.role && (
-                                            <Badge variant="pink" className="gap-1">
-                                                {ROLE_PRESETS.find(t => t.id === savedPrompt.role)?.label || savedPrompt.role}
-                                            </Badge>
-                                        )}
-                                    </div>
+                                return (
+                                    <div
+                                        key={savedPrompt.id}
+                                        onClick={() => setSelectedPrompt(savedPrompt)}
+                                        className={`group relative flex flex-col bg-white rounded-2xl border transition-all duration-300 cursor-pointer overflow-hidden hover:shadow-xl hover:-translate-y-1 ${selectedPrompt?.id === savedPrompt.id ? `ring-2 ${style.ring} shadow-lg` : 'border-slate-200 hover:border-slate-300'
+                                            }`}
+                                    >
+                                        {/* Colored Header Stripe */}
+                                        <div className={`h-1.5 w-full ${style.bg.replace('bg-gradient-to-br', 'bg-gradient-to-r')}`} />
 
-                                    <p className="text-sm text-slate-600 line-clamp-3 mb-4">{savedPrompt.prompt}</p>
+                                        <div className="p-5 flex flex-col h-full">
+                                            {/* Header */}
+                                            <div className="flex items-start justify-between mb-4">
+                                                <div className="flex items-center gap-2">
+                                                    <div className={`p-1.5 rounded-lg ${style.bg} border-0`}>
+                                                        <SourceIcon size={16} className={style.accent} />
+                                                    </div>
+                                                    <span className={`text-[10px] font-bold uppercase tracking-wider border px-1.5 py-0.5 rounded-md ${style.badge}`}>
+                                                        {style.label}
+                                                    </span>
+                                                </div>
+                                                <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                                                    <button
+                                                        onClick={(e) => handleEdit(savedPrompt, e)}
+                                                        className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                                                        title="Edit"
+                                                    >
+                                                        <Edit size={14} />
+                                                    </button>
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            if (savedPrompt.id) handleDeletePrompt(savedPrompt.id);
+                                                        }}
+                                                        className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                                        title="Delete"
+                                                    >
+                                                        <Trash2 size={14} />
+                                                    </button>
+                                                </div>
+                                            </div>
 
-                                    <div className="flex items-center justify-between pt-3 border-t border-slate-100 mt-auto">
-                                        <div className="flex items-center gap-2">
-                                            {savedPrompt.providerId && (
-                                                <Badge variant="default" className={`${getProviderColor(savedPrompt.providerId)} h-5 px-1.5 text-[10px] border gap-1`}>
-                                                    <Cpu size={10} />
-                                                    <span className="font-bold uppercase tracking-wider">{savedPrompt.providerId}</span>
-                                                    {savedPrompt.model && (
-                                                        <span className="opacity-75 font-normal border-l border-current pl-1 ml-1">
-                                                            {savedPrompt.model.replace('claude-', '').replace('gpt-', '').substring(0, 12)}
-                                                        </span>
-                                                    )}
+                                            {/* Title & Desc */}
+                                            <h3 className="font-bold text-slate-800 text-lg mb-2 line-clamp-1 group-hover:text-indigo-600 transition-colors">
+                                                {savedPrompt.title}
+                                            </h3>
+                                            <p className="text-sm text-slate-500 line-clamp-3 mb-4 leading-relaxed flex-1">
+                                                {savedPrompt.prompt}
+                                            </p>
+
+                                            {/* Footer Tags */}
+                                            <div className="flex flex-wrap items-center gap-2 mt-auto pt-4 border-t border-slate-50">
+                                                <Badge variant="outline" className="text-[10px] text-slate-500 border-slate-200 bg-slate-50/50">
+                                                    <BookOpen size={10} className="mr-1" />
+                                                    {getFrameworkName(savedPrompt.framework)}
                                                 </Badge>
-                                            )}
-                                            {savedPrompt.qualityScore && (
-                                                <Badge variant="default" className="bg-emerald-500 h-5 px-1.5 text-[10px]">
-                                                    {savedPrompt.qualityScore}/100
-                                                </Badge>
-                                            )}
-                                        </div>
-                                        <div className="flex items-center gap-1.5 text-xs text-slate-400">
-                                            <Clock size={12} />
-                                            {formatDate(savedPrompt.createdAt)}
+
+                                                {savedPrompt.role && (
+                                                    <Badge variant="outline" className="text-[10px] text-slate-500 border-slate-200 bg-slate-50/50">
+                                                        {ROLE_PRESETS.find(t => t.id === savedPrompt.role)?.label || savedPrompt.role}
+                                                    </Badge>
+                                                )}
+
+                                                <div className="ml-auto flex items-center text-[10px] text-slate-400 gap-1">
+                                                    <Clock size={10} />
+                                                    {new Date(savedPrompt.createdAt).toLocaleDateString()}
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
-                                </Card>
-                            ))}
+                                );
+                            })}
                         </div>
                     )}
                 </div>
             </PageTemplate>
 
-            {/* Detail Modal */}
+
+            {/* Detailed View Modal */}
             {selectedPrompt && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-6" onClick={() => setSelectedPrompt(null)}>
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-in fade-in duration-200" onClick={() => setSelectedPrompt(null)}>
                     <Card
-                        className="max-w-3xl w-full max-h-[85vh] overflow-hidden flex flex-col shadow-2xl"
+                        className="max-w-4xl w-full h-[85vh] overflow-hidden flex flex-col shadow-2xl border-0 ring-1 ring-white/20"
                         noPadding
                         onClick={(e) => e.stopPropagation()}
                     >
-                        {/* Modal Header */}
-                        <div className="flex items-center justify-between p-6 border-b border-slate-200 bg-slate-50">
-                            <div>
-                                <h3 className="text-2xl font-bold text-slate-900">{selectedPrompt.title}</h3>
-                                <div className="flex flex-wrap items-center gap-2 mt-2">
-                                    <Badge variant="purple" className="gap-1">
-                                        <BookOpen size={10} />
-                                        {getFrameworkName(selectedPrompt.framework)}
-                                    </Badge>
-
-                                    {selectedPrompt.industry && (
-                                        <Badge variant="blue" className="gap-1">
-                                            {INDUSTRY_TEMPLATES.find(t => t.id === selectedPrompt.industry)?.label || selectedPrompt.industry}
+                        {/* Dynamic Header based on Source */}
+                        <div className={`flex items-center justify-between p-6 border-b ${getSourceStyle(selectedPrompt.source).bg}`}>
+                            <div className="flex items-center gap-4">
+                                <div className={`p-3 rounded-xl bg-white shadow-sm border ${getSourceStyle(selectedPrompt.source).border}`}>
+                                    {React.createElement(getSourceStyle(selectedPrompt.source).icon, {
+                                        size: 24,
+                                        className: getSourceStyle(selectedPrompt.source).accent
+                                    })}
+                                </div>
+                                <div>
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <h3 className="text-xl font-bold text-slate-900">{selectedPrompt.title}</h3>
+                                        <Badge className={`text-[10px] font-bold ${getSourceStyle(selectedPrompt.source).badge}`}>
+                                            {getSourceStyle(selectedPrompt.source).label}
                                         </Badge>
-                                    )}
-
-                                    {selectedPrompt.role && (
-                                        <Badge variant="pink" className="gap-1">
-                                            {ROLE_PRESETS.find(t => t.id === selectedPrompt.role)?.label || selectedPrompt.role}
-                                        </Badge>
-                                    )}
-
-                                    {(() => {
-                                        try {
-                                            const tones = JSON.parse(selectedPrompt.tones || '[]');
-                                            return Array.isArray(tones) && tones.map((tone: string) => {
-                                                const toneObj = TONES.find(t => t.value === tone);
-                                                return (
-                                                    <Badge key={tone} variant="orange" className="opacity-90">
-                                                        {toneObj?.label || tone}
-                                                    </Badge>
-                                                );
-                                            });
-                                        } catch (e) {
-                                            return null;
-                                        }
-                                    })()}
-
-                                    <span className="text-xs text-slate-400 ml-1">{formatDate(selectedPrompt.createdAt)}</span>
+                                    </div>
+                                    <div className="flex items-center gap-3 text-sm text-slate-500">
+                                        <span className="flex items-center gap-1"><Clock size={12} /> {formatDate(selectedPrompt.createdAt)}</span>
+                                        <span>•</span>
+                                        <span className="font-medium text-slate-700">{getFrameworkName(selectedPrompt.framework)}</span>
+                                    </div>
                                 </div>
                             </div>
                             <Button
                                 size="icon"
                                 variant="ghost"
                                 onClick={() => setSelectedPrompt(null)}
+                                className="text-slate-500 hover:bg-black/5 rounded-full"
                             >
                                 <X size={20} />
                             </Button>
                         </div>
 
-                        {/* Modal Body */}
-                        <div className="flex-1 overflow-y-auto p-6 custom-scrollbar relative bg-slate-50/50">
-                            <textarea
-                                readOnly
-                                value={selectedPrompt.prompt}
-                                className="w-full h-full p-5 pb-10 bg-slate-50 rounded-xl border border-slate-100 text-slate-800 text-base leading-relaxed resize-none focus:outline-none shadow-sm custom-scrollbar"
-                                style={{ minHeight: '400px' }}
-                            />
-                            <TextStats text={selectedPrompt.prompt} className="bottom-8 left-8 border-slate-200/50 bg-white/80" />
+                        {/* Content */}
+                        <div className="flex-1 flex overflow-hidden bg-slate-50">
+                            {/* Metadata Sidebar (Left) */}
+                            <div className="w-64 bg-white border-r border-slate-200 p-6 overflow-y-auto hidden md:block">
+                                <div className="space-y-6">
+                                    <div>
+                                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Context</h4>
+                                        <div className="flex flex-col gap-2">
+                                            {selectedPrompt.industry && (
+                                                <div className="p-2 rounded-lg bg-slate-50 border border-slate-100">
+                                                    <span className="text-xs text-slate-500 block">Industry</span>
+                                                    <span className="text-sm font-medium text-slate-800">
+                                                        {INDUSTRY_TEMPLATES.find(t => t.id === selectedPrompt.industry)?.label || selectedPrompt.industry}
+                                                    </span>
+                                                </div>
+                                            )}
+                                            {selectedPrompt.role && (
+                                                <div className="p-2 rounded-lg bg-slate-50 border border-slate-100">
+                                                    <span className="text-xs text-slate-500 block">Role</span>
+                                                    <span className="text-sm font-medium text-slate-800">
+                                                        {ROLE_PRESETS.find(t => t.id === selectedPrompt.role)?.label || selectedPrompt.role}
+                                                    </span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Tones */}
+                                    <div>
+                                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Tones</h4>
+                                        <div className="flex flex-wrap gap-2">
+                                            {(() => {
+                                                try {
+                                                    const tones = JSON.parse(selectedPrompt.tones || '[]');
+                                                    return Array.isArray(tones) && tones.map((tone: string) => (
+                                                        <Badge key={tone} variant="purple" className="text-[10px]">
+                                                            {TONES.find(t => t.value === tone)?.label || tone}
+                                                        </Badge>
+                                                    ));
+                                                } catch (e) { return null; }
+                                            })()}
+                                        </div>
+                                    </div>
+
+                                    {/* Model/Score */}
+                                    <div>
+                                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Details</h4>
+                                        <div className="space-y-2">
+                                            {selectedPrompt.providerId && (
+                                                <div className="flex items-center justify-between text-sm">
+                                                    <span className="text-slate-500">Provider</span>
+                                                    <span className="font-medium text-slate-900 capitalize">{selectedPrompt.providerId}</span>
+                                                </div>
+                                            )}
+                                            {selectedPrompt.qualityScore && (
+                                                <div className="flex items-center justify-between text-sm">
+                                                    <span className="text-slate-500">Quality</span>
+                                                    <span className="font-bold text-emerald-600">{selectedPrompt.qualityScore}/100</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Main Prompt (Right) */}
+                            <div className="flex-1 flex flex-col p-6 overflow-hidden">
+                                <div className="flex-1 relative rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden flex flex-col">
+                                    <div className="absolute top-0 left-0 right-0 h-8 bg-slate-50 border-b border-slate-100 px-4 flex items-center justify-between z-10">
+                                        <span className="text-xs font-mono text-slate-400">PROMPT PREVIEW</span>
+                                        <div className="flex gap-1.5">
+                                            <div className="w-2.5 h-2.5 rounded-full bg-slate-200" />
+                                            <div className="w-2.5 h-2.5 rounded-full bg-slate-200" />
+                                        </div>
+                                    </div>
+                                    <textarea
+                                        readOnly
+                                        value={selectedPrompt.prompt}
+                                        className="w-full h-full p-6 pt-12 resize-none focus:outline-none text-slate-700 font-mono text-sm leading-relaxed custom-scrollbar"
+                                    />
+                                    <div className="absolute bottom-4 right-4">
+                                        <TextStats text={selectedPrompt.prompt} className="bg-white/80 backdrop-blur border-slate-200 shadow-sm" />
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
-                        {/* Modal Footer */}
-                        <div className="p-6 border-t border-slate-200 bg-slate-50 flex justify-center">
+                        {/* Footer */}
+                        <div className="p-4 border-t border-slate-100 bg-white flex justify-center gap-3">
                             <ResultToolbar
                                 onExport={(format) => handleExport(selectedPrompt, format)}
                                 contentToCopy={selectedPrompt.prompt}
-                                className="shadow-none border-0 bg-transparent"
+                                className="shadow-none border-0"
                             />
                         </div>
                     </Card>

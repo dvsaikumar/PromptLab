@@ -7,9 +7,10 @@ interface PersonaSelectorProps {
     activePersonaId: string;
     setActivePersonaId: (id: string) => void;
     className?: string;
+    compact?: boolean;
 }
 
-export const PersonaSelector: React.FC<PersonaSelectorProps> = ({ activePersonaId, setActivePersonaId, className }) => {
+export const PersonaSelector: React.FC<PersonaSelectorProps> = ({ activePersonaId, setActivePersonaId, className, compact = false }) => {
     const [showDropdown, setShowDropdown] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
@@ -61,30 +62,37 @@ export const PersonaSelector: React.FC<PersonaSelectorProps> = ({ activePersonaI
 
     return (
         <div className={`relative ${className}`}>
-            <label className="flex items-center gap-1.5 text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5 ml-1">
-                <UserCircle2 size={14} />
-                Expert Persona
-            </label>
+            {!compact && (
+                <label className="flex items-center gap-1.5 text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5 ml-1">
+                    <UserCircle2 size={14} />
+                    Expert Persona
+                </label>
+            )}
             <div
                 ref={triggerRef}
                 onClick={handleToggle}
-                className="w-full flex items-center justify-between gap-3 px-4 py-3 bg-white hover:bg-slate-50 rounded-xl border border-slate-200 hover:border-indigo-300 transition-all cursor-pointer group shadow-sm"
+                className={`w-full flex items-center justify-between gap-3 px-3 py-2 rounded-xl transition-all cursor-pointer group ${compact
+                    ? 'bg-white/5 hover:bg-white/10 border border-white/10 text-white'
+                    : 'bg-white hover:bg-slate-50 border border-slate-200 hover:border-indigo-300 shadow-sm'
+                    }`}
             >
-                <div className="flex items-center gap-3 overflow-hidden">
-                    <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center border border-indigo-100 shrink-0 text-indigo-600">
-                        <UserCircle2 size={20} />
+                <div className="flex items-center gap-2 overflow-hidden">
+                    <div className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${compact ? 'bg-indigo-500/20 text-indigo-300' : 'bg-indigo-50 border border-indigo-100 text-indigo-600'}`}>
+                        <UserCircle2 size={16} />
                     </div>
                     <div className="flex flex-col min-w-0">
-                        <span className="text-sm font-semibold text-slate-900 truncate">
+                        <span className={`text-xs font-bold truncate ${compact ? 'text-slate-200' : 'text-slate-900'}`}>
                             {activePersona.name}
                         </span>
-                        <span className="text-xs text-slate-500 truncate">
-                            {activePersona.role}
-                        </span>
+                        {!compact && (
+                            <span className="text-[10px] text-slate-500 truncate">
+                                {activePersona.role}
+                            </span>
+                        )}
                     </div>
                 </div>
 
-                <ChevronDown size={18} className={`text-slate-400 group-hover:text-indigo-500 transition-transform duration-200 ${showDropdown ? 'rotate-180' : ''}`} />
+                <ChevronDown size={14} className={`transition-transform duration-200 ${showDropdown ? 'rotate-180' : ''} ${compact ? 'text-slate-400' : 'text-slate-400 group-hover:text-indigo-500'}`} />
             </div>
 
             {/* Dropdown Menu Portal */}

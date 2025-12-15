@@ -11,7 +11,7 @@ import { PromptOutput } from '@/components/results/PromptOutput';
 import { QualityScore } from '@/components/results/QualityScore';
 import { usePrompt } from '@/contexts/PromptContext';
 import { FRAMEWORKS } from '@/constants';
-import { FlaskConical, FileText, BookOpen, Palette, Layout, RotateCcw, Layers, Settings2, X, Check, ChevronDown, Zap, Brain, SlidersHorizontal, User, ArrowRight, Lightbulb, ChevronRight, Wand2, MessageSquare, GraduationCap, Sparkles } from 'lucide-react';
+import { FlaskConical, FileText, BookOpen, Palette, Layout, RotateCcw, Layers, Settings2, X, Check, ChevronDown, Zap, Brain, SlidersHorizontal, User, ArrowRight, Lightbulb, ChevronRight, MessageSquare, GraduationCap, Sparkles } from 'lucide-react';
 import { Tooltip } from '@/components/ui/Tooltip';
 import { clsx } from 'clsx';
 import toast from 'react-hot-toast';
@@ -241,7 +241,8 @@ export const PromptLaboratory: React.FC<PromptLaboratoryProps> = ({ isSidebarOpe
                 tokenUsage: JSON.stringify({ input: totalInputTokens, output: totalOutputTokens }),
                 updatedAt: new Date().toISOString(),
                 providerId: llmConfig?.providerId || 'unknown',
-                model: llmConfig?.model || 'unknown'
+                model: llmConfig?.model || 'unknown',
+                source: 'lab'
             });
 
             // Sync with Vector DB
@@ -284,7 +285,8 @@ export const PromptLaboratory: React.FC<PromptLaboratoryProps> = ({ isSidebarOpe
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
                 providerId: llmConfig?.providerId || 'unknown',
-                model: llmConfig?.model || 'unknown'
+                model: llmConfig?.model || 'unknown',
+                source: 'lab'
             });
             toast.success(`✓ "${title}" saved successfully!`);
             if (vectorDb.isAvailable()) {
@@ -561,7 +563,7 @@ export const PromptLaboratory: React.FC<PromptLaboratoryProps> = ({ isSidebarOpe
 
     return (
         <PageTemplate
-            title="Prompt Lab 2.0"
+            title="Prompt Lab"
             subtitle="Design, Build, & Generate"
             icon={FlaskConical}
             iconGradient="from-indigo-500 to-violet-600"
@@ -1046,7 +1048,7 @@ export const PromptLaboratory: React.FC<PromptLaboratoryProps> = ({ isSidebarOpe
                                             <p className="font-bold mb-1">Select a Framework</p>
                                             <p className="opacity-80">Choose the structural model for your prompt. This defines the input fields and overall logic.</p>
                                         </div>
-                                        <FrameworkSelector isOpen={true} onToggle={() => { }} hideHeader={true} />
+                                        <FrameworkSelector isOpen={true} onToggle={() => { }} />
                                     </div>
                                 ) : (
                                     <div className="w-full">
@@ -1054,7 +1056,7 @@ export const PromptLaboratory: React.FC<PromptLaboratoryProps> = ({ isSidebarOpe
                                             <p className="font-bold mb-1">Set the Tone</p>
                                             <p className="opacity-80">Define the personality and communication style of your AI assistant.</p>
                                         </div>
-                                        <ToneSelector isOpen={true} onToggle={() => { }} hideHeader={true} />
+                                        <ToneSelector isOpen={true} onToggle={() => { }} />
                                     </div>
                                 )}
                             </div>

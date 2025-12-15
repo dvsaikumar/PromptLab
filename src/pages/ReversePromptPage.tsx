@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { RotateCcw, HelpCircle, Sparkles, Paperclip, Loader2, Save, Copy, FileText, X, Settings2, Eye, ChevronRight, Wand2, ArrowRight, Microscope, Globe } from 'lucide-react';
+import { HelpCircle, Sparkles, Paperclip, Loader2, Save, Copy, FileText, X, Eye, ChevronRight, Wand2, Microscope, Globe } from 'lucide-react';
 import { PageTemplate } from '@/components/ui/PageTemplate';
 import { Button } from '@/components/ui/Button';
 import { usePrompt } from '@/contexts/PromptContext';
@@ -11,6 +11,8 @@ import toast from 'react-hot-toast';
 import { LLMSelector } from '@/components/ui/LLMSelector';
 import { PersonaSelector } from '@/components/ui/PersonaSelector';
 import { AnalysisFocusSelector } from '@/components/ui/AnalysisFocusSelector';
+import { Tooltip } from '@/components/ui/Tooltip';
+import { estimateTokens } from '@/utils/tokenEstimator';
 import { PERSONAS } from '@/constants/personas';
 import {
     ANALYSIS_MODES,
@@ -56,6 +58,37 @@ export const ReversePrompt: React.FC<ReversePromptProps> = ({ isSidebarOpen = fa
 
     // Track the last auto-generated text to allow safe overwrites
     const lastAutoTemplateRef = useRef<string>('');
+
+    // Token Calculation Memo
+    const tokenStats = React.useMemo(() => {
+        // 1. System Prompt Estimation
+        let systemPrompt = '';
+        switch (analysisMode) {
+            case 'god-mode': systemPrompt = GOD_MODE_INSTRUCTION + `\n\nTARGET TECH STACK: ${techStack}`; break;
+            case 'design': systemPrompt = SONNET_DESIGN_PROTOCOL; break;
+            case 'code': systemPrompt = CURSOR_AGENT_PROTOCOL; break;
+            default:
+                const persona = PERSONAS.find(p => p.id === selectedPersonaId);
+                systemPrompt = `You are a ${persona?.role || 'Expert System'}. ${persona?.prompt || ''}`;
+        }
+        const sysCount = estimateTokens(systemPrompt, llmConfig.model);
+
+        // 2. User Input + Context
+        const userCount = estimateTokens(inputText, llmConfig.model);
+        const ocrCount = ocrContent ? estimateTokens(ocrContent, llmConfig.model) : 0;
+        const totalInput = sysCount + userCount + ocrCount;
+
+        // 3. Output
+        const outputCount = result ? estimateTokens(result, llmConfig.model) : 0;
+
+        return {
+            system: sysCount,
+            user: userCount,
+            ocr: ocrCount,
+            totalInput,
+            totalOutput: outputCount
+        };
+    }, [analysisMode, selectedPersonaId, techStack, inputText, ocrContent, result, llmConfig.model]);
 
     // Tutorial State
     const [tutorialStep, setTutorialStep] = useState<number>(-1);
@@ -224,13 +257,31 @@ export const ReversePrompt: React.FC<ReversePromptProps> = ({ isSidebarOpen = fa
         const toastId = toast.loading('Fetching website content...');
 
         try {
-            // Use allorigins to bypass CORS for client-side demo
-            const response = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`);
-            const data = await response.json();
+            let htmlContent = '';
 
-            if (data.contents) {
+            // Strategy 1: Try corsproxy.io (Direct HTML)
+            try {
+                const response = await fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`);
+                if (response.ok) {
+                    htmlContent = await response.text();
+                } else {
+                    throw new Error('Proxy 1 failed');
+                }
+            } catch (e1) {
+                console.warn('Primary proxy failed, trying backup...', e1);
+                // Strategy 2: Try allorigins.win (JSON wrapped)
+                const response = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`);
+                const data = await response.json();
+                if (data.contents) {
+                    htmlContent = data.contents;
+                } else {
+                    throw new Error('No content returned from backup proxy');
+                }
+            }
+
+            if (htmlContent) {
                 const parser = new DOMParser();
-                const doc = parser.parseFromString(data.contents, 'text/html');
+                const doc = parser.parseFromString(htmlContent, 'text/html');
 
                 // 1. Extract Metadata (Critical for Context)
                 const title = doc.title;
@@ -358,10 +409,10 @@ INSTRUCTION: Reverse engineer this content into a comprehensive technical and cr
                 case 'god-mode':
                     systemPrompt = GOD_MODE_INSTRUCTION + `\n\nTARGET TECH STACK: ${techStack}`;
                     break;
-                case 'design-dna':
+                case 'design':
                     systemPrompt = SONNET_DESIGN_PROTOCOL;
                     break;
-                case 'code-audit':
+                case 'code':
                     systemPrompt = CURSOR_AGENT_PROTOCOL;
                     break;
                 default:
@@ -444,7 +495,8 @@ INSTRUCTION: Reverse engineer this content into a comprehensive technical and cr
                             qualityScore: 0,
                             qualityScoreDetails: '{}',
                             providerId: llmConfig.providerId,
-                            model: llmConfig.model
+                            model: llmConfig.model,
+                            source: 'reverse'
                         });
                         toast.success('Prompt saved to library!');
                         setIsSaveModalOpen(false);
@@ -464,35 +516,7 @@ INSTRUCTION: Reverse engineer this content into a comprehensive technical and cr
                             {/* --- LEFT: CONFIG & INPUTS --- */}
                             <div className="h-full flex flex-col gap-2 pl-1 pb-16 group/left relative overflow-hidden">
 
-                                {/* Configuration Card */}
-                                <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm space-y-3 shrink-0">
-                                    <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2 uppercase tracking-wide opacity-90">
-                                        <div className="p-1 rounded-md bg-indigo-100 text-indigo-600">
-                                            <Settings2 size={14} />
-                                        </div>
-                                        Configuration
-                                    </h3>
-                                    <div className="grid grid-cols-12 gap-2 items-start">
-                                        <div className="col-span-12 md:col-span-4">
-                                            <LLMSelector
-                                                onOpenSettings={() => toast('Settings functionality placeholder')}
-                                            />
-                                        </div>
-                                        <div className="col-span-12 md:col-span-4">
-                                            <PersonaSelector
-                                                activePersonaId={selectedPersonaId}
-                                                setActivePersonaId={setSelectedPersonaId}
-                                            />
-                                        </div>
-                                        <div className="col-span-12 md:col-span-4">
-                                            <AnalysisFocusSelector
-                                                value={analysisMode}
-                                                onChange={setAnalysisMode}
-                                                modes={ANALYSIS_MODES}
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
+
 
                                 {/* Input Area */}
                                 <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex flex-col flex-1 min-h-0">
@@ -535,6 +559,7 @@ INSTRUCTION: Reverse engineer this content into a comprehensive technical and cr
                                             </Button>
                                             <input
                                                 type="file"
+                                                data-testid="file-upload"
                                                 ref={fileInputRef}
                                                 className="hidden"
                                                 onChange={handleFileUpload}
@@ -642,17 +667,117 @@ INSTRUCTION: Reverse engineer this content into a comprehensive technical and cr
                     </div>
 
                     {/* Floating Action Dock */}
-                    <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-full max-w-xl px-4 z-50">
+                    <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-full max-w-5xl px-4 z-50">
                         <div className="bg-slate-900/90 backdrop-blur-xl border border-white/10 text-white p-2 rounded-2xl shadow-2xl flex items-center justify-between gap-4 ring-1 ring-white/20">
 
-                            {/* Status Info */}
-                            <div className="flex items-center gap-4 px-4 text-xs font-medium text-slate-200">
-                                {isProcessingFile && <span className="flex items-center gap-2 text-emerald-400"><Loader2 size={12} className="animate-spin" /> Processing Files...</span>}
-                                {!isProcessingFile && <span className="opacity-60">{files.length} files attached</span>}
+                            {/* Left: Configuration & Stats */}
+                            <div className="flex-1 min-w-0 flex items-center gap-3 overflow-x-auto no-scrollbar mask-gradient-r pr-4">
+                                {/* LLM Selector */}
+                                <div className="w-48 shrink-0">
+                                    <LLMSelector
+                                        onOpenSettings={() => toast('Settings functionality placeholder')}
+                                        compact={true}
+                                    />
+                                </div>
+
+                                <div className="w-px h-8 bg-white/10 shrink-0 hidden md:block" />
+
+                                {/* Persona Selector */}
+                                <div className="w-48 shrink-0">
+                                    <PersonaSelector
+                                        activePersonaId={selectedPersonaId}
+                                        setActivePersonaId={setSelectedPersonaId}
+                                        compact={true}
+                                    />
+                                </div>
+
+                                <div className="w-px h-8 bg-white/10 shrink-0 hidden md:block" />
+
+                                {/* Focus Selector */}
+                                <div className="w-48 shrink-0">
+                                    <AnalysisFocusSelector
+                                        value={analysisMode}
+                                        onChange={setAnalysisMode}
+                                        modes={ANALYSIS_MODES}
+                                        compact={true}
+                                    />
+                                </div>
                             </div>
 
-                            {/* Actions */}
-                            <div className="flex items-center gap-2">
+                            {/* Fixed Token Stats */}
+                            <div className="flex items-center gap-3 shrink-0">
+                                <div className="w-px h-8 bg-white/10 shrink-0 hidden md:block" />
+
+                                {/* Token Stats */}
+                                <Tooltip
+                                    title="Detailed Token Analysis"
+                                    content={
+                                        <div className="flex gap-6 min-w-[240px] p-1">
+                                            {/* Input Breakdown */}
+                                            <div className="flex flex-col gap-2 flex-1">
+                                                <div className="flex items-center justify-between border-b border-slate-100 pb-1">
+                                                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Input</span>
+                                                    <span className="text-sm font-bold text-emerald-600 tabular-nums">{tokenStats.totalInput}</span>
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <div className="flex justify-between text-[10px] text-slate-500">
+                                                        <span>System Prompt</span>
+                                                        <span className="font-mono">{tokenStats.system}</span>
+                                                    </div>
+                                                    <div className="flex justify-between text-[10px] text-slate-500">
+                                                        <span>User Text</span>
+                                                        <span className="font-mono">{tokenStats.user}</span>
+                                                    </div>
+                                                    {tokenStats.ocr > 0 && (
+                                                        <div className="flex justify-between text-[10px] text-slate-500">
+                                                            <span>Vision/OCR</span>
+                                                            <span className="font-mono">{tokenStats.ocr}</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            <div className="w-px bg-slate-100"></div>
+
+                                            {/* Output Breakdown */}
+                                            <div className="flex flex-col gap-2 flex-1">
+                                                <div className="flex items-center justify-between border-b border-slate-100 pb-1">
+                                                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Output</span>
+                                                    <span className="text-sm font-bold text-rose-600 tabular-nums">{tokenStats.totalOutput}</span>
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <div className="flex justify-between text-[10px] text-slate-500">
+                                                        <span>Analysis</span>
+                                                        <span className="font-mono">{tokenStats.totalOutput > 0 ? tokenStats.totalOutput : '-'}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    }
+                                    position="top"
+                                >
+                                    <div className="flex flex-col bg-slate-950/30 rounded-lg border border-white/10 overflow-hidden shrink-0 justify-center min-w-[100px] cursor-pointer hover:bg-slate-900/50 transition-colors">
+                                        <div className="bg-white/5 px-2 py-0.5 text-[8px] font-bold text-slate-400 uppercase tracking-widest text-center whitespace-nowrap hidden sm:block">
+                                            Token Count
+                                        </div>
+                                        <div className="flex divide-x divide-slate-700/50">
+                                            <div className="px-2 py-0.5 flex items-center justify-center gap-1.5 flex-1">
+                                                <span className="text-[8px] text-emerald-400 uppercase font-bold">In</span>
+                                                <span className="text-[10px] font-bold text-emerald-200 tabular-nums">
+                                                    {tokenStats?.totalInput || 0}
+                                                </span>
+                                            </div>
+                                            <div className="px-2 py-0.5 flex items-center justify-center gap-1.5 bg-rose-500/10 flex-1">
+                                                <span className="text-[8px] text-rose-400 uppercase font-bold">Out</span>
+                                                <span className="text-[10px] font-bold text-rose-200 tabular-nums">
+                                                    {tokenStats?.totalOutput > 0 ? tokenStats.totalOutput : '-'}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </Tooltip>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0 ml-auto">
                                 <Button
                                     onClick={() => {
                                         setResult(null);
@@ -661,9 +786,10 @@ INSTRUCTION: Reverse engineer this content into a comprehensive technical and cr
                                         toast.success('Cleared');
                                     }}
                                     variant="ghost"
-                                    className="h-9 px-4 text-slate-300 hover:text-white hover:bg-white/10 rounded-xl text-xs"
+                                    className="h-9 w-9 p-0 text-slate-400 hover:text-white hover:bg-white/10 rounded-xl"
+                                    title="Clear All"
                                 >
-                                    Clear All
+                                    <X size={16} />
                                 </Button>
                                 <div className="w-px h-4 bg-slate-700 mx-1"></div>
                                 <Button
@@ -677,7 +803,7 @@ INSTRUCTION: Reverse engineer this content into a comprehensive technical and cr
                                         </span>
                                     ) : (
                                         <span className="flex items-center gap-2">
-                                            Deconstruct <ArrowRight size={16} />
+                                            <Microscope size={16} /> Deconstruct
                                         </span>
                                     )}
                                 </Button>
@@ -687,6 +813,6 @@ INSTRUCTION: Reverse engineer this content into a comprehensive technical and cr
 
                 </div>
             </div>
-        </PageTemplate>
+        </PageTemplate >
     );
 };

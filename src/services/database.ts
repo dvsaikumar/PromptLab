@@ -17,6 +17,7 @@ export interface SavedPrompt {
     model?: string;
     persona?: string;
     tokenUsage?: string;
+    source?: 'lab' | 'compiler' | 'reverse' | 'chain';
 }
 
 export interface HistoryRecord {

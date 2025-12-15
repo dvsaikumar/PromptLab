@@ -7,11 +7,10 @@ export interface ToneSelectorProps {
     isOpen: boolean;
     onToggle: () => void;
     isSidebarOpen?: boolean;
-    hideHeader?: boolean;
     compact?: boolean;
 }
 
-export const ToneSelector: React.FC<ToneSelectorProps> = ({ hideHeader = false, compact = false }) => {
+export const ToneSelector: React.FC<ToneSelectorProps> = ({ compact = false }) => {
     const { selectedTones, toggleTone } = usePrompt();
 
     return (

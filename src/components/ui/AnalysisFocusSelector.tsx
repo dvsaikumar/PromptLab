@@ -16,9 +16,10 @@ interface AnalysisFocusSelectorProps {
     onChange: (value: string) => void;
     className?: string;
     modes: AnalysisMode[];
+    compact?: boolean;
 }
 
-export const AnalysisFocusSelector: React.FC<AnalysisFocusSelectorProps> = ({ value, onChange, className, modes }) => {
+export const AnalysisFocusSelector: React.FC<AnalysisFocusSelectorProps> = ({ value, onChange, className, modes, compact = false }) => {
     const [showDropdown, setShowDropdown] = useState(false);
     const [tooltipConfig, setTooltipConfig] = useState<{ y: number, text: string } | null>(null);
     const triggerRef = useRef<HTMLDivElement>(null);
@@ -70,30 +71,37 @@ export const AnalysisFocusSelector: React.FC<AnalysisFocusSelectorProps> = ({ va
 
     return (
         <div className={`relative ${className}`}>
-            <label className="flex items-center gap-1.5 text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5 ml-1">
-                <Brain size={14} />
-                Analysis Focus
-            </label>
+            {!compact && (
+                <label className="flex items-center gap-1.5 text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5 ml-1">
+                    <Brain size={14} />
+                    Analysis Focus
+                </label>
+            )}
             <div
                 ref={triggerRef}
                 onClick={handleToggle}
-                className="w-full flex items-center justify-between gap-3 px-4 py-3 bg-white hover:bg-slate-50 rounded-xl border border-slate-200 hover:border-indigo-300 transition-all cursor-pointer group shadow-sm"
+                className={`w-full flex items-center justify-between gap-3 px-3 py-2 rounded-xl transition-all cursor-pointer group ${compact
+                    ? 'bg-white/5 hover:bg-white/10 border border-white/10 text-white'
+                    : 'bg-white hover:bg-slate-50 border border-slate-200 hover:border-indigo-300 shadow-sm'
+                    }`}
             >
-                <div className="flex items-center gap-3 overflow-hidden">
-                    <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center border border-emerald-100 shrink-0 text-lg">
+                <div className="flex items-center gap-2 overflow-hidden">
+                    <div className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${compact ? 'bg-emerald-500/20 text-emerald-300' : 'bg-emerald-50 border border-emerald-100'}`}>
                         {activeMode.icon}
                     </div>
                     <div className="flex flex-col min-w-0">
-                        <span className="text-sm font-semibold text-slate-900 truncate">
+                        <span className={`text-xs font-bold truncate ${compact ? 'text-slate-200' : 'text-slate-900'}`}>
                             {activeMode.label}
                         </span>
-                        <span className="text-xs text-slate-500 truncate">
-                            {activeMode.description}
-                        </span>
+                        {!compact && (
+                            <span className="text-[10px] text-slate-500 truncate">
+                                {activeMode.description}
+                            </span>
+                        )}
                     </div>
                 </div>
 
-                <ChevronDown size={18} className={`text-slate-400 group-hover:text-indigo-500 transition-transform duration-200 ${showDropdown ? 'rotate-180' : ''}`} />
+                <ChevronDown size={14} className={`transition-transform duration-200 ${showDropdown ? 'rotate-180' : ''} ${compact ? 'text-slate-400' : 'text-slate-400 group-hover:text-indigo-500'}`} />
             </div>
 
             {/* Dropdown Menu Portal */}

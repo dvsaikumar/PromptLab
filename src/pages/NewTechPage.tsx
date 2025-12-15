@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { PageTemplate } from '@/components/ui/PageTemplate';
-import { Zap, Bot, RefreshCw, Sparkles, Brain, Cpu, CheckCircle2, BookOpen, Timer, X, Target, Play, FileText, ArrowRight, GitCompare, Workflow, Lightbulb, ChevronRight, Layers, Save } from 'lucide-react';
+import { Zap, Bot, RefreshCw, Sparkles, Brain, Cpu, CheckCircle2, BookOpen, Timer, X, Target, Play, FileText, ArrowRight, GitCompare, Workflow, Lightbulb, ChevronRight, Layers, Save, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
-import { LLMService } from '@/services/llm';
+import { LLMService, parseRobustJSON } from '@/services/llm';
 import { llmConfigDB } from '@/services/llmConfigDB';
 import { promptDB } from '@/services/database';
 import { LLMSelector } from '@/components/ui/LLMSelector';
@@ -13,6 +13,7 @@ import { Tooltip } from '@/components/ui/Tooltip';
 import { estimateTokens } from '@/utils/tokenEstimator';
 import { SavePromptModal } from '@/components/SavePromptModal';
 import toast from 'react-hot-toast';
+import { PromptConfigurationModule } from '@/services/promptConfiguration';
 
 interface NewTechPageProps {
     isSidebarOpen?: boolean;
@@ -194,6 +195,8 @@ export const NewTechPage: React.FC<NewTechPageProps> = ({ isSidebarOpen }) => {
     const [optimizationMetric, setOptimizationMetric] = useState<'accuracy' | 'creativity' | 'speed'>('accuracy');
     const [isOptimizeModalOpen, setIsOptimizeModalOpen] = useState(false);
 
+
+
     // LLM State
     const [selectedProvider, setSelectedProvider] = useState<LLMProviderId>('openai');
     const [selectedModel, setSelectedModel] = useState<string>('gpt-3.5-turbo');
@@ -219,7 +222,8 @@ export const NewTechPage: React.FC<NewTechPageProps> = ({ isSidebarOpen }) => {
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
                 providerId: selectedProvider,
-                model: selectedModel
+                model: selectedModel,
+                source: 'compiler'
             });
             toast.success(`Saved "${title}" successfully!`);
         } catch (error) {
@@ -238,7 +242,7 @@ export const NewTechPage: React.FC<NewTechPageProps> = ({ isSidebarOpen }) => {
                     const { provider, model } = JSON.parse(saved);
                     if (provider && model) {
                         setSelectedProvider(provider);
-                        setSelectedModel(model);
+                        setSelectedModel(typeof model === 'string' ? model : 'gpt-3.5-turbo');
                         return;
                     }
                 }
@@ -269,28 +273,23 @@ export const NewTechPage: React.FC<NewTechPageProps> = ({ isSidebarOpen }) => {
         setProgress([]);
         setStats(null);
 
+
         const startTime = Date.now();
 
         const steps = [
             `Connecting to ${selectedProvider} (${selectedModel || 'Default'})...`,
             "Initializing DSPy Module...",
-            `Defining Metric: Optimize for ${optimizationMetric.toUpperCase()}...`,
-            "Bootstrapping 3-shot examples...",
-            "Compiling prompt signature...",
-            "Running Bayesian Optimization...",
-            `Validation Score: ${Math.floor(Math.random() * 5 + 94)}/100`
         ];
 
-        for (const step of steps) {
-            await new Promise(r => setTimeout(r, 800));
-            setProgress(prev => [...prev, step]);
-        }
+        // Initial visual feedback
+        setProgress(steps);
 
         try {
             // 1. Fetch Configuration
             const allConfigs = await llmConfigDB.getAllConfigs();
             let config = allConfigs.find(c => c.providerId === selectedProvider && c.model === selectedModel);
 
+            // ... (config fallback logic same as before) ...
             if (!config) {
                 config = allConfigs.find(c => c.providerId === selectedProvider);
             }
@@ -308,6 +307,18 @@ export const NewTechPage: React.FC<NewTechPageProps> = ({ isSidebarOpen }) => {
 
             const executionConfig = { ...config, model: selectedModel || config.model };
 
+            // 2. Run Configuration Analysis
+            setProgress(prev => [...prev, "Analyzing prompt structure & intent..."]);
+            const analyzer = PromptConfigurationModule.getInstance();
+            const analysisResult = await analyzer.analyze(rawPrompt, executionConfig);
+
+
+            setProgress(prev => [...prev, `Identified Task: ${analysisResult.taskType.toUpperCase()}`, `Confidence: ${(analysisResult.confidenceScore * 100).toFixed(0)}%`]);
+
+            // 3. Continue to Optimization
+            setProgress(prev => [...prev, `Defining Metric: Optimize for ${optimizationMetric.toUpperCase()}...`, "Bootstrapping 3-shot examples...", "Compiling prompt signature..."]);
+
+
             const provider = LLMService.getInstance().getProvider(selectedProvider);
             if (!provider) throw new Error(`Provider ${selectedProvider} not available`);
 
@@ -315,19 +326,30 @@ export const NewTechPage: React.FC<NewTechPageProps> = ({ isSidebarOpen }) => {
             const baseInstructions = `Act as a DSPy (Declarative Self-improving Python) Compiler. 
                 Your goal is to optimize the following raw prompt into a "Perfect Prompt".
                 
+                ANALYSIS CONTEXT:
+                - Task Type: ${analysisResult.taskType}
+                - Inferred Intent: ${analysisResult.taskDescription}
+                - Key Rules: ${analysisResult.rules.join('; ')}
+                
                 Optimization Objective: Maximize for ${optimizationMetric.toUpperCase()}.
                 ${optimizationMetric === 'accuracy' ? '- Focus on precision, constraints, and error avoidance.' : ''}
                 ${optimizationMetric === 'creativity' ? '- Focus on novel, engaging, and diverse outputs.' : ''}
                 ${optimizationMetric === 'speed' ? '- Focus on conciseness and concise formatting.' : ''}
 
-                STRICT OUTPUT FORMAT:
-                You must return a valid JSON object. Do not include markdown formatting (like \`\`\`json).
-                Structure:
-                {
-                    "reasoning": "Explain your Chain-of-Thought on how to improve this...",
-                    "critique": "Identify 2-3 weaknesses in the raw prompt...",
-                    "optimized_prompt": "The final, compiled prompt text..."
-                }`;
+                OUTPUT FORMAT:
+                You must use the following custom tags to structure your response.
+                
+                <DSPY_REASONING>
+                Explain your Chain-of-Thought on how to improve this...
+                </DSPY_REASONING>
+
+                <DSPY_CRITIQUE>
+                Identify 2-3 weaknesses in the raw prompt...
+                </DSPY_CRITIQUE>
+
+                <DSPY_PROMPT>
+                The final, compiled prompt text... including system prompt and user prompt separation if needed.
+                </DSPY_PROMPT>`;
 
             const userPart = `\n\nRaw Prompt: "${rawPrompt}"`;
             const dspySystemPrompt = baseInstructions + userPart;
@@ -344,7 +366,7 @@ export const NewTechPage: React.FC<NewTechPageProps> = ({ isSidebarOpen }) => {
 
                 // Add error context if retrying
                 const currentPrompt = attempts === 1 ? dspySystemPrompt :
-                    `${dspySystemPrompt}\n\nPREVIOUS ERROR: The last output was not valid JSON (${lastError}). Please correct the format to be strict JSON.`;
+                    `${dspySystemPrompt}\n\nPREVIOUS ERROR: The last output was missing the required <DSPY_PROMPT> tags. Please ensure you wrap your response in the requested <DSPY_... > tags.`;
 
                 if (attempts > 1) {
                     setProgress(prev => [...prev, `Assert Failed (Attempt ${attempts}): Retrying compilation...`]);
@@ -359,12 +381,24 @@ export const NewTechPage: React.FC<NewTechPageProps> = ({ isSidebarOpen }) => {
                 finalOutput = responseText; // Store raw text for fallback
 
                 try {
-                    // Clean input (remove markdown)
-                    const cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
-                    validResponse = JSON.parse(cleanJson);
+                    // Try to parse XML Tags first
+                    const reasoning = responseText.match(/<DSPY_REASONING>([\s\S]*?)<\/DSPY_REASONING>/i)?.[1]?.trim();
+                    const critique = responseText.match(/<DSPY_CRITIQUE>([\s\S]*?)<\/DSPY_CRITIQUE>/i)?.[1]?.trim();
+                    const prompt = responseText.match(/<DSPY_PROMPT>([\s\S]*?)<\/DSPY_PROMPT>/i)?.[1]?.trim();
+
+                    if (prompt) {
+                        validResponse = {
+                            reasoning: reasoning || '',
+                            critique: critique || '',
+                            optimized_prompt: prompt
+                        };
+                    } else {
+                        // Fallback: check if it's just JSON
+                        validResponse = parseRobustJSON(responseText);
+                    }
                 } catch (e) {
-                    lastError = (e as Error).message;
-                    console.warn(`JSON Parse failed attempt ${attempts}:`, e);
+                    lastError = "Could not find tags or valid JSON";
+                    console.warn(`Parse failed attempt ${attempts}:`, e);
                 }
             }
 
@@ -416,7 +450,7 @@ export const NewTechPage: React.FC<NewTechPageProps> = ({ isSidebarOpen }) => {
             } else {
                 // Fallback if structured output completely fails
                 setOptimizedPrompt(finalOutput);
-                setProgress(prev => [...prev, "Warning: Strict JSON validation failed. Showing raw output."]);
+                setProgress(prev => [...prev, "Warning: Strict structure validation failed. Showing raw output."]);
             }
 
         } catch (e) {
@@ -618,7 +652,7 @@ You are a world-class expert. Please analyze the input and provide detailed reas
                                 <Button
                                     className="bg-emerald-500 hover:bg-emerald-600 text-white ml-auto"
                                     onClick={() => setActiveTab('compiler')}
-                                    rightIcon={<Zap size={16} />}
+                                    rightIcon={<Cpu size={16} />}
                                 >
                                     Start Using Compiler
                                 </Button>
@@ -631,9 +665,9 @@ You are a world-class expert. Please analyze the input and provide detailed reas
     };
     return (
         <PageTemplate
-            title="DSPy Prompt Compiler"
+            title="Prompt Compiler"
             subtitle="Optimize prompts using Declarative Self-improving logic"
-            icon={Zap}
+            icon={Cpu}
             iconGradient="from-yellow-400 to-orange-500"
             isSidebarOpen={isSidebarOpen}
             iconSize={20}
@@ -762,6 +796,20 @@ You are a world-class expert. Please analyze the input and provide detailed reas
                                                 <Save size={13} />
                                                 Save
                                             </Button>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => {
+                                                    if (!optimizedPrompt) return;
+                                                    navigator.clipboard.writeText(optimizedPrompt);
+                                                    toast.success('Copied to clipboard');
+                                                }}
+                                                className="h-6 gap-1.5 px-2.5 text-xs font-bold text-slate-600 border-slate-200 hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-600"
+                                                title="Copy to Clipboard"
+                                            >
+                                                <Copy size={13} />
+                                                Copy
+                                            </Button>
                                             <Badge variant="default" className="bg-emerald-500 hover:bg-emerald-600 h-6 px-2.5"> Optimized </Badge>
                                         </div>
                                     )}
@@ -794,11 +842,11 @@ You are a world-class expert. Please analyze the input and provide detailed reas
                                     </div>
 
                                     {/* Model Info */}
-                                    <Tooltip content={selectedModel || 'No Model Selected'} title="Active Model" position="top">
+                                    <Tooltip content={typeof selectedModel === 'string' ? (selectedModel || 'No Model Selected') : 'Model Info'} title="Active Model" position="top">
                                         <div className="flex items-center gap-1.5 bg-slate-800/50 px-2 py-1.5 rounded-lg border border-slate-700 hover:border-slate-600 transition-colors cursor-pointer">
                                             <Cpu size={14} className="text-orange-400" />
                                             <span className="font-mono text-xs font-bold text-slate-200 truncate max-w-[80px]">
-                                                {selectedModel || selectedProvider}
+                                                {typeof selectedModel === 'string' ? (selectedModel || selectedProvider) : (selectedProvider || 'Unknown')}
                                             </span>
                                         </div>
                                     </Tooltip>
