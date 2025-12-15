@@ -71,14 +71,14 @@ export const PersonaSelector: React.FC<PersonaSelectorProps> = ({ activePersonaI
             <div
                 ref={triggerRef}
                 onClick={handleToggle}
-                className={`w-full flex items-center justify-between gap-3 px-3 py-2 rounded-xl transition-all cursor-pointer group ${compact
-                    ? 'bg-white/5 hover:bg-white/10 border border-white/10 text-white'
-                    : 'bg-white hover:bg-slate-50 border border-slate-200 hover:border-indigo-300 shadow-sm'
+                className={`w-full flex items-center justify-between gap-3 rounded-xl transition-all cursor-pointer group ${compact
+                    ? 'px-2 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-white'
+                    : 'px-4 py-3 bg-white hover:bg-slate-50 border border-slate-200 hover:border-indigo-300 shadow-sm'
                     }`}
             >
                 <div className="flex items-center gap-2 overflow-hidden">
-                    <div className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${compact ? 'bg-indigo-500/20 text-indigo-300' : 'bg-indigo-50 border border-indigo-100 text-indigo-600'}`}>
-                        <UserCircle2 size={16} />
+                    <div className={`${compact ? 'w-6 h-6' : 'w-8 h-8'} rounded-lg flex items-center justify-center shrink-0 ${compact ? 'bg-indigo-500/20 text-indigo-300' : 'bg-indigo-50 border border-indigo-100 text-indigo-600'}`}>
+                        <UserCircle2 size={compact ? 14 : 20} />
                     </div>
                     <div className="flex flex-col min-w-0">
                         <span className={`text-xs font-bold truncate ${compact ? 'text-slate-200' : 'text-slate-900'}`}>
@@ -92,7 +92,7 @@ export const PersonaSelector: React.FC<PersonaSelectorProps> = ({ activePersonaI
                     </div>
                 </div>
 
-                <ChevronDown size={14} className={`transition-transform duration-200 ${showDropdown ? 'rotate-180' : ''} ${compact ? 'text-slate-400' : 'text-slate-400 group-hover:text-indigo-500'}`} />
+                <ChevronDown size={compact ? 14 : 18} className={`transition-transform duration-200 ${showDropdown ? 'rotate-180' : ''} ${compact ? 'text-slate-400' : 'text-slate-400 group-hover:text-indigo-500'}`} />
             </div>
 
             {/* Dropdown Menu Portal */}
