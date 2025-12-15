@@ -504,39 +504,107 @@ export const SavedPromptsLibrary: React.FC<SavedPromptsLibraryPropsExtended> = (
                         {/* Content */}
                         <div className="flex-1 flex overflow-hidden bg-slate-50">
                             {/* Metadata Sidebar (Left) */}
-                            <div className="w-64 bg-white border-r border-slate-200 p-6 overflow-y-auto hidden md:block">
-                                <div className="space-y-6">
+                            <div className="w-80 bg-white border-r border-slate-200 p-6 overflow-y-auto hidden md:block custom-scrollbar">
+                                <div className="space-y-8">
+
+                                    {/* 1. Raw Input / Simple Idea */}
+                                    {selectedPrompt.simpleIdea && (
+                                        <div>
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <div className="w-1 h-3 bg-amber-400 rounded-full"></div>
+                                                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Raw Input</h4>
+                                            </div>
+                                            <div className="p-3 rounded-xl bg-gradient-to-br from-amber-50 to-orange-50/50 border border-amber-100 text-sm text-slate-700 italic shadow-sm">
+                                                "{selectedPrompt.simpleIdea}"
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* 2. Framework Fields (CO-STAR, etc) */}
                                     <div>
-                                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Context</h4>
-                                        <div className="flex flex-col gap-2">
-                                            {selectedPrompt.industry && (
-                                                <div className="p-2 rounded-lg bg-slate-50 border border-slate-100">
-                                                    <span className="text-xs text-slate-500 block">Industry</span>
-                                                    <span className="text-sm font-medium text-slate-800">
-                                                        {INDUSTRY_TEMPLATES.find(t => t.id === selectedPrompt.industry)?.label || selectedPrompt.industry}
-                                                    </span>
-                                                </div>
-                                            )}
-                                            {selectedPrompt.role && (
-                                                <div className="p-2 rounded-lg bg-slate-50 border border-slate-100">
-                                                    <span className="text-xs text-slate-500 block">Role</span>
-                                                    <span className="text-sm font-medium text-slate-800">
-                                                        {ROLE_PRESETS.find(t => t.id === selectedPrompt.role)?.label || selectedPrompt.role}
-                                                    </span>
-                                                </div>
-                                            )}
+                                        <div className="flex items-center gap-2 mb-3">
+                                            <div className="w-1 h-3 bg-indigo-500 rounded-full"></div>
+                                            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                                                {getFrameworkName(selectedPrompt.framework)} Parameters
+                                            </h4>
+                                        </div>
+                                        <div className="space-y-3">
+                                            {(() => {
+                                                try {
+                                                    const fields = JSON.parse(selectedPrompt.fields || '{}');
+                                                    const entries = Object.entries(fields);
+
+                                                    if (entries.length === 0) {
+                                                        return <div className="text-xs text-slate-400 italic">No parameters recorded</div>;
+                                                    }
+
+                                                    return entries.map(([key, value]) => {
+                                                        if (!value || (typeof value === 'string' && !value.trim())) return null;
+                                                        // Beautify keys (e.g. "optimizationMetric" -> "Optimization Metric")
+                                                        const label = key
+                                                            .replace(/([A-Z])/g, ' $1')
+                                                            .replace(/^./, str => str.toUpperCase())
+                                                            .replace(/_/g, ' ');
+
+                                                        return (
+                                                            <div key={key} className="group/field relative">
+                                                                <div className="flex items-baseline justify-between mb-1">
+                                                                    <span className="text-[10px] font-bold text-indigo-400 uppercase">{label}</span>
+                                                                </div>
+                                                                <div className="text-sm text-slate-600 leading-snug bg-slate-50 px-3 py-2.5 rounded-lg border border-slate-100 group-hover/field:border-indigo-200 group-hover/field:bg-indigo-50/30 transition-all cursor-text break-words whitespace-pre-wrap">
+                                                                    {String(value)}
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    });
+                                                } catch (e) { return <span className="text-xs text-red-400">Error parsing inputs</span>; }
+                                            })()}
                                         </div>
                                     </div>
 
-                                    {/* Tones */}
+                                    {/* 3. Global Context (Industry/Role) */}
+                                    {(selectedPrompt.industry || selectedPrompt.role) && (
+                                        <div>
+                                            <div className="flex items-center gap-2 mb-3">
+                                                <div className="w-1 h-3 bg-teal-500 rounded-full"></div>
+                                                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Environment</h4>
+                                            </div>
+                                            <div className="grid grid-cols-1 gap-2">
+                                                {selectedPrompt.industry && (
+                                                    <div className="px-3 py-2 rounded-lg bg-teal-50/50 border border-teal-100 flex items-center justify-between">
+                                                        <span className="text-xs text-teal-600 font-medium">Industry</span>
+                                                        <span className="text-xs font-bold text-teal-800">
+                                                            {INDUSTRY_TEMPLATES.find(t => t.id === selectedPrompt.industry)?.label || selectedPrompt.industry}
+                                                        </span>
+                                                    </div>
+                                                )}
+                                                {selectedPrompt.role && (
+                                                    <div className="px-3 py-2 rounded-lg bg-cyan-50/50 border border-cyan-100 flex items-center justify-between">
+                                                        <span className="text-xs text-cyan-600 font-medium">Role</span>
+                                                        <span className="text-xs font-bold text-cyan-800">
+                                                            {ROLE_PRESETS.find(t => t.id === selectedPrompt.role)?.label || selectedPrompt.role}
+                                                        </span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* 4. Tones */}
                                     <div>
-                                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Tones</h4>
+                                        <div className="flex items-center gap-2 mb-3">
+                                            <div className="w-1 h-3 bg-pink-500 rounded-full"></div>
+                                            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Tones</h4>
+                                        </div>
                                         <div className="flex flex-wrap gap-2">
                                             {(() => {
                                                 try {
                                                     const tones = JSON.parse(selectedPrompt.tones || '[]');
-                                                    return Array.isArray(tones) && tones.map((tone: string) => (
-                                                        <Badge key={tone} variant="purple" className="text-[10px]">
+                                                    if (!Array.isArray(tones) || tones.length === 0) {
+                                                        return <span className="text-xs text-slate-400 italic">No tones selected</span>;
+                                                    }
+                                                    return tones.map((tone: string) => (
+                                                        <Badge key={tone} variant="pink" className="text-[10px] px-2 py-0.5">
                                                             {TONES.find(t => t.value === tone)?.label || tone}
                                                         </Badge>
                                                     ));
@@ -545,24 +613,30 @@ export const SavedPromptsLibrary: React.FC<SavedPromptsLibraryPropsExtended> = (
                                         </div>
                                     </div>
 
-                                    {/* Model/Score */}
-                                    <div>
-                                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Details</h4>
-                                        <div className="space-y-2">
-                                            {selectedPrompt.providerId && (
-                                                <div className="flex items-center justify-between text-sm">
-                                                    <span className="text-slate-500">Provider</span>
-                                                    <span className="font-medium text-slate-900 capitalize">{selectedPrompt.providerId}</span>
+                                    {/* 5. Metrics */}
+                                    {selectedPrompt.qualityScore !== undefined && (
+                                        <div>
+                                            <div className="flex items-center gap-2 mb-3">
+                                                <div className="w-1 h-3 bg-emerald-500 rounded-full"></div>
+                                                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Quality Metrics</h4>
+                                            </div>
+                                            <div className="bg-emerald-50/50 border border-emerald-100 rounded-xl p-3">
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <span className="text-xs font-bold text-emerald-800 uppercase tracking-wider">Prompt Score</span>
+                                                    <div className="flex items-baseline gap-1">
+                                                        <span className="text-2xl font-black text-emerald-600">{selectedPrompt.qualityScore}</span>
+                                                        <span className="text-xs text-emerald-400 font-bold">/100</span>
+                                                    </div>
                                                 </div>
-                                            )}
-                                            {selectedPrompt.qualityScore && (
-                                                <div className="flex items-center justify-between text-sm">
-                                                    <span className="text-slate-500">Quality</span>
-                                                    <span className="font-bold text-emerald-600">{selectedPrompt.qualityScore}/100</span>
+                                                <div className="w-full h-1.5 bg-emerald-100 rounded-full overflow-hidden">
+                                                    <div
+                                                        className="h-full bg-emerald-500 rounded-full"
+                                                        style={{ width: `${selectedPrompt.qualityScore}%` }}
+                                                    />
                                                 </div>
-                                            )}
+                                            </div>
                                         </div>
-                                    </div>
+                                    )}
                                 </div>
                             </div>
 

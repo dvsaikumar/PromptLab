@@ -100,25 +100,28 @@ export const QualityScore: React.FC<QualityScoreProps> = ({ score, onImprove, is
                     { label: 'Structure', val: score.structure },
                     { label: 'Completeness', val: score.completeness },
                     { label: 'Actionability', val: score.actionability },
-                ].map((m) => (
-                    <div key={m.label} className="bg-slate-50/50 rounded-lg p-2 border border-slate-100 flex flex-col justify-between gap-2 group hover:bg-slate-50 transition-colors">
-                        <div className="flex justify-between items-start">
-                            <span className="text-[9px] uppercase font-bold text-slate-500 tracking-wide leading-tight">{m.label}</span>
-                            {m.val >= 95 && <ArrowUpRight size={10} className="text-emerald-500" />}
-                        </div>
-                        <div className="space-y-1">
-                            <div className={clsx("text-xl font-bold leading-none", getScoreColor(m.val).split(' ')[0])}>
-                                {m.val}
+                ].map((m) => {
+                    const percentage = m.val * 5;
+                    return (
+                        <div key={m.label} className="bg-slate-50/50 rounded-lg p-2 border border-slate-100 flex flex-col justify-between gap-2 group hover:bg-slate-50 transition-colors">
+                            <div className="flex justify-between items-start">
+                                <span className="text-[9px] uppercase font-bold text-slate-500 tracking-wide leading-tight">{m.label}</span>
+                                {percentage >= 95 && <ArrowUpRight size={10} className="text-emerald-500" />}
                             </div>
-                            <div className="w-full h-1 bg-slate-200 rounded-full overflow-hidden">
-                                <div
-                                    className={clsx("h-full rounded-full transition-all duration-500", getBarColor(m.val))}
-                                    style={{ width: `${m.val}% ` }}
-                                />
+                            <div className="space-y-1">
+                                <div className={clsx("text-xl font-bold leading-none", getScoreColor(percentage).split(' ')[0])}>
+                                    {m.val}
+                                </div>
+                                <div className="w-full h-1 bg-slate-200 rounded-full overflow-hidden">
+                                    <div
+                                        className={clsx("h-full rounded-full transition-all duration-500", getBarColor(percentage))}
+                                        style={{ width: `${percentage}%` }}
+                                    />
+                                </div>
                             </div>
                         </div>
-                    </div>
-                ))}
+                    );
+                })}
             </div>
 
             {/* Part 3: Action */}
