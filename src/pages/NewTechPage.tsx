@@ -1,15 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { PageTemplate } from '@/components/ui/PageTemplate';
-import { Zap, Bot, RefreshCw, Sparkles, Brain, Cpu, CheckCircle2, BookOpen, Timer, X, Target, Play, FileText, ArrowRight, GitCompare, Workflow, Lightbulb, ChevronRight, Layers } from 'lucide-react';
+import { Zap, Bot, RefreshCw, Sparkles, Brain, Cpu, CheckCircle2, BookOpen, Timer, X, Target, Play, FileText, ArrowRight, GitCompare, Workflow, Lightbulb, ChevronRight, Layers, Save } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { LLMService } from '@/services/llm';
 import { llmConfigDB } from '@/services/llmConfigDB';
+import { promptDB } from '@/services/database';
 import { LLMSelector } from '@/components/ui/LLMSelector';
 import { LLMProviderId } from '@/types';
 import { Tooltip } from '@/components/ui/Tooltip';
 import { estimateTokens } from '@/utils/tokenEstimator';
+import { SavePromptModal } from '@/components/SavePromptModal';
+import toast from 'react-hot-toast';
 
 interface NewTechPageProps {
     isSidebarOpen?: boolean;
@@ -198,6 +201,33 @@ export const NewTechPage: React.FC<NewTechPageProps> = ({ isSidebarOpen }) => {
     // Stats State
     const [stats, setStats] = useState<TokenStats | null>(null);
 
+    // Save Modal State
+    const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
+
+    const handleSavePrompt = async (title: string) => {
+        if (!optimizedPrompt) return;
+        try {
+            await promptDB.savePrompt({
+                title,
+                framework: 'dspy-compiler', // Custom framework ID for this tool
+                prompt: optimizedPrompt,
+                fields: JSON.stringify({ rawInput: rawPrompt, optimizationMetric }),
+                tones: JSON.stringify([]),
+                simpleIdea: rawPrompt,
+                qualityScore: 0, // Not applicable yet
+                tokenUsage: JSON.stringify({ input: stats?.inputTokens || 0, output: stats?.outputTokens || 0 }),
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                providerId: selectedProvider,
+                model: selectedModel
+            });
+            toast.success(`Saved "${title}" successfully!`);
+        } catch (error) {
+            console.error('Failed to save prompt:', error);
+            toast.error('Failed to save prompt.');
+        }
+    };
+
     // Persistence: Load saved LLM preference on mount
     useEffect(() => {
         const loadPreferences = async () => {
@@ -244,19 +274,10 @@ export const NewTechPage: React.FC<NewTechPageProps> = ({ isSidebarOpen }) => {
         const steps = [
             `Connecting to ${selectedProvider} (${selectedModel || 'Default'})...`,
             "Initializing DSPy Module...",
-            "Inferring Semantic Roles (Input vs Output)...",
             `Defining Metric: Optimize for ${optimizationMetric.toUpperCase()}...`,
-            "Designing Multi-Hop Control Flow...",
-            "Selecting Inference Strategy (CoT, ReAct, PoT)...",
-            "Defining Robust Metric Function...",
-            "Configuring Optimizer (MIPROv2)...",
-            "Synthesizing Guardrail Assertions...",
-            "Mining Execution Traces (Bootstrapping)...",
-            "Synthesizing High-Quality Few-Shot Examples...",
+            "Bootstrapping 3-shot examples...",
             "Compiling prompt signature...",
-            "Joint Optimization (Instructions + Few-Shots)...",
-            "Composing Final Optimization Strategy...",
-            "Automating Prompt Discovery...",
+            "Running Bayesian Optimization...",
             `Validation Score: ${Math.floor(Math.random() * 5 + 94)}/100`
         ];
 
@@ -299,69 +320,13 @@ export const NewTechPage: React.FC<NewTechPageProps> = ({ isSidebarOpen }) => {
                 ${optimizationMetric === 'creativity' ? '- Focus on novel, engaging, and diverse outputs.' : ''}
                 ${optimizationMetric === 'speed' ? '- Focus on conciseness and concise formatting.' : ''}
 
-                **REQUIREMENT 1: Specify Semantic Roles**
-                Use the docstring and explicit fields like \`dspy.InputField\` and \`dspy.OutputField\` to clarify the task.
-                Provide the compiler with semantic information (e.g., distinguishing "context" from "reasoning").
-                
-                **REQUIREMENT 2: Define Constraints (Assertions)**
-                For high-stakes applications requiring explicit validation and trust, utilize advanced features like DSPy Assertions or Guardrails to impose hard and soft computational constraints.
-                - Include 1-2 suggested assertions using \`dspy.Suggest\` or \`dspy.Assert\` in your explanation or code comments.
-                - Example: "dspy.Suggest(len(output) < 100, 'Output must be concise')"
-                
-                **REQUIREMENT 3: Design Custom, Multi-Hop Programs**
-                For complex workflows (like Multi-Hop RAG or multi-stage analysis), define a custom module that inherits from \`dspy.Module\`. 
-                Within the \`forward\` method, interweave multiple Built-in Modules using standard Python control flow (e.g., if-else logic or loops).
-                If the task implies multiple steps, output a \`dspy.Module\` class instead of just a Signature.
-
-                **REQUIREMENT 4: Select Advanced Inference Strategies**
-                Utilize specialized built-in modules that encapsulate state-of-the-art reasoning techniques:
-                - \`dspy.ChainOfThought\` (CoT): For logical tasks requiring step-by-step reasoning.
-                - \`dspy.ReAct\`: For agentic tasks needing tools/search (add a comment about required tools).
-                - \`dspy.ProgramOfThought\` (PoT): For math or structured manipulation.
-                
-                Explicitly mention which module you chose and why in the 'reasoning' field.
-                
-                **REQUIREMENT 5: Define Clear Metrics**
-                Define a robust metric function that objectively measures output quality (e.g., accuracy, Semantic F1, or a custom LLM-as-a-judge function).
-                Suggest a specific metric in your output comments or explanation that the optimizer should use.
-                
-                **REQUIREMENT 6: Use Advanced Optimizers (MIPROv2)**
-                For maximum robustness, suggest using \`dspy.MIPROv2\` (Multi-stage Iterative Prompt Refinement Optimizer) in your comments.
-                - Highlight that MIPROv2 perfroms **joint optimization** of the prompt instructions and 3-shot examples.
-                - **Explicitly state:** "Optimizes both the natural-language instructions (the underlying system prompts) and the few-shot examples (demonstrations)."
-                - Note that this prevents local upstream optimization from breaking downstream components.
-
-                **REQUIREMENT 7: Leverage Few-Shot Synthesis**
-                Explain how \`BootstrapFewShot\` or \`BootstrapFewShotWithRandomSearch\` will be used to automatically synthesize high-quality examples.
-                - Mention that it collects execution traces of successful runs (bootstrapping).
-                - Mention that it validates them against your metric and incorporates the optimal set into the compiled prompt.
-                
-                **REQUIREMENT 8: Compose Optimization Runs**
-                For continuous improvement, mention that the optimized program can be:
-                - Used as input for further compilation (e.g. running MIPROv2 again).
-                - Integrated into a \`dspy.Ensemble\` for robustness.
-                - Used to fine-tune weights via \`dspy.BootstrapFinetune\`.
-                
-                **REQUIREMENT 9: Robust High-Level Logic & Automated Discovery**
-                Combine all above elements to define robust high-level logic.
-                - Goal: Allow the DSPy compiler to **automatically discover** the best possible prompt implementation tailored to the chosen model (${selectedModel}) and metrics (${optimizationMetric}).
-                - Emphasize that the user should focus on defining the *logic* (Signatures, Metrics) rather than string manipulation.
-
-                The specific output format should be a Python Class inheriting from dspy.Signature, optionally with comment annotations for assertions.
-                Example:
-                class TaskName(dspy.Signature):
-                    """Detailed docstring describing the task."""
-                    input_variable = dspy.InputField(desc="...")
-                    output_variable = dspy.OutputField(desc="...")
-                    # Constraint: Ensure output_variable does not contain PII
-
                 STRICT OUTPUT FORMAT:
                 You must return a valid JSON object. Do not include markdown formatting (like \`\`\`json).
                 Structure:
                 {
                     "reasoning": "Explain your Chain-of-Thought on how to improve this...",
                     "critique": "Identify 2-3 weaknesses in the raw prompt...",
-                    "optimized_prompt": "The final dspy.Signature class definition..."
+                    "optimized_prompt": "The final, compiled prompt text..."
                 }`;
 
             const userPart = `\n\nRaw Prompt: "${rawPrompt}"`;
@@ -785,8 +750,28 @@ You are a world-class expert. Please analyze the input and provide detailed reas
                                         <h3 className="font-bold text-slate-800">Perfect Prompt</h3>
                                         <p className="text-xs text-slate-400">Processed by {selectedProvider}</p>
                                     </div>
-                                    {optimizedPrompt && <Badge variant="default" className="ml-auto bg-emerald-500"> Optimized </Badge>}
+                                    {optimizedPrompt && (
+                                        <div className="ml-auto flex items-center gap-2">
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => setIsSaveModalOpen(true)}
+                                                className="h-6 gap-1.5 px-2.5 text-xs font-bold text-slate-600 border-slate-200 hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-600"
+                                                title="Save to Library"
+                                            >
+                                                <Save size={13} />
+                                                Save
+                                            </Button>
+                                            <Badge variant="default" className="bg-emerald-500 hover:bg-emerald-600 h-6 px-2.5"> Optimized </Badge>
+                                        </div>
+                                    )}
                                 </div>
+
+                                <SavePromptModal
+                                    isOpen={isSaveModalOpen}
+                                    onClose={() => setIsSaveModalOpen(false)}
+                                    onSave={handleSavePrompt}
+                                />
 
                                 <div className="flex-1 w-full bg-slate-50 rounded-xl border border-slate-100 p-4 font-mono text-sm text-slate-700 whitespace-pre-wrap overflow-y-auto custom-scrollbar">
                                     {optimizedPrompt || <span className="text-slate-400 italic">Optimized result will appear here...</span>}
