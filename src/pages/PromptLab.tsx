@@ -1,120 +1,243 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { SimpleIdea } from '@/components/prompt-builder/SimpleIdea';
 import { TemplateSelector } from '@/components/prompt-builder/TemplateSelector';
 import { FrameworkSelector } from '@/components/prompt-builder/FrameworkSelector';
 import { ToneSelector } from '@/components/prompt-builder/ToneSelector';
 import { InputField } from '@/components/prompt-builder/InputField';
+import { LLMSelector } from '@/components/ui/LLMSelector';
+import { PersonaSelector } from '@/components/ui/PersonaSelector';
 import { PromptOutput } from '@/components/results/PromptOutput';
 import { QualityScore } from '@/components/results/QualityScore';
 import { usePrompt } from '@/contexts/PromptContext';
-import { FRAMEWORKS, TONES, INDUSTRY_TEMPLATES, ROLE_PRESETS } from '@/constants';
-import { PERSONAS } from '@/constants/personas';
-import { Wand2, FlaskConical, Sparkles, FileText, BookOpen, Palette, Layout, RefreshCw, Tag, RotateCcw, Zap, Layers, Brain, User } from 'lucide-react';
+import { FRAMEWORKS } from '@/constants';
+import { FlaskConical, FileText, BookOpen, Palette, Layout, RotateCcw, Layers, Settings2, X, Check, ChevronDown, Zap, Brain, SlidersHorizontal, User, ArrowRight, Lightbulb, ChevronRight, MessageSquare, GraduationCap, Sparkles } from 'lucide-react';
+import { Tooltip } from '@/components/ui/Tooltip';
 import { clsx } from 'clsx';
 import toast from 'react-hot-toast';
 import { promptDB } from '@/services/database';
 import { SavePromptModal } from '@/components/SavePromptModal';
 import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
 import { PageTemplate } from '@/components/ui/PageTemplate';
-import { SectionHeader } from '@/components/ui/SectionHeader';
 import { ResultToolbar } from '@/components/ui/ResultToolbar';
 import { ProviderIcon } from '@/components/ui/ProviderIcon';
 import { vectorDb } from '@/services/vectorDbService';
+import { estimateTokens } from '@/utils/tokenEstimator';
 
-interface PromptLabProps {
-    activeSection: string | null;
-    toggleSection: (section: string) => void;
-    isSidebarOpen?: boolean;
-}
+const PROMPT_LAB_TUTORIAL_MODULES = [
+    {
+        id: 'step1',
+        title: 'Step 1: The Raw Idea',
+        icon: Lightbulb,
+        content: (
+            <div className="space-y-8 animate-in fade-in duration-500">
+                <div className="bg-gradient-to-br from-amber-50 to-orange-50 p-8 rounded-2xl border border-amber-100">
+                    <h2 className="text-2xl font-bold text-amber-900 mb-4">Start with a Seed</h2>
+                    <p className="text-lg text-slate-700 leading-relaxed mb-6">
+                        Every great prompt starts with a simple thought. You don't need to know the perfect structure yet. Just type what you want.
+                    </p>
+                    <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                        <div className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-2">Input: Simple Idea</div>
+                        <div className="text-xl font-medium text-slate-800 font-mono bg-slate-50 p-4 rounded-lg border border-slate-200">
+                            "Write a LinkedIn post about how AI is changing marketing."
+                        </div>
+                    </div>
+                </div>
+            </div>
+        )
+    },
+    {
+        id: 'step2',
+        title: 'Step 2: Choose Framework',
+        icon: Layout,
+        content: (
+            <div className="space-y-8 animate-in slide-in-from-right-4 duration-500">
+                <div className="bg-gradient-to-br from-indigo-50 to-blue-50 p-8 rounded-2xl border border-indigo-100">
+                    <h2 className="text-2xl font-bold text-indigo-900 mb-4">Structure via CO-STAR</h2>
+                    <p className="text-lg text-slate-700 leading-relaxed mb-6">
+                        We select the <b>CO-STAR</b> framework. This forces us (and the AI) to think about Context, Objective, Style, Tone, Audience, and Response.
+                    </p>
+                    <div className="grid md:grid-cols-2 gap-4">
+                        <div className="p-4 bg-white rounded-lg border border-indigo-100 shadow-sm flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold">C</div>
+                            <div><div className="font-bold text-indigo-900">Context</div><div className="text-xs text-slate-500">Who are you?</div></div>
+                        </div>
+                        <div className="p-4 bg-white rounded-lg border border-indigo-100 shadow-sm flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold">O</div>
+                            <div><div className="font-bold text-indigo-900">Objective</div><div className="text-xs text-slate-500">What is the goal?</div></div>
+                        </div>
+                        <div className="p-4 bg-white rounded-lg border border-indigo-100 shadow-sm flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold">S</div>
+                            <div><div className="font-bold text-indigo-900">Style</div><div className="text-xs text-slate-500">How should it feel?</div></div>
+                        </div>
+                        <div className="p-4 bg-white rounded-lg border border-indigo-100 shadow-sm flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold">T</div>
+                            <div><div className="font-bold text-indigo-900">Tone</div><div className="text-xs text-slate-500">What is the vibe?</div></div>
+                        </div>
+                        <div className="p-4 bg-white rounded-lg border border-indigo-100 shadow-sm flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold">A</div>
+                            <div><div className="font-bold text-indigo-900">Audience</div><div className="text-xs text-slate-500">Who is reading?</div></div>
+                        </div>
+                        <div className="p-4 bg-white rounded-lg border border-indigo-100 shadow-sm flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold">R</div>
+                            <div><div className="font-bold text-indigo-900">Response</div><div className="text-xs text-slate-500">What format?</div></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        )
+    },
+    {
+        id: 'step3',
+        title: 'Step 3: Auto-Expansion',
+        icon: Sparkles,
+        content: (
+            <div className="space-y-8 animate-in slide-in-from-right-4 duration-500">
+                <div className="bg-gradient-to-br from-purple-50 to-pink-50 p-8 rounded-2xl border border-purple-100">
+                    <h2 className="text-2xl font-bold text-purple-900 mb-4">The Magic Moment</h2>
+                    <p className="text-lg text-slate-700 leading-relaxed mb-6">
+                        You hit <b>Auto-Expand</b>. The system analyzes your simple idea and automatically generating rich, detailed constraints for every field of the framework.
+                    </p>
 
-const menuItems = [
-    { id: 'quick-start', label: 'Quick Start', icon: Sparkles, color: 'text-amber-600', gradient: 'from-amber-500 to-orange-500' },
-    { id: 'frameworks', label: 'Frameworks', icon: BookOpen, color: 'text-blue-600', gradient: 'from-blue-500 to-indigo-500' },
-    { id: 'tones', label: 'Tones', icon: Palette, color: 'text-pink-600', gradient: 'from-pink-500 to-rose-500' },
-    { id: 'components', label: 'Components', icon: FileText, color: 'text-purple-600', gradient: 'from-purple-500 to-violet-500' },
+                    <div className="grid md:grid-cols-2 gap-6">
+                        <div className="bg-white/80 p-4 rounded-xl border border-purple-100">
+                            <div className="text-xs font-bold text-purple-600 uppercase tracking-wider mb-1">Context (Auto-Filled)</div>
+                            <p className="text-slate-800 text-sm">"I am a specialized B2B Marketing Director with 10 years of experience in SaaS."</p>
+                        </div>
+                        <div className="bg-white/80 p-4 rounded-xl border border-purple-100">
+                            <div className="text-xs font-bold text-purple-600 uppercase tracking-wider mb-1">Audience (Auto-Filled)</div>
+                            <p className="text-slate-800 text-sm">"CMOs and Growth Heads looking for actionable insights, not fluff."</p>
+                        </div>
+                        <div className="bg-white/80 p-4 rounded-xl border border-purple-100">
+                            <div className="text-xs font-bold text-purple-600 uppercase tracking-wider mb-1">Style (Auto-Filled)</div>
+                            <p className="text-slate-800 text-sm">"Thought leadership, using data-backed arguments and a punchy, hook-driven opening."</p>
+                        </div>
+                        <div className="bg-white/80 p-4 rounded-xl border border-purple-100">
+                            <div className="text-xs font-bold text-purple-600 uppercase tracking-wider mb-1">Tone (Auto-Filled)</div>
+                            <p className="text-slate-800 text-sm">"Professional, visionary, yet grounded and practical."</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        )
+    },
+    {
+        id: 'step4',
+        title: 'Step 4: Refinement',
+        icon: MessageSquare,
+        content: (
+            <div className="space-y-8 animate-in slide-in-from-right-4 duration-500">
+                <div className="bg-gradient-to-br from-emerald-50 to-teal-50 p-8 rounded-2xl border border-emerald-100">
+                    <h2 className="text-2xl font-bold text-emerald-900 mb-4">Perfecting the Output</h2>
+                    <p className="text-lg text-slate-700 leading-relaxed mb-6">
+                        The generated prompt is good, but maybe you want it punchier? You simply type <i>"Make the hook more controversial"</i> into the refinement chat.
+                    </p>
+                    <div className="bg-slate-900 rounded-xl p-6 shadow-xl relative overflow-hidden">
+                        <div className="absolute top-0 right-0 p-4 opacity-10">
+                            <Zap size={100} className="text-emerald-400" />
+                        </div>
+                        <div className="relative z-10 space-y-4">
+                            <div className="flex gap-4 items-start opacity-50">
+                                <div className="text-xs font-mono text-emerald-500 mt-1">OLD</div>
+                                <div className="text-slate-400 text-sm">"AI is changing marketing. Here is why you should care..."</div>
+                            </div>
+                            <div className="w-full h-px bg-slate-700/50"></div>
+                            <div className="flex gap-4 items-start">
+                                <div className="text-xs font-mono text-emerald-400 mt-1 font-bold">NEW</div>
+                                <div className="text-emerald-50 text-base font-medium">"Marketing as we know it is dead. If you aren't using AI, you are operating a fax machine in 2025."</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        )
+    }
 ];
 
-const outputMenuItem = { id: 'output', label: 'Output', icon: Wand2, color: 'text-emerald-600', gradient: 'from-emerald-500 to-teal-500' };
+interface PromptLabProps {
+    isSidebarOpen?: boolean;
+    activeSection?: string | null;
+    toggleSection?: (section: string) => void;
+}
 
-export const PromptLab: React.FC<PromptLabProps> = ({ isSidebarOpen = false }) => {
+export const PromptLab: React.FC<PromptLabProps> = ({ isSidebarOpen = false, activeSection }) => {
     const {
         activeFramework, generatePrompt, isGenerating, fields, qualityScore,
-        generatedPrompt, improvePrompt, isImproving, analyzeQuality, isAnalyzing,
-        activeIndustry, activeRole, selectedTones, toggleTone, clearIndustry, clearRole,
+        generatedPrompt, improvePrompt, isImproving,
+        activeIndustry, activeRole, selectedTones,
         requestChainOfThought, toggleChainOfThought, simpleIdea, expandIdea, isExpanding,
-        resetAll, complexity, currentPromptId, llmConfig, totalInputTokens, totalOutputTokens,
-        assemblePrompt, activePersonaId
+        resetAll, currentPromptId, llmConfig, totalInputTokens, totalOutputTokens,
+        activePersonaId, setActivePersonaId, complexity, setComplexity,
+        negativeConstraints, addNegativeConstraint, removeNegativeConstraint
     } = usePrompt();
 
-    const currentFramework = useMemo(() =>
+    const selectedFramework = useMemo(() =>
         FRAMEWORKS.find(f => f.id === activeFramework) || FRAMEWORKS[0],
         [activeFramework]
     );
-    const [selectedMenu, setSelectedMenu] = useState('quick-start');
-    const [isTemplateDrawerOpen, setIsTemplateDrawerOpen] = useState(false);
-    const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
 
-    // Export Handler
-    const handleExport = (format: 'md' | 'txt' | 'json') => {
+    const [isTemplateDrawerVisible, setIsTemplateDrawerVisible] = useState(false);
+    const [isSaveModalVisible, setIsSaveModalVisible] = useState(false);
+    const [isConfigurationModalVisible, setIsConfigurationModalVisible] = useState(false);
+    const [selectedConfigurationTab, setSelectedConfigurationTab] = useState<'framework' | 'tone' | 'rules'>('framework');
+    const [isOutputModalVisible, setIsOutputModalVisible] = useState(false);
+    const [isComplexitySelectionVisible, setIsComplexitySelectionVisible] = useState(false);
+    const [activeTab, setActiveTab] = useState<'builder' | 'tutorial'>('builder');
+
+    // Sync external navigation (activeSection) to internal tabs
+    useEffect(() => {
+        if (activeSection === 'tutorial') {
+            setActiveTab('tutorial');
+        } else if (activeSection === 'quick-start' || activeSection === 'builder') {
+            setActiveTab('builder');
+        }
+    }, [activeSection]);
+
+    // Export prompt to file in various formats
+    const exportPromptToFile = (format: 'md' | 'txt' | 'json') => {
         if (!generatedPrompt) return;
-
         const timestamp = new Date().toISOString().split('T')[0];
-        const filename = `prompt_${activeFramework}_${timestamp}`;
+        const filename = `prompt_${activeFramework}_${timestamp} `;
+        // Logic reused from original
         const charCount = generatedPrompt.length;
         const wordCount = generatedPrompt.trim().split(/\s+/).filter(w => w.length > 0).length;
-
         let content = '';
         let mime = 'text/plain';
 
         if (format === 'md') {
-            content = `# AI Prompt (${activeFramework.toUpperCase()})\n\n${generatedPrompt}\n\n---\n**Word Count:** ${wordCount}  \n**Character Count:** ${charCount}`;
+            content = `# AI Prompt(${activeFramework.toUpperCase()}) \n\n${generatedPrompt} \n\n-- -\n ** Word Count:** ${wordCount} \n ** Character Count:** ${charCount} `;
             mime = 'text/markdown';
         } else if (format === 'json') {
-            const data = {
-                meta: {
-                    framework: activeFramework,
-                    tones: selectedTones,
-                    created: new Date().toISOString(),
-                    stats: {
-                        words: wordCount,
-                        chars: charCount
-                    }
-                },
-                inputs: fields,
-                simpleIdea,
-                prompt: generatedPrompt
-            };
-            content = JSON.stringify(data, null, 2);
+            content = JSON.stringify({
+                meta: { framework: activeFramework, tones: selectedTones, created: new Date().toISOString() },
+                inputs: fields, simpleIdea, prompt: generatedPrompt
+            }, null, 2);
             mime = 'application/json';
         } else {
-            content = generatedPrompt + `\n\n---\nWord Count: ${wordCount}\nCharacter Count: ${charCount}`;
+            content = generatedPrompt + `\n\n-- -\nWord Count: ${wordCount} \nCharacter Count: ${charCount} `;
         }
 
         const blob = new Blob([content], { type: mime });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `${filename}.${format}`;
+        a.download = `${filename}.${format} `;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
     };
 
-    // Save As New Handler
-    const handleSaveNew = () => {
+    const saveNewPrompt = () => {
         if (!generatedPrompt) {
             toast.error('No prompt to save');
             return;
         }
-        setIsSaveModalOpen(true);
+        setIsSaveModalVisible(true);
     };
 
-    // Update Handler
-    const handleUpdate = async () => {
+    const updateExistingPrompt = async () => {
         if (!generatedPrompt || !currentPromptId) return;
-
         try {
             await promptDB.updatePrompt(currentPromptId, {
                 framework: activeFramework,
@@ -126,19 +249,37 @@ export const PromptLab: React.FC<PromptLabProps> = ({ isSidebarOpen = false }) =
                 simpleIdea: simpleIdea,
                 qualityScore: qualityScore?.overallScore,
                 qualityScoreDetails: qualityScore ? JSON.stringify(qualityScore) : undefined,
+                persona: activePersonaId || undefined,
+                tokenUsage: JSON.stringify({ input: totalInputTokens, output: totalOutputTokens }),
                 updatedAt: new Date().toISOString(),
                 providerId: llmConfig?.providerId || 'unknown',
                 model: llmConfig?.model || 'unknown',
                 source: 'lab'
             });
+
+            // Sync with Vector DB
+            if (vectorDb.isAvailable()) {
+                try {
+                    const vector = vectorDb.generateDummyEmbedding(generatedPrompt);
+                    await vectorDb.addDocuments('prompts', [{
+                        title: simpleIdea || "Updated Prompt", // Title might not be strictly accurate but text is what matters
+                        text: generatedPrompt,
+                        category: activeFramework,
+                        vector,
+                        timestamp: new Date().toISOString()
+                    }]);
+                } catch (e) {
+                    console.error("Vector update failed", e);
+                }
+            }
+
             toast.success('Changes saved!');
         } catch (error: any) {
             toast.error(error?.message || 'Failed to update prompt.');
-            console.error('Update failed:', error);
         }
     };
 
-    const handleSaveWithTitle = async (title: string) => {
+    const savePromptWithTitle = async (title: string) => {
         try {
             await promptDB.savePrompt({
                 title,
@@ -151,6 +292,8 @@ export const PromptLab: React.FC<PromptLabProps> = ({ isSidebarOpen = false }) =
                 simpleIdea: simpleIdea,
                 qualityScore: qualityScore?.overallScore,
                 qualityScoreDetails: qualityScore ? JSON.stringify(qualityScore) : undefined,
+                persona: activePersonaId || undefined,
+                tokenUsage: JSON.stringify({ input: totalInputTokens, output: totalOutputTokens }),
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
                 providerId: llmConfig?.providerId || 'unknown',
@@ -158,198 +301,142 @@ export const PromptLab: React.FC<PromptLabProps> = ({ isSidebarOpen = false }) =
                 source: 'lab'
             });
             toast.success(`✓ "${title}" saved successfully!`);
-
-            // Also save to Vector Memory if available
             if (vectorDb.isAvailable()) {
                 try {
                     const vector = vectorDb.generateDummyEmbedding(generatedPrompt);
                     await vectorDb.addDocuments('prompts', [{
-                        title,
-                        text: generatedPrompt,
-                        category: activeFramework,
-                        vector,
-                        timestamp: new Date().toISOString()
+                        title, text: generatedPrompt, category: activeFramework, vector, timestamp: new Date().toISOString()
                     }]);
-                    // toast.success("Added to AI Memory", { icon: '🧠' });
                 } catch (e) {
                     console.error("Vector save failed", e);
                 }
             }
-
-            // Reset all fields after saving
             resetAll();
         } catch (error: any) {
             toast.error(error?.message || 'Failed to save prompt.');
-            console.error('Save failed:', error);
         }
     };
-
-    // Get labels for active context
-    const activeIndustryLabel = useMemo(() =>
-        INDUSTRY_TEMPLATES.find(t => t.id === activeIndustry)?.label,
-        [activeIndustry]);
-
-    const activeRoleLabel = useMemo(() =>
-        ROLE_PRESETS.find(t => t.id === activeRole)?.label,
-        [activeRole]);
-
-    const activeToneLabels = useMemo(() =>
-        selectedTones.map(t => ({
-            value: t,
-            label: TONES.find(opt => opt.value === t)?.label || t
-        })),
-        [selectedTones]);
-
-    // Auto-switch to output menu when prompt is generated
-    useEffect(() => {
-        if (generatedPrompt) {
-            setSelectedMenu('output');
-        }
-    }, [generatedPrompt]);
-
-    // Listen for manual reset from Sidebar
-    useEffect(() => {
-        const handleReset = () => {
-            setSelectedMenu('quick-start');
-        };
-        window.addEventListener('reset-prompt-lab', handleReset);
-        return () => window.removeEventListener('reset-prompt-lab', handleReset);
-    }, []);
-
-    // Auto-switch to components when auto-fill completes
-    const wasExpanding = React.useRef(false);
-    useEffect(() => {
-        if (wasExpanding.current && !isExpanding) {
-            setSelectedMenu('components');
-        }
-        wasExpanding.current = isExpanding;
-    }, [isExpanding]);
 
     // Check if all mandatory fields are filled
-    const isFormValid = useMemo(() => {
-        const requiredFields = currentFramework.fields.filter(field =>
-            field.id !== 'tone'
-        );
+    const areAllRequiredFieldsFilled = useMemo(() => {
+        const requiredFields = selectedFramework.fields.filter(field => field.id !== 'tone');
         return requiredFields.every(field => {
             const value = fields[field.id];
-            return value && value.trim().length > 0;
+            return typeof value === 'string' && value.trim().length > 0;
         });
-    }, [fields, currentFramework]);
-
-    const displayMenuItems = generatedPrompt
-        ? [...menuItems, outputMenuItem]
-        : menuItems;
-
-    // Components section header actions
-    const ComponentsActions = (
-        <div className="flex items-center gap-5">
-            <label className="flex items-center gap-2.5 cursor-pointer select-none group bg-purple-50 px-3 py-1.5 rounded-lg border border-purple-100 transition-all hover:bg-purple-100 hover:border-purple-200">
-                <div className="relative">
-                    <input
-                        type="checkbox"
-                        className="peer sr-only"
-                        checked={requestChainOfThought}
-                        onChange={toggleChainOfThought}
-                    />
-                    <div className="w-9 h-5 bg-slate-200 rounded-full peer peer-checked:bg-purple-600 transition-colors shadow-inner"></div>
-                    <div className="absolute left-1 top-1 w-3 h-3 bg-white rounded-full transition-transform peer-checked:translate-x-4 shadow-sm"></div>
-                </div>
-                <span className="text-xs font-extrabold text-purple-700 uppercase tracking-wide">Chain of Thoughts</span>
-            </label>
-
-            <Button
-                onClick={expandIdea}
-                disabled={!simpleIdea.trim() || isExpanding}
-                variant="primary"
-                className="bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 shadow-orange-500/20"
-                isLoading={isExpanding}
-                leftIcon={isExpanding ? null : <Sparkles size={16} />}
-            >
-                AUTO-FILL
-            </Button>
-        </div>
-    );
+    }, [fields, selectedFramework]);
 
 
+    // Calculate token breakdown including overhead
+    const tokenUsageBreakdownDisplay = useMemo(() => {
+        const model = llmConfig?.model || 'gpt-4';
 
-    // Output section header actions
-    const OutputActions = generatedPrompt ? (
-        <ResultToolbar
-            onExport={handleExport}
-            onSave={currentPromptId ? handleUpdate : handleSaveNew}
-            onSaveAs={currentPromptId ? handleSaveNew : undefined}
-            contentToCopy={generatedPrompt}
-            className="shadow-none border-none bg-transparent"
-        />
-    ) : null;
+        // Input Calculations
+        const coreIdeaTokens = estimateTokens(simpleIdea || '', model);
+        const tonesTokens = estimateTokens(selectedTones.join(', '), model);
+        const fieldTokens = selectedFramework.fields.map((frameworkField: any) => ({
+            label: frameworkField.label,
+            value: estimateTokens(fields[frameworkField.id] || '', model)
+        }));
 
-    // Determine Header Info based on active section
-    const headerInfo = useMemo(() => {
-        switch (selectedMenu) {
-            case 'quick-start':
-                return { title: 'Quick Start', subtitle: 'Start with a simple idea', rightContent: null };
-            case 'frameworks':
-                return { title: 'Frameworks', subtitle: 'Select a structural framework', rightContent: null };
-            case 'tones':
-                return { title: 'Tones', subtitle: 'Adjust the tone of voice', rightContent: null };
-            case 'components':
-                return { title: 'Prompt Components', subtitle: 'Fill in the framework fields', rightContent: ComponentsActions };
-            case 'output':
-                return { title: 'Generated Output', subtitle: 'Your AI-crafted prompt is ready', rightContent: OutputActions };
-            default:
-                return { title: menuItems.find(m => m.id === selectedMenu)?.label || 'Section', subtitle: '', rightContent: null };
-        }
-    }, [selectedMenu, ComponentsActions, OutputActions]);
+        const totalFieldsTokens = fieldTokens.reduce((accumulator: number, field: any) => accumulator + field.value, 0);
+        const visibleTokensSum = coreIdeaTokens + tonesTokens + totalFieldsTokens;
+        const inputOverheadTokens = Math.max(0, totalInputTokens - visibleTokensSum);
 
-    const renderContent = () => {
-        switch (selectedMenu) {
-            case 'quick-start':
-                return <SimpleIdea isOpen={true} onToggle={() => { }} isSidebarOpen={isSidebarOpen} />;
-            case 'frameworks':
-                return <FrameworkSelector isOpen={true} onToggle={() => { }} isSidebarOpen={isSidebarOpen} />;
-            case 'tones':
-                return <ToneSelector isOpen={true} onToggle={() => { }} isSidebarOpen={isSidebarOpen} />;
-            case 'components':
-                return (
-                    <div className="px-10 pb-6 pt-4 space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
-                        {currentFramework.fields.map((field, index) => (
-                            <div
-                                key={field.id}
-                                className="animate-in fade-in slide-in-from-bottom-2"
-                                style={{ animationDelay: `${index * 50}ms` }}
-                            >
-                                <InputField
-                                    id={field.id}
-                                    label={field.label}
-                                    description={field.description}
-                                    placeholder={field.placeholder}
-                                    isReadOnly={activeFramework === 'costar' && field.id === 'tone'}
-                                />
+        const inputItems = [
+            { label: 'Core Idea', value: coreIdeaTokens },
+            { label: 'Tones', value: tonesTokens },
+            ...fieldTokens,
+            ...(inputOverheadTokens > 0 ? [{ label: 'System & Template', value: inputOverheadTokens }] : []),
+        ];
+
+        // Output Calculations
+        const generatedContentTokens = estimateTokens(generatedPrompt || '', model);
+        const outputOverheadTokens = Math.max(0, totalOutputTokens - generatedContentTokens);
+
+        const outputItems = [
+            { label: 'Generated Content', value: generatedContentTokens },
+            ...(outputOverheadTokens > 0 ? [{ label: 'Metadata / Other', value: outputOverheadTokens }] : [])
+        ];
+
+        return (
+            <div className="flex flex-col gap-4 min-w-[420px] p-1">
+                <div className="flex gap-6">
+                    {/* Left: Input Breakdown */}
+                    <div className="flex-1 flex flex-col gap-3">
+                        <div className="flex items-center gap-2 pb-2 border-b border-emerald-100">
+                            <FileText size={14} className="text-emerald-600" />
+                            <span className="text-xs font-bold text-emerald-700 uppercase tracking-wider">Input Tokens</span>
+                        </div>
+                        <div className="flex flex-col h-full">
+                            <div className="space-y-2 flex-1">
+                                {inputItems.map((item, i) => (
+                                    <div key={i} className="flex items-start gap-2.5 text-xs text-slate-600/90">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1.5 shrink-0" />
+                                        <div className="flex-1 flex justify-between gap-4">
+                                            <span>{item.label}</span>
+                                            <span className="font-semibold text-slate-800">{item.value}</span>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
-                        ))}
+                            <div className="mt-2 flex items-start gap-2.5 text-xs pt-1.5 border-t border-dashed border-emerald-100">
+                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-600 mt-1.5 shrink-0" />
+                                <div className="flex-1 flex justify-between gap-4 font-bold text-emerald-800">
+                                    <span className="uppercase tracking-wider text-[10px]">Total Input</span>
+                                    <span>{totalInputTokens}</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                );
-            case 'output':
-                return <PromptOutput />;
-            default:
-                return null;
-        }
-    };
 
-    // Header buttons: Reset and Templates
+                    {/* Right: Output Breakdown */}
+                    <div className="flex-1 flex flex-col gap-3">
+                        <div className="flex items-center gap-2 pb-2 border-b border-amber-100">
+                            <Zap size={14} className="text-amber-600" />
+                            <span className="text-xs font-bold text-amber-700 uppercase tracking-wider">Output Tokens</span>
+                        </div>
+                        <div className="flex flex-col h-full">
+                            <div className="space-y-2 flex-1">
+                                {outputItems.map((item, i) => (
+                                    <div key={i} className="flex items-start gap-2.5 text-xs text-slate-600/90">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-amber-400 mt-1.5 shrink-0" />
+                                        <div className="flex-1 flex justify-between gap-4">
+                                            <span>{item.label}</span>
+                                            <span className="font-semibold text-slate-800">{item.value}</span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="mt-2 flex items-start gap-2.5 text-xs pt-1.5 border-t border-dashed border-amber-100">
+                                <div className="w-1.5 h-1.5 rounded-full bg-amber-600 mt-1.5 shrink-0" />
+                                <div className="flex-1 flex justify-between gap-4 font-bold text-amber-800">
+                                    <span className="uppercase tracking-wider text-[10px]">Total Output</span>
+                                    <span>{totalOutputTokens}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Grand Total Footer */}
+                <div className="flex items-center justify-between bg-slate-50 p-3 rounded-lg border border-slate-100">
+                    <span className="text-slate-500 font-medium text-xs uppercase tracking-wider">Grand Total Usage</span>
+                    <span className="text-indigo-600 text-sm font-extrabold tabular-nums">{totalInputTokens + totalOutputTokens} tokens</span>
+                </div>
+            </div>
+        );
+    }, [simpleIdea, selectedTones, fields, selectedFramework, totalInputTokens, totalOutputTokens, llmConfig, generatedPrompt]);
+
+    // Header Actions
     const HeaderButtons = (
         <div className="flex items-center gap-3">
             <Button
                 variant="outline"
                 onClick={() => {
-                    if (fields && Object.keys(fields).length > 0 || simpleIdea || generatedPrompt) {
-                        if (confirm('Are you sure you want to reset all fields and content?')) {
-                            resetAll();
-                            setSelectedMenu('quick-start'); // Reset to Quick Start section
-                            toast.success('All fields reset', { icon: '🔄' });
-                        }
-                    } else {
-                        toast('Nothing to reset', { icon: 'ℹ️' });
+                    if (confirm('Are you sure you want to reset all fields?')) {
+                        resetAll();
+                        toast.success('Reset complete');
                     }
                 }}
                 leftIcon={<RotateCcw size={18} />}
@@ -357,245 +444,768 @@ export const PromptLab: React.FC<PromptLabProps> = ({ isSidebarOpen = false }) =
             >
                 Reset
             </Button>
+
             <Button
                 variant="outline"
-                onClick={() => setIsTemplateDrawerOpen(true)}
+                onClick={() => setIsTemplateDrawerVisible(true)}
                 leftIcon={<Layout size={18} />}
             >
                 Templates
             </Button>
-        </div>
-    );
 
-    // Sidebar footer content
-    const SidebarFooter = (
-        <div className="space-y-6">
-            {/* Active Context */}
-            <div>
-                <SectionHeader title="Active Context" />
-                <div className="flex flex-col gap-3">
-                    {/* Level 0: Active AI Persona */}
-                    <div className="flex items-center gap-3 bg-indigo-50/50 p-3 rounded-lg border border-indigo-100/50">
-                        <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center shrink-0">
-                            <User size={16} className="text-indigo-600" />
-                        </div>
-                        <div className="min-w-0">
-                            <div className="text-xs font-bold text-indigo-900 truncate">
-                                {PERSONAS.find(p => p.id === activePersonaId)?.name || 'Default Assistant'}
-                            </div>
-                            <div className="text-[10px] text-indigo-600/80 truncate">
-                                {PERSONAS.find(p => p.id === activePersonaId)?.role || 'Standard AI'}
-                            </div>
-                        </div>
-                    </div>
+            <div className="h-8 w-px bg-slate-200 mx-2" />
 
-                    {/* Level 1: Technical Stats (LLM & Tokens) */}
-                    <div className="flex flex-wrap gap-2 items-center w-full pb-3 border-b border-dashed border-slate-200">
-                        {llmConfig && (
-                            <Badge variant="outline" className="gap-1.5 min-w-max border-slate-200 bg-white text-slate-700 shadow-sm">
-                                <ProviderIcon providerId={llmConfig.providerId} size={14} />
-                                <span className="font-semibold capitalize">{llmConfig.providerId}</span>
-                                <span className="text-slate-300">/</span>
-                                <span className="text-xs text-slate-500 max-w-[100px] truncate" title={llmConfig.model}>
-                                    {llmConfig.model}
-                                </span>
-                            </Badge>
-                        )}
-
-                        <Badge variant="outline" className="gap-1 min-w-max border-emerald-200 bg-emerald-50 text-emerald-700">
-                            <Tag size={12} />
-                            In: {totalInputTokens}
-                        </Badge>
-                        {totalOutputTokens > 0 && (
-                            <Badge variant="outline" className="gap-1 min-w-max border-amber-200 bg-amber-50 text-amber-700">
-                                <Tag size={12} />
-                                Out: {totalOutputTokens}
-                            </Badge>
-                        )}
-                    </div>
-
-                    {/* Level 2: Prompt Context Attributes */}
-                    <div className="flex flex-wrap gap-2 items-center w-full">
-                        <Badge
-                            variant={complexity === 'direct' ? 'indigo' : complexity === 'contextual' ? 'orange' : 'pink'}
-                            className="gap-1 capitalize"
-                        >
-                            {complexity === 'direct' && <Zap size={12} />}
-                            {complexity === 'contextual' && <Layers size={12} />}
-                            {complexity === 'detailed' && <Brain size={12} />}
-                            {complexity}
-                        </Badge>
-
-                        <Badge variant="purple" className="gap-1">
-                            <BookOpen size={12} />
-                            {currentFramework.name}
-                        </Badge>
-
-                        {activeIndustryLabel && (
-                            <Badge variant="blue" onRemove={clearIndustry} className="gap-1">
-                                <Layout size={12} />
-                                {activeIndustryLabel}
-                            </Badge>
-                        )}
-
-                        {activeRoleLabel && (
-                            <Badge variant="indigo" onRemove={clearRole} className="gap-1">
-                                <Sparkles size={12} />
-                                {activeRoleLabel}
-                            </Badge>
-                        )}
-                        {activeToneLabels.map(tone => (
-                            <Badge key={tone.value} variant="pink" onRemove={() => toggleTone(tone.value)} className="gap-1">
-                                <Tag size={12} />
-                                {tone.label}
-                            </Badge>
-                        ))}
-                    </div>
-                </div>
-            </div>
-
-            {/* Generate Button */}
-            <div className="flex flex-col gap-3">
-                <Button
-                    onClick={generatePrompt}
-                    disabled={isGenerating || !isFormValid}
-                    isLoading={isGenerating}
-                    className="w-full h-12 text-lg shadow-xl shadow-indigo-500/20"
-                    leftIcon={!isGenerating && (generatedPrompt ? <RefreshCw size={20} /> : <Wand2 size={20} />)}
+            <div className="flex bg-slate-100 p-1 rounded-lg">
+                <button
+                    onClick={() => setActiveTab('builder')}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-semibold transition-all ${activeTab === 'builder' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                 >
-                    {generatedPrompt ? 'Regenerate' : 'Generate'}
-                </Button>
-
-                <Button
-                    onClick={assemblePrompt}
-                    disabled={isGenerating || !isFormValid}
-                    variant="outline"
-                    className="w-full text-slate-500 hover:text-indigo-600 hover:bg-white hover:border-indigo-200 border-dashed"
-                    leftIcon={<Zap size={16} />}
+                    <FlaskConical size={16} /> Builder
+                </button>
+                <button
+                    onClick={() => setActiveTab('tutorial')}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-semibold transition-all ${activeTab === 'tutorial' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                 >
-                    Instant Assemble
-                </Button>
+                    <GraduationCap size={16} /> Tutorial
+                </button>
             </div>
         </div>
     );
 
-    return (
-        <PageTemplate
-            title="Prompt Lab"
-            subtitle="Build powerful AI prompts using proven frameworks"
-            icon={FlaskConical}
-            iconGradient="from-indigo-500 to-purple-600"
-            shadowColor="shadow-indigo-500/30"
-            rightContent={HeaderButtons}
-            isSidebarOpen={isSidebarOpen}
-            className="flex flex-col !p-0 !top-[120px]"
-            headerClassName="!px-4"
-            iconSize={20}
-            titleClassName="text-lg"
-            subtitleClassName="text-xs"
-        >
-            <div className="flex h-full">
-                {/* Secondary Sidebar */}
-                <div className="w-64 h-full flex-shrink-0 flex flex-col bg-white border-r border-slate-200">
-                    <div className="p-2 pt-12 space-y-2 flex-1 overflow-y-auto custom-scrollbar">
-                        <div className="px-4 mb-2">
-                            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Prompt Builder</span>
-                        </div>
-                        <nav className="space-y-1">
-                            {displayMenuItems.map((item) => {
-                                const Icon = item.icon;
-                                const isActive = selectedMenu === item.id;
-                                return (
-                                    <button
-                                        key={item.id}
-                                        onClick={() => setSelectedMenu(item.id)}
-                                        className={clsx(
-                                            "w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 group relative text-left mx-auto",
-                                            isActive
-                                                ? "bg-blue-50 text-blue-700 font-bold"
-                                                : "text-slate-600 hover:bg-slate-50 font-medium"
-                                        )}
-                                        style={{ width: '95%' }}
-                                    >
-                                        <Icon size={18} className={clsx(
-                                            isActive ? "text-blue-600" : item.color
-                                        )} />
-                                        <span className={clsx(isActive ? "text-sm" : "text-sm")}>{item.label}</span>
-                                    </button>
-                                );
-                            })}
-                        </nav>
-                    </div>
+    const InteractiveTutorial = () => {
+        const [activeStep, setActiveStep] = useState(0);
 
-                    {/* Footer */}
-                    <div className="p-4 border-t border-slate-200 bg-slate-50/50">
-                        {SidebarFooter}
+        return (
+            <div className="flex w-full h-[calc(100vh-144px)] bg-slate-50 overflow-hidden relative top-0 left-0 z-10">
+                {/* Sidebar Navigation */}
+                <div className="w-72 bg-white border-r border-slate-200 overflow-y-auto flex flex-col h-full shrink-0">
+                    <div className="p-6 border-b border-slate-100">
+                        <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                            <BookOpen size={20} className="text-emerald-600" />
+                            Prompt Masterclass
+                        </h2>
+                        <p className="text-xs text-slate-500 mt-1">Master the art of prompt engineering.</p>
+                    </div>
+                    <div className="p-4 space-y-2 flex-1">
+                        {PROMPT_LAB_TUTORIAL_MODULES.map((module, index) => {
+                            const Icon = module.icon;
+                            const isActive = activeStep === index;
+                            return (
+                                <button
+                                    key={module.id}
+                                    onClick={() => setActiveStep(index)}
+                                    className={`w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all ${isActive ? 'bg-emerald-50 text-emerald-700 font-semibold ring-1 ring-emerald-200 shadow-sm' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
+                                >
+                                    <div className={`p-2 rounded-md ${isActive ? 'bg-white shadow-sm ring-1 ring-emerald-100' : 'bg-slate-100'}`}>
+                                        <Icon size={16} />
+                                    </div>
+                                    <span className="text-sm">{module.title}</span>
+                                    {isActive && <ChevronRight size={14} className="ml-auto opacity-50" />}
+                                </button>
+                            );
+                        })}
                     </div>
                 </div>
 
                 {/* Main Content Area */}
-                <div className="flex-1 h-full flex flex-col min-w-0 bg-slate-50 overflow-hidden">
-                    {/* Secondary Top Head Bar */}
-                    <div className="shrink-0 h-20 bg-white border-b border-slate-200 px-4 flex items-center justify-between sticky top-[24px] z-10">
-                        <div className="flex items-center gap-4">
-                            <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wider">
-                                {headerInfo.title}
-                            </h2>
-                            <div className="h-4 w-px bg-slate-200"></div>
-                            <p className="text-xs text-slate-400">{headerInfo.subtitle}</p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            {headerInfo.rightContent}
-                        </div>
-                    </div>
-
-                    {/* Scrollable Content */}
-                    <div className="flex-1 overflow-y-auto px-[18px] py-4">
-                        <div className="w-full mx-auto space-y-4">
-                            {renderContent()}
-                        </div>
-                    </div>
-
-                    {/* Secondary Fixed Footer - Showcase Prompt Score and Details */}
-                    {generatedPrompt && selectedMenu === 'output' && (
-                        <div className="shrink-0 bg-white border-t border-slate-200 px-4 py-2">
-                            {qualityScore ? (
-                                <QualityScore
-                                    score={qualityScore}
-                                    onImprove={improvePrompt}
-                                    isImproving={isImproving}
-                                />
-                            ) : (
-                                <div className="flex items-center justify-between p-2">
-                                    <div className="flex items-center gap-2 text-slate-500">
-                                        <div className="w-12 h-12 bg-slate-100 rounded-2xl animate-pulse"></div>
-                                        <div>
-                                            <p className="font-bold text-sm">Analysis Pending...</p>
-                                            <p className="text-xs">Generating quality metrics</p>
-                                        </div>
-                                    </div>
-                                    <Button
-                                        onClick={() => analyzeQuality()}
-                                        variant="outline"
-                                        size="sm"
-                                        isLoading={isAnalyzing}
-                                    >
-                                        Retry Analysis
-                                    </Button>
+                <div className="flex-1 overflow-y-auto w-full h-full bg-slate-50/50">
+                    <div className="max-w-full mx-auto p-8 md:p-12 w-full">
+                        {/* Header */}
+                        <div className="mb-8 border-b border-slate-200 pb-6 flex items-center justify-between">
+                            <div>
+                                <h1 className="text-3xl font-bold text-slate-900 mb-2">{PROMPT_LAB_TUTORIAL_MODULES[activeStep].title}</h1>
+                                <div className="flex items-center gap-2 text-sm text-slate-500">
+                                    <span>Module {activeStep + 1} of {PROMPT_LAB_TUTORIAL_MODULES.length}</span>
                                 </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    disabled={activeStep === 0}
+                                    onClick={() => setActiveStep(prev => prev - 1)}
+                                    className="p-2 rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                >
+                                    <ChevronRight size={20} className="rotate-180" />
+                                </button>
+                                <button
+                                    disabled={activeStep === PROMPT_LAB_TUTORIAL_MODULES.length - 1}
+                                    onClick={() => setActiveStep(prev => prev + 1)}
+                                    className="p-2 rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                >
+                                    <ChevronRight size={20} />
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Content Body */}
+                        <div className="min-h-[400px]">
+                            {PROMPT_LAB_TUTORIAL_MODULES[activeStep].content}
+                        </div>
+
+                        {/* Footer Navigation */}
+                        <div className="mt-12 pt-8 border-t border-slate-200 flex justify-between">
+                            {activeStep > 0 && (
+                                <Button variant="ghost" onClick={() => setActiveStep(prev => prev - 1)}>
+                                    Previous Module
+                                </Button>
+                            )}
+                            {activeStep < PROMPT_LAB_TUTORIAL_MODULES.length - 1 ? (
+                                <Button
+                                    className="bg-emerald-600 hover:bg-emerald-700 text-white ml-auto"
+                                    onClick={() => setActiveStep(prev => prev + 1)}
+                                    rightIcon={<ArrowRight size={16} />}
+                                >
+                                    Next: {PROMPT_LAB_TUTORIAL_MODULES[activeStep + 1].title}
+                                </Button>
+                            ) : (
+                                <Button
+                                    className="bg-indigo-500 hover:bg-indigo-600 text-white ml-auto"
+                                    onClick={() => setActiveTab('builder')}
+                                    rightIcon={<FlaskConical size={16} />}
+                                >
+                                    Start Building
+                                </Button>
                             )}
                         </div>
-                    )}
+                    </div>
                 </div>
             </div>
+        );
+    };
 
-            <TemplateSelector isOpen={isTemplateDrawerOpen} onClose={() => setIsTemplateDrawerOpen(false)} />
 
+    return (
+        <PageTemplate
+            title="Prompt Lab"
+            subtitle="Design, Build, & Generate"
+            icon={FlaskConical}
+            iconGradient="from-indigo-500 to-violet-600"
+            shadowColor="shadow-indigo-500/20"
+            rightContent={HeaderButtons}
+            isSidebarOpen={isSidebarOpen}
+            className="flex flex-col !p-0 bg-slate-50/50"
+            headerClassName="!px-4 bg-slate-50 z-50"
+            iconSize={20}
+            titleClassName="text-lg"
+            subtitleClassName="text-xs"
+        >
+            {activeTab === 'builder' ? (
+                <div className="flex h-[calc(100vh-180px)] w-full overflow-hidden">
+                    {/* --- MAIN BUILDER --- */}
+                    <div className="w-full h-full flex flex-col relative">
+
+
+
+                        {/* Content Grid */}
+                        <div className="flex-1 overflow-hidden px-[2px] pb-1 pt-6">
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-[2px] h-full max-w-[1920px] mx-auto">
+
+                                {/* --- LEFT: CORE IDEA & CONTEXT --- */}
+                                <div className="h-full flex flex-col overflow-hidden pb-20 group/left relative">
+                                    <div className="flex flex-col h-full space-y-4">
+                                        {/* Configuration Grid */}
+                                        <section className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm mb-4">
+                                            <div className="flex items-center justify-between mb-3 px-1">
+                                                <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2 uppercase tracking-wide opacity-90">
+                                                    <div className="p-1 rounded-md bg-indigo-100 text-indigo-600">
+                                                        <Settings2 size={14} />
+                                                    </div>
+                                                    Configuration
+                                                </h3>
+                                            </div>
+
+                                            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                                                {/* 1. Model Selector */}
+                                                <LLMSelector
+                                                    onOpenSettings={() => toast('Settings placeholder')}
+                                                    className="w-full"
+                                                />
+
+                                                {/* 2. Persona Selector */}
+                                                <PersonaSelector
+                                                    activePersonaId={activePersonaId}
+                                                    setActivePersonaId={setActivePersonaId}
+                                                    className="w-full"
+                                                />
+
+                                                {/* 3. Framework Selector (Trigger) */}
+                                                <div className="relative">
+                                                    <label className="flex items-center gap-1.5 text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5 ml-1">
+                                                        <BookOpen size={14} /> Framework
+                                                    </label>
+                                                    <div
+                                                        onClick={() => { setSelectedConfigurationTab('framework'); setIsConfigurationModalVisible(true); }}
+                                                        className="w-full flex items-center justify-between gap-3 px-4 py-3 bg-white hover:bg-slate-50 rounded-xl border border-slate-200 hover:border-indigo-300 transition-all cursor-pointer group shadow-sm"
+                                                    >
+                                                        <div className="flex items-center gap-3 overflow-hidden">
+                                                            <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center border border-indigo-100 shrink-0 text-indigo-600">
+                                                                <BookOpen size={20} />
+                                                            </div>
+                                                            <div className="flex flex-col min-w-0">
+                                                                <span className="text-sm font-semibold text-slate-900 truncate">
+                                                                    {selectedFramework.name}
+                                                                </span>
+                                                                <span className="text-xs text-slate-500 truncate">
+                                                                    Click to change
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                        <ChevronDown size={18} className="text-slate-400 group-hover:text-indigo-500 transition-transform duration-200" />
+                                                    </div>
+                                                </div>
+
+                                                {/* 4. Tone Selector (Trigger) */}
+                                                <div className="relative">
+                                                    <label className="flex items-center gap-1.5 text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5 ml-1">
+                                                        <Palette size={14} /> Tone & Style
+                                                    </label>
+                                                    <div
+                                                        onClick={() => { setSelectedConfigurationTab('tone'); setIsConfigurationModalVisible(true); }}
+                                                        className="w-full flex items-center justify-between gap-3 px-4 py-3 bg-white hover:bg-slate-50 rounded-xl border border-slate-200 hover:border-pink-300 transition-all cursor-pointer group shadow-sm"
+                                                    >
+                                                        <div className="flex items-center gap-3 overflow-hidden">
+                                                            <div className="w-8 h-8 rounded-lg bg-pink-50 flex items-center justify-center border border-pink-100 shrink-0 text-pink-600">
+                                                                <Palette size={20} />
+                                                            </div>
+                                                            <div className="flex flex-col min-w-0">
+                                                                <span className="text-sm font-semibold text-slate-900 truncate">
+                                                                    {selectedTones.length > 0 ? `${selectedTones.length} Active` : 'Default'}
+                                                                </span>
+                                                                <span className="text-xs text-slate-500 truncate">
+                                                                    {selectedTones.length > 0 ? 'Click to edit' : 'Neutral tone'}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                        <ChevronDown size={18} className="text-slate-400 group-hover:text-pink-500 transition-transform duration-200" />
+                                                    </div>
+                                                </div>
+
+
+                                                {/* 5. Zero-Ambiguity Rules (Trigger) */}
+                                                <div className="relative">
+                                                    <label className="flex items-center gap-1.5 text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5 ml-1">
+                                                        <Brain size={14} /> Zero-Ambiguity
+                                                    </label>
+                                                    <div
+                                                        onClick={() => { setSelectedConfigurationTab('rules'); setIsConfigurationModalVisible(true); }}
+                                                        className="w-full flex items-center justify-between gap-3 px-4 py-3 bg-white hover:bg-slate-50 rounded-xl border border-slate-200 hover:border-emerald-300 transition-all cursor-pointer group shadow-sm"
+                                                    >
+                                                        <div className="flex items-center gap-3 overflow-hidden">
+                                                            <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center border border-emerald-100 shrink-0 text-emerald-600">
+                                                                <Brain size={20} />
+                                                            </div>
+                                                            <div className="flex flex-col min-w-0">
+                                                                <span className="text-sm font-semibold text-slate-900 truncate">
+                                                                    {negativeConstraints.length > 0 ? `${negativeConstraints.length} Rules` : 'Default'}
+                                                                </span>
+                                                                <span className="text-xs text-slate-500 truncate">
+                                                                    {negativeConstraints.length > 0 ? 'Click to edit' : 'Standard constraints'}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                        <ChevronDown size={18} className="text-slate-400 group-hover:text-emerald-500 transition-transform duration-200" />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </section>
+
+                                        {/* 1. Core Idea Hero Input */}
+                                        <section className="relative flex-1 min-h-0">
+                                            <SimpleIdea isOpen={true} onToggle={() => { }} isSidebarOpen={isSidebarOpen} className="h-full min-h-[400px]" />
+                                        </section>
+                                    </div>
+                                </div>
+
+                                {/* --- RIGHT: CONFIGURATION & FIELDS --- */}
+                                <div className="h-full overflow-hidden pb-20">
+                                    <div className="space-y-1 h-full">
+
+
+                                        {/* Detailed Fields */}
+                                        <section className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm h-full flex flex-col">
+                                            <div className="shrink-0 z-10 bg-white flex items-center justify-between mb-3 px-1 py-1 border-b border-slate-50">
+                                                <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2 uppercase tracking-wide opacity-90">
+                                                    <div className="p-1 rounded-md bg-purple-100 text-purple-600">
+                                                        <FileText size={14} />
+                                                    </div>
+                                                    {selectedFramework.name} Inputs
+                                                </h3>
+                                                <div className="flex items-center gap-3">
+                                                    <Button
+                                                        onClick={expandIdea}
+                                                        disabled={!simpleIdea.trim() || isExpanding}
+                                                        size="sm"
+                                                        variant="primary"
+                                                        className="h-8 text-xs font-semibold bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 shadow-md shadow-amber-500/20 rounded-full px-4"
+                                                        isLoading={isExpanding}
+                                                    >
+                                                        Auto-Expand
+                                                    </Button>
+                                                    <label className="flex items-center gap-2 cursor-pointer select-none group bg-purple-50/50 hover:bg-purple-100 px-3 py-1.5 rounded-full border border-purple-100/50 hover:border-purple-200 transition-all">
+                                                        <input type="checkbox" className="peer sr-only" checked={requestChainOfThought} onChange={toggleChainOfThought} />
+                                                        <div className="w-8 h-4 bg-slate-200 rounded-full peer peer-checked:bg-purple-600 relative transition-colors duration-300">
+                                                            <div className={`absolute left-1 top-1 w-2 h-2 bg-white rounded-full transition-all duration-300 shadow-sm ${requestChainOfThought ? 'translate-x-4' : ''}`}></div>
+                                                        </div>
+                                                        <span className="text-[10px] font-bold text-purple-700 uppercase tracking-wider">CoT Mode</span>
+                                                    </label>
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-4 flex-1 overflow-y-auto custom-scrollbar pr-1 pb-2">
+                                                {selectedFramework.fields.map((field: any, index: number) => (
+                                                    <div key={field.id} className="transform transition-all duration-500" style={{ animationDelay: `${index * 100} ms` }}>
+                                                        <InputField
+                                                            id={field.id}
+                                                            label={field.label}
+                                                            description={field.description}
+                                                            placeholder={field.placeholder}
+                                                            isReadOnly={activeFramework === 'costar' && field.id === 'tone'}
+                                                            compact={true}
+                                                            minRows={4}
+                                                        />
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </section>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Floating Action Dock */}
+                        <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-fit max-w-[95vw] px-4 z-50">
+                            <div className="bg-slate-900/90 backdrop-blur-xl border border-white/10 text-white p-2 rounded-2xl shadow-2xl flex items-center justify-between gap-4 ring-1 ring-white/20">
+
+                                {/* Stats */}
+                                {/* Stats & Context */}
+                                <div className="flex items-center gap-3 px-2">
+                                    <div className="grid grid-cols-2 gap-1.5 shrink-0">
+                                        {llmConfig && (
+                                            <Tooltip content={llmConfig.model} title="Active Model" position="top">
+                                                <div className="flex items-center gap-1.5 bg-blue-500/10 px-2 py-1 rounded border border-blue-500/20 text-blue-100 overflow-hidden cursor-pointer">
+                                                    <ProviderIcon providerId={llmConfig.providerId} size={10} className="text-blue-300 shrink-0" />
+                                                    <span className="capitalize font-bold text-[10px] truncate max-w-[80px] leading-none">{llmConfig.model}</span>
+                                                </div>
+                                            </Tooltip>
+                                        )}
+
+                                        <Tooltip content={activePersonaId.replace(/-/g, ' ')} title="Selected Persona" position="top">
+                                            <div className="flex items-center gap-1.5 bg-indigo-500/10 px-2 py-1 rounded border border-indigo-500/20 text-indigo-100 overflow-hidden cursor-pointer">
+                                                <User size={10} className="text-indigo-300 shrink-0" />
+                                                <span className="font-bold capitalize truncate max-w-[80px] text-[10px] leading-none">{activePersonaId.replace(/-/g, ' ')}</span>
+                                            </div>
+                                        </Tooltip>
+
+                                        <Tooltip content={activeFramework} title="Prompt Framework" position="top">
+                                            <div className="flex items-center gap-1.5 bg-purple-500/10 px-2 py-1 rounded border border-purple-500/20 text-purple-100 overflow-hidden cursor-pointer">
+                                                <Layout size={10} className="text-purple-300 shrink-0" />
+                                                <span className="font-bold uppercase truncate max-w-[80px] text-[10px] leading-none">{activeFramework}</span>
+                                            </div>
+                                        </Tooltip>
+
+                                        {selectedTones.length > 0 ? (
+                                            <Tooltip content={selectedTones} title="Tones Selected" position="top">
+                                                <div className="flex items-center gap-1.5 bg-pink-500/10 px-2 py-1 rounded border border-pink-500/20 text-pink-100 overflow-hidden cursor-pointer">
+                                                    <Palette size={10} className="text-pink-300 shrink-0" />
+                                                    <span className="font-bold text-[10px] leading-none">{selectedTones.length} Tones</span>
+                                                </div>
+                                            </Tooltip>
+                                        ) : (
+                                            <div className="flex items-center gap-1.5 bg-slate-800/50 px-2 py-1 rounded border border-white/5 text-slate-500">
+                                                <span className="text-[10px] font-bold leading-none">No Tones</span>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="w-px h-8 bg-white/10 shrink-0"></div>
+
+                                    <Tooltip
+                                        content={tokenUsageBreakdownDisplay}
+                                        title="Token Breakdown"
+                                        position="top"
+                                    >
+                                        <div className="flex flex-col bg-slate-950/30 rounded-lg border border-white/10 overflow-hidden shrink-0 self-stretch justify-center min-w-[120px]">
+                                            <div className="bg-white/5 px-2 py-0.5 text-[8px] font-bold text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
+                                                Token Count
+                                            </div>
+                                            <div className="flex divide-x divide-white/10">
+                                                <div className="px-2 py-0.5 flex items-center justify-center gap-1.5 flex-1">
+                                                    <span className="text-[8px] text-slate-500 uppercase font-bold">In</span>
+                                                    <span className="text-[10px] font-bold text-slate-300 tabular-nums">{totalInputTokens}</span>
+                                                </div>
+                                                <div className="px-2 py-0.5 flex items-center justify-center gap-1.5 bg-indigo-500/10 flex-1">
+                                                    <span className="text-[8px] text-indigo-400 uppercase font-bold">Out</span>
+                                                    <span className="text-[10px] font-bold text-indigo-200 tabular-nums">{totalOutputTokens}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </Tooltip>
+                                </div>
+
+                                {/* Actions */}
+                                <div className="flex items-center gap-2">
+                                    <Button
+                                        onClick={() => setIsOutputModalVisible(true)}
+                                        className="h-9 px-4 bg-white/8 hover:bg-white/10 text-slate-200 hover:text-white border border-white/10 hover:border-white/20 rounded-xl transition-all shadow-sm font-medium"
+                                    >
+                                        View Output
+                                    </Button>
+                                    <div className="w-px h-4 bg-slate-700 mx-1"></div>
+                                    <Button
+                                        onClick={() => {
+                                            if (!areAllRequiredFieldsFilled) {
+                                                toast.error("Please describe your idea and fill in required fields.");
+                                                return;
+                                            }
+                                            setIsComplexitySelectionVisible(true);
+                                        }}
+                                        disabled={isGenerating}
+                                        isLoading={isGenerating}
+                                        className="h-10 px-6 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 hover:from-indigo-400 hover:to-pink-400 text-white font-semibold rounded-xl shadow-lg shadow-purple-500/25 border-none"
+                                    >
+                                        {isGenerating ? 'Building...' : generatedPrompt ? (
+                                            <span className="flex items-center gap-2">
+                                                <RotateCcw size={16} /> Regenerate
+                                            </span>
+                                        ) : 'Generate'}
+                                    </Button>
+                                </div>
+                            </div>
+                        </div>
+
+
+                    </div >
+                </div >
+            ) : (
+                <InteractiveTutorial />
+            )}
+
+            <TemplateSelector isOpen={isTemplateDrawerVisible} onClose={() => setIsTemplateDrawerVisible(false)} />
             <SavePromptModal
-                isOpen={isSaveModalOpen}
-                onClose={() => setIsSaveModalOpen(false)}
-                onSave={handleSaveWithTitle}
+                isOpen={isSaveModalVisible}
+                onClose={() => setIsSaveModalVisible(false)}
+                onSave={savePromptWithTitle}
             />
-        </PageTemplate>
+
+            {/* Output Modal */}
+            {
+                isOutputModalVisible && createPortal(
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
+                        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[95vw] h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+                            {/* Header with Toolbar */}
+                            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-slate-50">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-1 h-4 bg-emerald-500 rounded-full"></div>
+                                    <h2 className="text-lg font-bold text-slate-800">Generated Output</h2>
+                                </div>
+                                <div className="flex items-center gap-4">
+                                    {generatedPrompt && (
+                                        <ResultToolbar
+                                            onExport={exportPromptToFile}
+                                            onSave={currentPromptId ? updateExistingPrompt : saveNewPrompt}
+                                            onSaveAs={currentPromptId ? saveNewPrompt : undefined}
+                                            contentToCopy={generatedPrompt}
+                                            className="shadow-none border-none bg-transparent"
+                                        />
+                                    )}
+                                    <button
+                                        onClick={() => setIsOutputModalVisible(false)}
+                                        className="p-2 hover:bg-slate-200 rounded-full text-slate-500 transition-colors"
+                                    >
+                                        <X size={24} />
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="flex-1 overflow-hidden p-3 bg-slate-50/50 flex flex-col gap-3">
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 flex-1 min-h-0">
+                                    {/* Left: Stitched Prompt Preview (Inputs) */}
+                                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden ring-4 ring-slate-50 flex flex-col h-full">
+                                        <div className="p-3 border-b border-slate-100 bg-slate-50/50 flex items-center gap-2">
+                                            <Layers size={16} className="text-slate-500" />
+                                            <h3 className="font-semibold text-slate-700 text-sm">Stitched Prompt Context</h3>
+                                        </div>
+                                        <div className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-3">
+                                            <div className="space-y-1">
+                                                <label className="text-xs font-bold text-blue-900 bg-blue-100 px-2.5 py-1 rounded-md inline-block uppercase tracking-wide">Core Idea</label>
+                                                <div className="p-2 bg-slate-50 rounded-lg text-sm text-slate-700 leading-relaxed border border-slate-100">
+                                                    {simpleIdea || <em className="text-slate-400">No core idea provided.</em>}
+                                                </div>
+                                            </div>
+                                            {selectedFramework.fields.map((field: any) => (
+                                                <div key={field.id} className="space-y-1">
+                                                    <label className="text-xs font-bold text-blue-900 bg-blue-100 px-2.5 py-1 rounded-md inline-block uppercase tracking-wide">{field.label}</label>
+                                                    <div className="p-2 bg-slate-50 rounded-lg text-sm text-slate-700 leading-relaxed border border-slate-100">
+                                                        {fields[field.id] || <em className="text-slate-400">Empty</em>}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* Right: Generated Output (PromptOutput) */}
+                                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden ring-4 ring-slate-50 flex flex-col h-full">
+                                        <div className="flex-1 overflow-y-auto custom-scrollbar">
+                                            <PromptOutput hideHeader={true} />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Score at Bottom */}
+                                {qualityScore && (
+                                    <div className="shrink-0 animate-in slide-in-from-bottom-4 fade-in duration-500">
+                                        <QualityScore
+                                            score={qualityScore}
+                                            onImprove={improvePrompt}
+                                            isImproving={isImproving}
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>,
+                    document.body
+                )
+            }
+
+            {/* Complexity Modal */}
+            {
+                isComplexitySelectionVisible && createPortal(
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
+                        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+                            <div className="p-6 border-b border-slate-100 bg-slate-50/50">
+                                <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                                    <SlidersHorizontal size={20} className="text-indigo-600" />
+                                    Select Complexity
+                                </h3>
+                                <p className="text-sm text-slate-500 mt-1">
+                                    Choose how detailed the generated prompt should be.
+                                </p>
+                            </div>
+
+                            <div className="p-6 space-y-3">
+                                {[
+                                    { id: 'low', label: 'Basic', icon: Zap, desc: 'Simple, direct structure. Low token usage.', color: 'blue' },
+                                    { id: 'medium', label: 'Advanced', icon: SlidersHorizontal, desc: 'Balanced detail and context.', color: 'indigo' },
+                                    { id: 'high', label: 'Expert', icon: Brain, desc: 'Maximum detail, CoT, and extensive constraints.', color: 'purple' }
+                                ].map((opt) => (
+                                    <button
+                                        key={opt.id}
+                                        onClick={() => setComplexity(opt.id as any)}
+                                        className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all text-left group ${complexity === opt.id
+                                            ? `border-${opt.color}-500 bg-${opt.color}-50 ring-1 ring-${opt.color}-500`
+                                            : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                                            }`}
+                                    >
+                                        <div className={`p-3 rounded-lg ${complexity === opt.id ? `bg-${opt.color}-100 text-${opt.color}-600` : 'bg-slate-100 text-slate-500 group-hover:bg-slate-200'}`}>
+                                            <opt.icon size={24} />
+                                        </div>
+                                        <div>
+                                            <div className={`font-bold ${complexity === opt.id ? `text-${opt.color}-900` : 'text-slate-700'}`}>{opt.label}</div>
+                                            <div className="text-xs text-slate-500">{opt.desc}</div>
+                                        </div>
+                                        {complexity === opt.id && (
+                                            <div className={`ml-auto text-${opt.color}-600`}>
+                                                <Check size={20} />
+                                            </div>
+                                        )}
+                                    </button>
+                                ))}
+                            </div>
+
+                            <div className="p-4 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-3">
+                                <Button variant="ghost" onClick={() => setIsComplexitySelectionVisible(false)}>Cancel</Button>
+                                <Button
+                                    onClick={() => {
+                                        setIsComplexitySelectionVisible(false);
+                                        generatePrompt();
+                                        setIsOutputModalVisible(true);
+                                    }}
+                                    className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white"
+                                    leftIcon={<RotateCcw size={16} />}
+                                >
+                                    Generate Prompt
+                                </Button>
+                            </div>
+                        </div>
+                    </div>,
+                    document.body
+                )
+            }
+
+            {/* Configuration Modal */}
+            {
+                isConfigurationModalVisible && createPortal(
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
+                        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[95vw] h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+                            {/* Header */}
+                            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50">
+                                <h2 className="text-xl font-bold text-slate-800 flex items-center gap-3">
+                                    <div className="p-2 bg-indigo-100 rounded-lg">
+                                        <Settings2 className="text-indigo-600" size={20} />
+                                    </div>
+                                    Prompt Configuration
+                                </h2>
+                                <button
+                                    onClick={() => setIsConfigurationModalVisible(false)}
+                                    className="p-2 hover:bg-red-50 hover:text-red-500 rounded-full text-slate-400 transition-colors"
+                                >
+                                    <X size={24} />
+                                </button>
+                            </div>
+
+                            <div className="flex border-b border-slate-100 bg-slate-50/50 px-6 pt-2">
+                                <button
+                                    onClick={() => setSelectedConfigurationTab('framework')}
+                                    className={clsx(
+                                        "flex-1 justify-center px-4 py-3 text-sm font-bold border-b-2 transition-all flex items-center gap-2",
+                                        selectedConfigurationTab === 'framework'
+                                            ? "border-indigo-500 text-indigo-700 bg-white rounded-t-lg"
+                                            : "border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100/50 rounded-t-lg"
+                                    )}
+                                >
+                                    <BookOpen size={16} /> Framework
+                                </button>
+                                <button
+                                    onClick={() => setSelectedConfigurationTab('tone')}
+                                    className={clsx(
+                                        "flex-1 justify-center px-4 py-3 text-sm font-bold border-b-2 transition-all flex items-center gap-2",
+                                        selectedConfigurationTab === 'tone'
+                                            ? "border-pink-500 text-pink-700 bg-white rounded-t-lg"
+                                            : "border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100/50 rounded-t-lg"
+                                    )}
+                                >
+                                    <Palette size={16} /> Tone & Style
+                                </button>
+                                <button
+                                    onClick={() => setSelectedConfigurationTab('rules')}
+                                    className={clsx(
+                                        "flex-1 justify-center px-4 py-3 text-sm font-bold border-b-2 transition-all flex items-center gap-2",
+                                        selectedConfigurationTab === 'rules'
+                                            ? "border-emerald-500 text-emerald-700 bg-white rounded-t-lg"
+                                            : "border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100/50 rounded-t-lg"
+                                    )}
+                                >
+                                    <Brain size={16} /> Rules
+                                </button>
+                            </div>
+
+                            {/* Content */}
+                            <div className="flex-1 overflow-y-auto bg-slate-50/30 p-6 custom-scrollbar">
+                                {selectedConfigurationTab === 'framework' && (
+                                    <div className="w-full">
+                                        <div className="mb-4 p-4 bg-blue-50 border border-blue-100 rounded-xl text-blue-800 text-sm">
+                                            <p className="font-bold mb-1">Select a Framework</p>
+                                            <p className="opacity-80">Choose the structural model for your prompt. This defines the input fields and overall logic.</p>
+                                        </div>
+                                        <FrameworkSelector isOpen={true} onToggle={() => { }} />
+                                    </div>
+                                )}
+                                {selectedConfigurationTab === 'tone' && (
+                                    <div className="w-full">
+                                        <div className="mb-4 p-4 bg-pink-50 border border-pink-100 rounded-xl text-pink-800 text-sm">
+                                            <p className="font-bold mb-1">Set the Tone</p>
+                                            <p className="opacity-80">Define the personality and communication style of your AI assistant.</p>
+                                        </div>
+                                        <ToneSelector isOpen={true} onToggle={() => { }} />
+                                    </div>
+                                )}
+                                {selectedConfigurationTab === 'rules' && (
+                                    <div className="w-full">
+                                        <div className="mb-4 p-4 bg-emerald-50 border border-emerald-100 rounded-xl text-emerald-800 text-sm">
+                                            <p className="font-bold mb-1">Zero-Ambiguity Constraints</p>
+                                            <p className="opacity-80">Define strictly what the AI must NOT do. This reduces hallucinations and enforces precision.</p>
+                                        </div>
+
+                                        <div className="space-y-4">
+                                            {/* Input */}
+                                            <div className="flex gap-2">
+                                                <input
+                                                    type="text"
+                                                    placeholder="E.g., Do not use markdown headers"
+                                                    className="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter') {
+                                                            const val = e.currentTarget.value;
+                                                            if (val.trim()) {
+                                                                addNegativeConstraint(val.trim());
+                                                                e.currentTarget.value = '';
+                                                            }
+                                                        }
+                                                    }}
+                                                />
+                                                <Button onClick={(e) => {
+                                                    const input = e.currentTarget.previousElementSibling as HTMLInputElement;
+                                                    if (input.value.trim()) {
+                                                        addNegativeConstraint(input.value.trim());
+                                                        input.value = '';
+                                                    }
+                                                }}>
+                                                    Add
+                                                </Button>
+                                            </div>
+
+                                            {/* List */}
+                                            <div className="space-y-2">
+                                                {negativeConstraints.map((constraint, index) => (
+                                                    <div key={index} className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-lg shadow-sm">
+                                                        <span className="text-slate-700 font-medium">{constraint}</span>
+                                                        <button
+                                                            onClick={() => removeNegativeConstraint(index)}
+                                                            className="text-slate-400 hover:text-red-500 p-1"
+                                                        >
+                                                            <X size={16} />
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                                {negativeConstraints.length === 0 && (
+                                                    <div className="text-center py-8 text-slate-400 italic">
+                                                        No constraints added yet.
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Suggestions */}
+                                            <div className="pt-4 border-t border-slate-100">
+                                                <p className="text-xs font-bold text-slate-500 uppercase mb-2">Suggestions</p>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {[
+                                                        "Do not use robotic transitions like 'In conclusion'",
+                                                        "Do not start sentences with 'Additionally'",
+                                                        "Do not use markdown headers",
+                                                        "No yapping",
+                                                        "Do not apologize",
+                                                        "Do not mention you are an AI",
+                                                        "Start directly with the answer"
+                                                    ].map(s => (
+                                                        <button
+                                                            key={s}
+                                                            onClick={() => addNegativeConstraint(s)}
+                                                            className="text-xs px-2 py-1 bg-slate-100 hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 rounded-md border border-slate-200 transition-colors"
+                                                        >
+                                                            + {s}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Footer */}
+                            <div className="p-4 border-t border-slate-200 bg-white flex justify-end gap-3">
+                                <Button onClick={() => setIsConfigurationModalVisible(false)} variant="outline">
+                                    Close
+                                </Button>
+                                <Button onClick={() => setIsConfigurationModalVisible(false)} leftIcon={<Check size={16} />}>
+                                    Done
+                                </Button>
+                            </div>
+                        </div>
+                    </div>,
+                    document.body
+                )
+            }
+        </PageTemplate >
     );
 };

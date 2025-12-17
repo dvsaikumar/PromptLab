@@ -9,13 +9,13 @@ import { Footer } from '@/components/layout/Footer';
 import { SettingsModal } from '@/components/settings/SettingsModal';
 import { MyHub } from '@/pages/MyHub';
 import { PromptLab } from '@/pages/PromptLab';
-import { PromptLaboratory } from '@/pages/PromptLabNew';
+
 import { ToneShifter } from '@/pages/ToneShifter';
 import { SavedPromptsLibrary } from '@/pages/SavedPrompts';
 import { TemplatePage } from '@/pages/TemplatePage';
 import { ChainReactionPage } from '@/pages/ChainReactionPage';
 import { ReversePrompt } from '@/pages/ReversePromptPage';
-import { NewTechPage } from '@/pages/NewTechPage';
+import { PromptCompiler } from '@/pages/PromptCompiler';
 import { promptDB } from '@/services/database';
 
 const AppContent: React.FC = () => {
@@ -48,9 +48,7 @@ const AppContent: React.FC = () => {
         setActiveSection(prev => prev === section ? null : section);
     };
 
-    const handleNavigation = (page: string) => {
-        setActivePage(page);
-    };
+
 
     const handleNavigateWithSection = (page: string, section?: string) => {
         setActivePage(page);
@@ -65,8 +63,7 @@ const AppContent: React.FC = () => {
                 return <MyHub isSidebarOpen={isSidebarOpen} />;
             case 'prompt-lab':
                 return <PromptLab activeSection={activeSection} toggleSection={toggleSection} isSidebarOpen={isSidebarOpen} />;
-            case 'prompt-lab-2':
-                return <PromptLaboratory isSidebarOpen={isSidebarOpen} />;
+
             case 'reverse-prompt':
                 return <ReversePrompt isSidebarOpen={isSidebarOpen} />;
             case 'chain-reaction':
@@ -78,7 +75,7 @@ const AppContent: React.FC = () => {
             case 'template':
                 return <TemplatePage isSidebarOpen={isSidebarOpen} />;
             case 'new-tech':
-                return <NewTechPage isSidebarOpen={isSidebarOpen} />;
+                return <PromptCompiler isSidebarOpen={isSidebarOpen} />;
             default:
                 return <MyHub isSidebarOpen={isSidebarOpen} />;
         }
@@ -95,7 +92,7 @@ const AppContent: React.FC = () => {
                 onClose={() => setIsSidebarOpen(false)}
                 onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
                 activeSection={activePage}
-                onNavigate={handleNavigation}
+                onNavigate={handleNavigateWithSection}
                 onOpenSettings={() => setIsSettingsOpen(true)}
             />
 

@@ -5,10 +5,11 @@ interface TooltipProps {
     content: React.ReactNode | string | string[] | { label: string; value: string | number; bold?: boolean; separator?: boolean }[];
     children: React.ReactNode;
     title?: string;
+    align?: 'start' | 'center' | 'end';
     position?: 'top' | 'bottom' | 'left' | 'right';
 }
 
-export const Tooltip: React.FC<TooltipProps> = ({ content, children, title, position = 'top' }) => {
+export const Tooltip: React.FC<TooltipProps> = ({ content, children, title, position = 'top', align = 'center' }) => {
     const [isVisible, setIsVisible] = useState(false);
     const triggerRef = useRef<HTMLDivElement>(null);
     const [coords, setCoords] = useState({ top: 0, left: 0 });
@@ -23,18 +24,18 @@ export const Tooltip: React.FC<TooltipProps> = ({ content, children, title, posi
             switch (position) {
                 case 'top':
                     top = rect.top - offset;
-                    left = rect.left + (rect.width / 2);
+                    left = align === 'center' ? rect.left + (rect.width / 2) : align === 'start' ? rect.left : rect.right;
                     break;
                 case 'bottom':
                     top = rect.bottom + offset;
-                    left = rect.left + (rect.width / 2);
+                    left = align === 'center' ? rect.left + (rect.width / 2) : align === 'start' ? rect.left : rect.right;
                     break;
                 case 'left':
-                    top = rect.top + (rect.height / 2);
+                    top = align === 'center' ? rect.top + (rect.height / 2) : align === 'start' ? rect.top : rect.bottom;
                     left = rect.left - offset;
                     break;
                 case 'right':
-                    top = rect.top + (rect.height / 2);
+                    top = align === 'center' ? rect.top + (rect.height / 2) : align === 'start' ? rect.top : rect.bottom;
                     left = rect.right + offset;
                     break;
             }
@@ -55,15 +56,15 @@ export const Tooltip: React.FC<TooltipProps> = ({ content, children, title, posi
             </div>
             {isVisible && createPortal(
                 <div
-                    className="fixed z-[9999] px-3 py-2 text-xs font-bold text-slate-800 bg-white rounded-lg shadow-xl border border-slate-100 opacity-100 min-w-max animate-in fade-in zoom-in-95 duration-75 pointer-events-none"
+                    className="fixed z-[9999] px-3 py-2 text-xs font-bold text-slate-800 bg-white rounded-lg shadow-xl border border-slate-100 opacity-100 w-max max-w-[200px] md:max-w-xs whitespace-normal animate-in fade-in zoom-in-95 duration-75 pointer-events-none"
                     style={{
                         top: coords.top,
                         left: coords.left,
                         transform:
-                            position === 'top' ? 'translate(-50%, -100%)' :
-                                position === 'bottom' ? 'translate(-50%, 0)' :
-                                    position === 'left' ? 'translate(-100%, -50%)' :
-                                        'translate(0, -50%)' // right
+                            position === 'top' ? `translate(${align === 'center' ? '-50%' : align === 'end' ? '-100%' : '0'}, -100%)` :
+                                position === 'bottom' ? `translate(${align === 'center' ? '-50%' : align === 'end' ? '-100%' : '0'}, 0)` :
+                                    position === 'left' ? `translate(-100%, ${align === 'center' ? '-50%' : align === 'end' ? '-100%' : '0'})` :
+                                        `translate(0, ${align === 'center' ? '-50%' : align === 'end' ? '-100%' : '0'})` // right
                     }}
                 >
                     {title && (

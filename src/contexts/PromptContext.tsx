@@ -34,6 +34,7 @@ interface PromptContextType {
     totalInputTokens: number;
     totalOutputTokens: number;
     activePersonaId: string;
+    negativeConstraints: string[];
 
     // Actions
     setField: (fieldId: string, value: string) => void;
@@ -56,6 +57,8 @@ interface PromptContextType {
     clearIndustry: () => void;
     clearRole: () => void;
     setActivePersonaId: (id: string) => void;
+    addNegativeConstraint: (constraint: string) => void;
+    removeNegativeConstraint: (index: number) => void;
 
     // LLM Operations
     expandIdea: () => Promise<void>;
@@ -90,6 +93,7 @@ export const PromptProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const [totalInputTokens, setTotalInputTokens] = useState(0);
     const [totalOutputTokens, setTotalOutputTokens] = useState(0);
     const [autoFillTokens, setAutoFillTokens] = useState(0);
+    const [negativeConstraints, setNegativeConstraints] = useState<string[]>([]);
 
     // Loading States
     const [isGenerating, setIsGenerating] = useState(false);
@@ -268,6 +272,7 @@ export const PromptProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         setTotalInputTokens(0);
         setTotalOutputTokens(0);
         setAutoFillTokens(0);
+        setNegativeConstraints([]);
     };
 
     const selectIndustry = (template: Template) => {
@@ -294,6 +299,14 @@ export const PromptProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const clearRole = () => {
         setActiveRole(null);
         toast('Role cleared');
+    };
+
+    const addNegativeConstraint = (constraint: string) => {
+        setNegativeConstraints(prev => [...prev, constraint]);
+    };
+
+    const removeNegativeConstraint = (index: number) => {
+        setNegativeConstraints(prev => prev.filter((_, i) => i !== index));
     };
 
     // --- LLM Operations ---
@@ -488,8 +501,21 @@ The output must be a single, cohesive System Prompt using the ${framework.name} 
 ***CORE PRINCIPLES***
 1. **Authoritative Identity**: The prompt must explicitly define the AI's role, mission, and authority.
 2. **Modular Structure**: Use Markdown headers (e.g., # Identity, ## Rules, ## Workflow) to organize instructions.
-3. **Negative Constraints**: Explicitly state what the AI must NOT do.
+    3. **Negative Constraints**: Explicitly state what the AI must NOT do.
+    ${negativeConstraints.length > 0 ? negativeConstraints.map(c => `- ${c}`).join('\n    ') : ''}
 4. **Examples as Truth**: Treat examples as canonical references.
+
+***GOLDEN RULES OF PROMPTING (MUST FOLLOW)***
+1. **Tone**: Use a friendly, clear, and firm tone for better results.
+2. **Action-Oriented**: State requests as clear commands with necessary details.
+3. **Use Templates**: "Fill-in-the-box" structures produce more creative results than empty fields.
+4. **Plan First**: For complex tasks, generate an outline or rough version first.
+5. **Structured Output**: Demand specific formats (JSON, Markdown, Lists) beyond simple prose.
+6. **Explain Why**: Provide the "why" behind instructions to clarify intent.
+7. **Control Verbosity**: Explicitly define if the output should be verbose or concise.
+8. **Guide with Examples**: Provide templates or examples to guide structure and style.
+9. **Advanced Terminology**: Use precise prompting terms to trigger sophisticated behaviors.
+10. **Modular Synthesis**: For complex contexts, handle parts separately and then synthesize.
 
 **TONE & STYLE**
 Tone target: ${toneLabels || 'Professional, Precise, and Direct'}.`;
@@ -798,6 +824,11 @@ Tone target: ${toneLabels || 'Professional, Precise, and Direct'}.`;
             setActiveFramework(savedPrompt.framework);
             setFields(JSON.parse(savedPrompt.fields));
             setSelectedTones(JSON.parse(savedPrompt.tones));
+            if (savedPrompt.constraints) {
+                try {
+                    setNegativeConstraints(JSON.parse(savedPrompt.constraints));
+                } catch (e) { }
+            }
             setSimpleIdea(savedPrompt.simpleIdea || '');
             if (savedPrompt.industry) setActiveIndustry(savedPrompt.industry);
             if (savedPrompt.role) setActiveRole(savedPrompt.role);
@@ -852,7 +883,8 @@ Tone target: ${toneLabels || 'Professional, Precise, and Direct'}.`;
             selectIndustry, selectRole, clearIndustry, clearRole,
             expandIdea, generatePrompt, assemblePrompt, analyzeQuality, improvePrompt, loadPrompt,
             generateSuggestions, autoFillOutputStopping, totalInputTokens, totalOutputTokens,
-            activePersonaId, setActivePersonaId
+            activePersonaId, setActivePersonaId,
+            negativeConstraints, addNegativeConstraint, removeNegativeConstraint
         }}>
             {children}
         </PromptContext.Provider>

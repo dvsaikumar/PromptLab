@@ -11,6 +11,7 @@ import { PageTemplate } from '@/components/ui/PageTemplate';
 import { usePrompt } from '@/contexts/PromptContext';
 import { ResultToolbar } from '@/components/ui/ResultToolbar';
 import { TextStats } from '@/components/ui/TextStats';
+import { Tooltip } from '@/components/ui/Tooltip';
 
 interface SavedPromptsLibraryProps {
     isSidebarOpen?: boolean;
@@ -129,7 +130,7 @@ export const SavedPromptsLibrary: React.FC<SavedPromptsLibraryPropsExtended> = (
             const frameworkName = FRAMEWORKS.find(f => f.id === p.framework)?.name;
             const industryLabel = INDUSTRY_TEMPLATES.find(t => t.id === p.industry)?.label;
             const roleLabel = ROLE_PRESETS.find(t => t.id === p.role)?.label;
-            const sourceLabel = getSourceStyle(p.source).label;
+            const sourceLabel = getSourceStyle(p.source, p.framework).label;
 
             let toneKeywords = '';
             try {
@@ -251,8 +252,16 @@ export const SavedPromptsLibrary: React.FC<SavedPromptsLibraryPropsExtended> = (
         return FRAMEWORKS.find(f => f.id === frameworkId)?.name || frameworkId;
     };
 
-    const getSourceStyle = (source?: string) => {
-        switch (source) {
+    const getSourceStyle = (source?: string, framework?: string) => {
+        // Auto-deduce source if missing or generic 'lab' provided but framework is specific
+        let effectiveSource = source;
+        if (!effectiveSource || effectiveSource === 'lab') {
+            if (framework === 'dspy-compiler') effectiveSource = 'compiler';
+            else if (framework === 'Chain Reaction') effectiveSource = 'chain';
+            else if (framework === 'reverse-engineering') effectiveSource = 'reverse';
+        }
+
+        switch (effectiveSource) {
             case 'compiler':
                 return {
                     label: 'Prompt Compiler',
@@ -335,17 +344,24 @@ export const SavedPromptsLibrary: React.FC<SavedPromptsLibraryPropsExtended> = (
                         </div>
                     )}
                 </div>
-                <button
-                    onClick={() => {
-                        setIsSemantic(!isSemantic);
-                        setSavedPrompts(allPrompts);
-                        setSearchQuery('');
-                    }}
-                    className={`p-2 rounded-xl border transition-all ${isSemantic ? 'bg-purple-100 border-purple-200 text-purple-700' : 'bg-white border-slate-200 text-slate-400 hover:text-slate-600'}`}
-                    title="Toggle Semantic Search"
+                <Tooltip
+                    title="Concept Search"
+                    content="Finds prompts with similar meaning, even if they don't use the same words (Vector Search)."
+                    position="bottom"
+                    align="end"
                 >
-                    <Brain size={20} />
-                </button>
+                    <button
+                        onClick={() => {
+                            setIsSemantic(!isSemantic);
+                            setSavedPrompts(allPrompts);
+                            setSearchQuery('');
+                        }}
+                        className={`p-2 rounded-xl border transition-all shadow-sm ${isSemantic ? 'bg-gradient-to-br from-purple-500 to-indigo-600 border-transparent text-white shadow-purple-200 ring-2 ring-purple-200' : 'bg-white border-purple-100 text-purple-400 hover:text-purple-600 hover:bg-purple-50 hover:border-purple-200'}`}
+                        title="Toggle Semantic Search"
+                    >
+                        <Brain size={20} />
+                    </button>
+                </Tooltip>
             </div>
             <input type="file" ref={fileInputRef} className="hidden" accept=".json,.txt" onChange={handleImportFile} />
         </div>
@@ -362,8 +378,10 @@ export const SavedPromptsLibrary: React.FC<SavedPromptsLibraryPropsExtended> = (
                 rightContent={SearchBar}
                 isSidebarOpen={isSidebarOpen}
                 className="flex flex-col !p-0"
-                headerClassName="!px-6 !py-4"
-                iconSize={24}
+                headerClassName="!px-4 bg-slate-50 z-50"
+                iconSize={20}
+                titleClassName="text-lg"
+                subtitleClassName="text-xs"
             >
                 <div className="h-full overflow-y-auto bg-slate-50/50 p-6">
                     {savedPrompts.length === 0 ? (
@@ -377,9 +395,9 @@ export const SavedPromptsLibrary: React.FC<SavedPromptsLibraryPropsExtended> = (
                             </p>
                         </div>
                     ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                             {savedPrompts.map((savedPrompt) => {
-                                const style = getSourceStyle(savedPrompt.source);
+                                const style = getSourceStyle(savedPrompt.source, savedPrompt.framework);
                                 const SourceIcon = style.icon;
 
                                 return (
@@ -392,9 +410,9 @@ export const SavedPromptsLibrary: React.FC<SavedPromptsLibraryPropsExtended> = (
                                         {/* Colored Header Stripe */}
                                         <div className={`h-1.5 w-full ${style.bg.replace('bg-gradient-to-br', 'bg-gradient-to-r')}`} />
 
-                                        <div className="p-5 flex flex-col h-full">
+                                        <div className="p-4 flex flex-col h-full">
                                             {/* Header */}
-                                            <div className="flex items-start justify-between mb-4">
+                                            <div className="flex items-start justify-between mb-3">
                                                 <div className="flex items-center gap-2">
                                                     <div className={`p-1.5 rounded-lg ${style.bg} border-0`}>
                                                         <SourceIcon size={16} className={style.accent} />
@@ -425,15 +443,15 @@ export const SavedPromptsLibrary: React.FC<SavedPromptsLibraryPropsExtended> = (
                                             </div>
 
                                             {/* Title & Desc */}
-                                            <h3 className="font-bold text-slate-800 text-lg mb-2 line-clamp-1 group-hover:text-indigo-600 transition-colors">
+                                            <h3 className="font-bold text-slate-800 text-lg mb-1.5 line-clamp-1 group-hover:text-indigo-600 transition-colors">
                                                 {savedPrompt.title}
                                             </h3>
-                                            <p className="text-sm text-slate-500 line-clamp-3 mb-4 leading-relaxed flex-1">
+                                            <p className="text-sm text-slate-500 line-clamp-3 mb-3 leading-relaxed flex-1">
                                                 {savedPrompt.prompt}
                                             </p>
 
                                             {/* Footer Tags */}
-                                            <div className="flex flex-wrap items-center gap-2 mt-auto pt-4 border-t border-slate-50">
+                                            <div className="flex flex-wrap items-center gap-2 mt-auto pt-3 border-t border-slate-50">
                                                 <Badge variant="outline" className="text-[10px] text-slate-500 border-slate-200 bg-slate-50/50">
                                                     <BookOpen size={10} className="mr-1" />
                                                     {getFrameworkName(savedPrompt.framework)}
@@ -468,38 +486,43 @@ export const SavedPromptsLibrary: React.FC<SavedPromptsLibraryPropsExtended> = (
                         noPadding
                         onClick={(e) => e.stopPropagation()}
                     >
-                        {/* Dynamic Header based on Source */}
-                        <div className={`flex items-center justify-between p-6 border-b ${getSourceStyle(selectedPrompt.source).bg}`}>
-                            <div className="flex items-center gap-4">
-                                <div className={`p-3 rounded-xl bg-white shadow-sm border ${getSourceStyle(selectedPrompt.source).border}`}>
-                                    {React.createElement(getSourceStyle(selectedPrompt.source).icon, {
-                                        size: 24,
-                                        className: getSourceStyle(selectedPrompt.source).accent
-                                    })}
-                                </div>
-                                <div>
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <h3 className="text-xl font-bold text-slate-900">{selectedPrompt.title}</h3>
-                                        <Badge className={`text-[10px] font-bold ${getSourceStyle(selectedPrompt.source).badge}`}>
-                                            {getSourceStyle(selectedPrompt.source).label}
-                                        </Badge>
+                        {/* Dynamic Header based on Source */
+                            (() => {
+                                const style = getSourceStyle(selectedPrompt.source, selectedPrompt.framework);
+                                return (
+                                    <div className={`flex items-center justify-between p-6 border-b ${style.bg}`}>
+                                        <div className="flex items-center gap-4">
+                                            <div className={`p-3 rounded-xl bg-white shadow-sm border ${style.border}`}>
+                                                {React.createElement(style.icon, {
+                                                    size: 24,
+                                                    className: style.accent
+                                                })}
+                                            </div>
+                                            <div>
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <h3 className="text-xl font-bold text-slate-900">{selectedPrompt.title}</h3>
+                                                    <Badge className={`text-[10px] font-bold ${style.badge}`}>
+                                                        {style.label}
+                                                    </Badge>
+                                                </div>
+                                                <div className="flex items-center gap-3 text-sm text-slate-500">
+                                                    <span className="flex items-center gap-1"><Clock size={12} /> {formatDate(selectedPrompt.createdAt)}</span>
+                                                    <span>•</span>
+                                                    <span className="font-medium text-slate-700">{getFrameworkName(selectedPrompt.framework)}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <Button
+                                            size="icon"
+                                            variant="ghost"
+                                            onClick={() => setSelectedPrompt(null)}
+                                            className="text-slate-500 hover:bg-black/5 rounded-full"
+                                        >
+                                            <X size={20} />
+                                        </Button>
                                     </div>
-                                    <div className="flex items-center gap-3 text-sm text-slate-500">
-                                        <span className="flex items-center gap-1"><Clock size={12} /> {formatDate(selectedPrompt.createdAt)}</span>
-                                        <span>•</span>
-                                        <span className="font-medium text-slate-700">{getFrameworkName(selectedPrompt.framework)}</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={() => setSelectedPrompt(null)}
-                                className="text-slate-500 hover:bg-black/5 rounded-full"
-                            >
-                                <X size={20} />
-                            </Button>
-                        </div>
+                                );
+                            })()}
 
                         {/* Content */}
                         <div className="flex-1 flex overflow-hidden bg-slate-50">

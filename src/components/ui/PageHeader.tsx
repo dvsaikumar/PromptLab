@@ -31,7 +31,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
 }) => {
     return (
         <div className={clsx(
-            "fixed top-16 right-0 z-40 h-20 bg-slate-50 px-8 flex items-center transition-all duration-300",
+            "fixed top-16 right-0 z-40 h-16 bg-slate-50 px-4 md:px-8 flex items-center transition-all duration-300",
             isSidebarOpen ? "lg:left-64" : "lg:left-16",
             "left-0",
             className

@@ -74,12 +74,12 @@ export const PageTemplate: React.FC<PageTemplateProps> = ({
             />
 
             {/* Scrollable Content Area */}
-            {/* top-[144px] = Global Header (64px) + PageHeader (80px) */}
+            {/* top-32 = Global Header (64px) + PageHeader (64px) */}
             {/* bottom-16 = Footer (64px) */}
             <main
                 className={clsx(
-                    "fixed top-[144px] bottom-16 right-0 overflow-y-auto custom-scrollbar transition-all duration-300",
-                    "pl-4 pr-4 py-6",
+                    "fixed top-32 bottom-16 right-0 overflow-y-auto custom-scrollbar transition-all duration-300",
+                    "pl-4 pr-4 py-4",
                     isSidebarOpen ? "lg:left-64" : "lg:left-16",
                     "left-0",
                     className

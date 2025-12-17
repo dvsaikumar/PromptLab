@@ -1,21 +1,22 @@
 import React from 'react';
 import { Home, Palette, Settings as SettingsIcon, ChevronLeft, ChevronRight, FolderOpen, Microscope, FlaskConical, Workflow, Cpu } from 'lucide-react';
 import { clsx } from 'clsx';
+import { usePrompt } from '@/contexts/PromptContext';
 
 interface SidebarProps {
     isOpen: boolean;
     onClose: () => void;
     activeSection: string | null;
-    onNavigate: (section: string) => void;
+    onNavigate: (page: string, section?: string) => void;
     onOpenSettings: () => void;
     onToggle?: () => void;
 }
 
 
-const menuItems = [ // ... existing items ...
+const menuItems = [
     { id: 'my-hub', label: 'My Hub', icon: Home },
-    // { id: 'prompt-lab', label: 'Prompt Lab', icon: FlaskConical },
-    { id: 'prompt-lab-2', label: 'Prompt Lab', icon: FlaskConical },
+    { id: 'prompt-lab', label: 'Prompt Lab', icon: FlaskConical, section: 'builder' },
+
     { id: 'new-tech', label: 'Prompt Compiler', icon: Cpu },
     { id: 'reverse-prompt', label: 'Reverse Prompt', icon: Microscope },
     { id: 'chain-reaction', label: 'Chain Reaction', icon: Workflow },
@@ -24,8 +25,6 @@ const menuItems = [ // ... existing items ...
     { id: 'settings', label: 'Settings', icon: SettingsIcon },
 ];
 
-import { usePrompt } from '@/contexts/PromptContext';
-
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, activeSection, onNavigate, onOpenSettings, onToggle }) => {
     const { resetAll } = usePrompt();
 
@@ -33,15 +32,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, activeSection
     const iconContainerClass = "w-10 h-10 flex items-center justify-center flex-shrink-0";
     const iconSize = 22;
 
-    const handleItemClick = (itemId: string) => {
-        if (itemId === 'settings') {
+    const handleItemClick = (item: typeof menuItems[0]) => {
+        if (item.id === 'settings') {
             onOpenSettings();
         } else {
-            if (itemId === 'prompt-lab') {
+            if (item.id === 'prompt-lab') {
                 resetAll();
                 window.dispatchEvent(new Event('reset-prompt-lab'));
             }
-            onNavigate(itemId);
+            onNavigate(item.id, item.section);
         }
         if (window.innerWidth < 1024) onClose();
     };
@@ -70,7 +69,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, activeSection
                         return (
                             <button
                                 key={item.id}
-                                onClick={() => handleItemClick(item.id)}
+                                onClick={() => handleItemClick(item)}
                                 className={clsx(
                                     "w-full flex items-center gap-3 py-2 rounded-lg transition-all group",
                                     isOpen ? "px-3" : "justify-center",

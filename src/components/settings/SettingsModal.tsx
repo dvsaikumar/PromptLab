@@ -256,7 +256,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200">
                 {/* Header */}
-                <div className="relative px-8 py-6 border-b border-slate-200 bg-gradient-to-r from-indigo-50 to-purple-50 flex-shrink-0">
+                <div className="relative px-4 md:px-8 py-4 md:py-6 border-b border-slate-200 bg-gradient-to-r from-indigo-50 to-purple-50 flex-shrink-0">
                     <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-3">
                             <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center shadow-lg">
@@ -282,7 +282,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                 </div>
 
                 {/* Content */}
-                <div className="p-8 overflow-y-auto custom-scrollbar flex-1">
+                <div className="p-4 md:p-8 overflow-y-auto custom-scrollbar flex-1">
                     <div className="space-y-6">
                         {/* Provider Selection */}
                         <div className="space-y-4">
@@ -524,11 +524,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                 </div>
 
                 {/* Footer */}
-                <div className="px-8 py-6 bg-slate-50 border-t border-slate-200 flex justify-between items-center gap-4 flex-shrink-0">
+                <div className="px-4 md:px-8 py-4 md:py-6 bg-slate-50 border-t border-slate-200 flex flex-col md:flex-row justify-between items-center gap-4 flex-shrink-0">
                     <button
                         onClick={handleTest}
                         disabled={isTesting || (!apiKey && providerId !== 'local')}
-                        className={`flex items-center gap-3 px-6 py-3 border-2 rounded-xl text-base font-bold transition-all ${testStatus === 'success'
+                        className={`flex items-center justify-center gap-3 px-6 py-3 border-2 rounded-xl text-base font-bold transition-all w-full md:w-auto ${testStatus === 'success'
                             ? 'border-emerald-200 bg-emerald-50 text-emerald-700 shadow-lg shadow-emerald-500/20' :
                             testStatus === 'error'
                                 ? 'border-red-200 bg-red-50 text-red-700' :
@@ -547,7 +547,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                     <button
                         onClick={handleSave}
                         disabled={isTesting}
-                        className="flex items-center gap-3 px-6 py-3 bg-slate-600 text-white rounded-xl hover:bg-slate-700 transition-colors font-bold text-base shadow-md disabled:opacity-50"
+                        className="flex items-center justify-center gap-3 px-6 py-3 bg-slate-600 text-white rounded-xl hover:bg-slate-700 transition-colors font-bold text-base shadow-md disabled:opacity-50 w-full md:w-auto"
                     >
                         <Save size={20} />
                         Save Without Test

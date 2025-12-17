@@ -64,6 +64,7 @@
         "clsx": "^2.1.0",
         "cors": "^2.8.5",
         "express": "^5.2.1",
+        "framer-motion": "^12.23.26",
         "lucide-react": "^0.344.0",
         "mammoth": "^1.11.0",
         "pdfjs-dist": "^5.4.449",

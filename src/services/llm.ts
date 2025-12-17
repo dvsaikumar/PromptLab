@@ -94,7 +94,7 @@ export abstract class LLMProvider {
 
 class OpenAICompatibleProvider extends LLMProvider {
     async generateCompletion(payload: CompletionPayload): Promise<string> {
-        const { config, systemPrompt, userPrompt, temperature, images } = payload;
+        const { config, systemPrompt, userPrompt, temperature, images, maxTokens } = payload;
 
         if (!config.apiKey) throw new Error('API Key is missing. Please check your settings.');
 
@@ -150,7 +150,7 @@ class OpenAICompatibleProvider extends LLMProvider {
                     model: config.model,
                     messages,
                     temperature: temperature ?? 0.7,
-                    max_tokens: 4096,
+                    max_tokens: maxTokens ?? 4096,
                     stream: false
                 })
             });
@@ -210,7 +210,7 @@ class GeminiProvider extends LLMProvider {
     }
 
     async generateCompletion(payload: CompletionPayload): Promise<string> {
-        const { config, systemPrompt, userPrompt, temperature, images } = payload;
+        const { config, systemPrompt, userPrompt, temperature, images, maxTokens } = payload;
         if (!config.apiKey) throw new Error('API Key is missing');
 
         const cleanBase = this.getBaseUrl(config);
@@ -241,7 +241,7 @@ class GeminiProvider extends LLMProvider {
                     contents: [{ parts }],
                     generationConfig: {
                         temperature: temperature ?? 0.7,
-                        maxOutputTokens: 8192
+                        maxOutputTokens: maxTokens ?? 8192
                     }
                 })
             });
@@ -284,7 +284,7 @@ class AnthropicProvider extends LLMProvider {
     }
 
     async generateCompletion(payload: CompletionPayload): Promise<string> {
-        const { config, systemPrompt, userPrompt, temperature, images } = payload;
+        const { config, systemPrompt, userPrompt, temperature, images, maxTokens } = payload;
 
         if (!config.apiKey) throw new Error('API Key is missing. Please check your settings.');
 
@@ -323,7 +323,7 @@ class AnthropicProvider extends LLMProvider {
                     model: config.model,
                     system: systemPrompt,
                     messages,
-                    max_tokens: 4096,
+                    max_tokens: maxTokens ?? 4096,
                     temperature: temperature ?? 0.7
                 })
             });
@@ -393,7 +393,7 @@ export class QwenProvider extends OpenAICompatibleProvider {
 
 export class OpenRouterProvider extends OpenAICompatibleProvider {
     async generateCompletion(payload: CompletionPayload): Promise<string> {
-        const { config, systemPrompt, userPrompt, temperature, images } = payload;
+        const { config, systemPrompt, userPrompt, temperature, images, maxTokens } = payload;
 
         if (!config.apiKey) throw new Error('OpenRouter API Key is missing.');
 
@@ -443,7 +443,7 @@ export class OpenRouterProvider extends OpenAICompatibleProvider {
                     model: config.model,
                     messages,
                     temperature: temperature ?? 0.7,
-                    max_tokens: 4096,
+                    max_tokens: maxTokens ?? 4096,
                     stream: false
                 })
             });
@@ -481,7 +481,7 @@ export class OpenRouterProvider extends OpenAICompatibleProvider {
 export class LocalProvider extends OpenAICompatibleProvider {
     async generateCompletion(payload: CompletionPayload): Promise<string> {
         // Relax API key requirement for local LLMs
-        const { config, systemPrompt, userPrompt, temperature } = payload;
+        const { config, systemPrompt, userPrompt, temperature, maxTokens } = payload;
         const baseUrl = config.baseUrl || 'http://localhost:11434/v1';
         const cleanBase = this.cleanUrl(baseUrl);
 
@@ -504,7 +504,7 @@ export class LocalProvider extends OpenAICompatibleProvider {
                     model: config.model,
                     messages,
                     temperature: temperature ?? 0.7,
-                    max_tokens: 4096,
+                    max_tokens: maxTokens ?? 4096,
                     stream: false
                 })
             });

@@ -14,8 +14,10 @@ import { estimateTokens } from '@/utils/tokenEstimator';
 import { SavePromptModal } from '@/components/SavePromptModal';
 import toast from 'react-hot-toast';
 import { PromptConfigurationModule } from '@/services/promptConfiguration';
+import { useRealtimeAssist } from '@/hooks/useRealtimeAssist';
+import { RealtimeSuggestions } from '@/components/ui/RealtimeSuggestions';
 
-interface NewTechPageProps {
+interface PromptCompilerProps {
     isSidebarOpen?: boolean;
 }
 
@@ -184,7 +186,7 @@ interface TokenStats {
     };
 }
 
-export const NewTechPage: React.FC<NewTechPageProps> = ({ isSidebarOpen }) => {
+export const PromptCompiler: React.FC<PromptCompilerProps> = ({ isSidebarOpen = false }) => {
     const [activeTab, setActiveTab] = useState<'compiler' | 'tutorial'>('compiler');
 
     // Compiler State
@@ -195,7 +197,21 @@ export const NewTechPage: React.FC<NewTechPageProps> = ({ isSidebarOpen }) => {
     const [optimizationMetric, setOptimizationMetric] = useState<'accuracy' | 'creativity' | 'speed'>('accuracy');
     const [isOptimizeModalOpen, setIsOptimizeModalOpen] = useState(false);
 
+    // Realtime Assist
+    const {
+        suggestions: realtimeSuggestions,
+        isLoading: isRealtimeLoading,
+        clearSuggestions
+    } = useRealtimeAssist(rawPrompt, {
+        fieldLabel: 'Prompt Compiler Input',
+        context: 'User is writing a raw prompt to be compiled/optimized.',
+        minChars: 10
+    });
 
+    const handleApplyRealtime = (text: string) => {
+        setRawPrompt(prev => prev + (prev.endsWith(' ') ? '' : ' ') + text);
+        clearSuggestions();
+    };
 
     // LLM State
     const [selectedProvider, setSelectedProvider] = useState<LLMProviderId>('openai');
@@ -323,6 +339,20 @@ export const NewTechPage: React.FC<NewTechPageProps> = ({ isSidebarOpen }) => {
             if (!provider) throw new Error(`Provider ${selectedProvider} not available`);
 
             // Construct specific prompt breakdown
+            const GOLDEN_RULES = `
+***GOLDEN RULES OF PROMPTING (MUST FOLLOW)***
+1. **Tone**: Use a friendly, clear, and firm tone for better results.
+2. **Action-Oriented**: State requests as clear commands with necessary details.
+3. **Use Templates**: "Fill-in-the-box" structures produce more creative results than empty fields.
+4. **Plan First**: For complex tasks, generate an outline or rough version first.
+5. **Structured Output**: Demand specific formats (JSON, Markdown, Lists) beyond simple prose.
+6. **Explain Why**: Provide the "why" behind instructions to clarify intent.
+7. **Control Verbosity**: Explicitly define if the output should be verbose or concise.
+8. **Guide with Examples**: Provide templates or examples to guide structure and style.
+9. **Advanced Terminology**: Use precise prompting terms to trigger sophisticated behaviors.
+10. **Modular Synthesis**: For complex contexts, handle parts separately and then synthesize.
+`;
+
             const baseInstructions = `Act as a DSPy (Declarative Self-improving Python) Compiler. 
                 Your goal is to optimize the following raw prompt into a "Perfect Prompt".
                 
@@ -335,21 +365,24 @@ export const NewTechPage: React.FC<NewTechPageProps> = ({ isSidebarOpen }) => {
                 ${optimizationMetric === 'accuracy' ? '- Focus on precision, constraints, and error avoidance.' : ''}
                 ${optimizationMetric === 'creativity' ? '- Focus on novel, engaging, and diverse outputs.' : ''}
                 ${optimizationMetric === 'speed' ? '- Focus on conciseness and concise formatting.' : ''}
+                
+                You must also apply the following prompting best practices:
+                ${GOLDEN_RULES}
 
                 OUTPUT FORMAT:
                 You must use the following custom tags to structure your response.
                 
-                <DSPY_REASONING>
-                Explain your Chain-of-Thought on how to improve this...
-                </DSPY_REASONING>
-
-                <DSPY_CRITIQUE>
-                Identify 2-3 weaknesses in the raw prompt...
-                </DSPY_CRITIQUE>
-
-                <DSPY_PROMPT>
-                The final, compiled prompt text... including system prompt and user prompt separation if needed.
-                </DSPY_PROMPT>`;
+                <reasoning>
+                ... step by step logic ...
+                </reasoning>
+                
+                <draft>
+                ... initial attempt ...
+                </draft>
+                
+                <final_output>
+                ... the actual result ...
+                </final_output>`;
 
             const userPart = `\n\nRaw Prompt: "${rawPrompt}"`;
             const dspySystemPrompt = baseInstructions + userPart;
@@ -366,7 +399,7 @@ export const NewTechPage: React.FC<NewTechPageProps> = ({ isSidebarOpen }) => {
 
                 // Add error context if retrying
                 const currentPrompt = attempts === 1 ? dspySystemPrompt :
-                    `${dspySystemPrompt}\n\nPREVIOUS ERROR: The last output was missing the required <DSPY_PROMPT> tags. Please ensure you wrap your response in the requested <DSPY_... > tags.`;
+                    `${dspySystemPrompt}\n\nPREVIOUS ERROR: The last output was missing the required <final_output> tags. Please ensure you wrap your response in the requested <tags>...`;
 
                 if (attempts > 1) {
                     setProgress(prev => [...prev, `Assert Failed (Attempt ${attempts}): Retrying compilation...`]);
@@ -382,14 +415,14 @@ export const NewTechPage: React.FC<NewTechPageProps> = ({ isSidebarOpen }) => {
 
                 try {
                     // Try to parse XML Tags first
-                    const reasoning = responseText.match(/<DSPY_REASONING>([\s\S]*?)<\/DSPY_REASONING>/i)?.[1]?.trim();
-                    const critique = responseText.match(/<DSPY_CRITIQUE>([\s\S]*?)<\/DSPY_CRITIQUE>/i)?.[1]?.trim();
-                    const prompt = responseText.match(/<DSPY_PROMPT>([\s\S]*?)<\/DSPY_PROMPT>/i)?.[1]?.trim();
+                    const reasoning = responseText.match(/<reasoning>([\s\S]*?)<\/reasoning>/i)?.[1]?.trim();
+                    const draft = responseText.match(/<draft>([\s\S]*?)<\/draft>/i)?.[1]?.trim();
+                    const prompt = responseText.match(/<final_output>([\s\S]*?)<\/final_output>/i)?.[1]?.trim();
 
                     if (prompt) {
                         validResponse = {
                             reasoning: reasoning || '',
-                            critique: critique || '',
+                            critique: draft || '', // Mapping draft to critique for compatibility
                             optimized_prompt: prompt
                         };
                     } else {
@@ -673,6 +706,7 @@ You are a world-class expert. Please analyze the input and provide detailed reas
             iconSize={20}
             titleClassName="text-lg"
             subtitleClassName="text-xs"
+            headerClassName="!px-4 bg-slate-50 z-50"
             className="!p-0"
             rightContent={
                 <div className="flex bg-slate-100 p-1 rounded-lg">
@@ -725,13 +759,21 @@ You are a world-class expert. Please analyze the input and provide detailed reas
                                         />
                                     </div>
                                 </div>
-
-                                <textarea
-                                    value={rawPrompt}
-                                    onChange={(e) => setRawPrompt(e.target.value)}
-                                    placeholder="E.g., Write a blog post about coffee..."
-                                    className="flex-1 w-full p-4 bg-slate-50 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-orange-200 resize-none font-mono text-sm"
-                                />
+                                <div className="relative flex-1 h-full min-h-0">
+                                    <textarea
+                                        value={rawPrompt}
+                                        onChange={(e) => setRawPrompt(e.target.value)}
+                                        placeholder="E.g., Write a blog post about coffee..."
+                                        className="w-full h-full p-4 bg-slate-50/50 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-orange-200 resize-none font-mono text-sm"
+                                    />
+                                    <RealtimeSuggestions
+                                        suggestions={realtimeSuggestions}
+                                        isLoading={isRealtimeLoading}
+                                        onApply={handleApplyRealtime}
+                                        onDismiss={clearSuggestions}
+                                        className="bottom-4 left-4 right-4 w-auto max-w-none"
+                                    />
+                                </div>
                             </Card>
                         </div>
 

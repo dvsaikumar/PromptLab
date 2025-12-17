@@ -238,7 +238,7 @@ export const NodeConfigurationDrawer: React.FC<NodeConfigurationDrawerProps> = (
             />
 
             {/* Drawer */}
-            <div className={`fixed inset-y-0 right-0 w-[480px] bg-white shadow-2xl transform transition-transform duration-300 ease-in-out z-[100] flex flex-col ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+            <div className={`fixed inset-y-0 right-0 w-full md:w-[480px] bg-white shadow-2xl transform transition-transform duration-300 ease-in-out z-[100] flex flex-col ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}>
 
                 {/* Header */}
                 <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Sparkles, Zap, TrendingUp, Palette, ArrowRight, FlaskConical, FolderOpen } from 'lucide-react';
+import { Zap, TrendingUp, Palette, ArrowRight, FlaskConical, FolderOpen, LucideIcon } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { PageTemplate } from '@/components/ui/PageTemplate';
@@ -67,14 +67,14 @@ export const MyHub: React.FC<MyHubProps> = ({ isSidebarOpen = false }) => {
 
     return (
         <PageTemplate
-            title="Welcome to D Studios Lab"
-            subtitle="Your AI-powered prompt engineering workspace"
-            icon={Sparkles}
+            title={null}
+            subtitle={undefined}
+            icon={undefined as unknown as LucideIcon}
             iconGradient="from-blue-500 to-indigo-600"
             shadowColor="shadow-indigo-500/30"
             isSidebarOpen={isSidebarOpen}
-            className="flex flex-col !p-0"
-            headerClassName="!px-4"
+            className="flex flex-col !p-0 !top-16"
+            headerClassName="hidden"
             iconSize={20}
             titleClassName="text-lg"
             subtitleClassName="text-xs"
@@ -175,7 +175,7 @@ export const MyHub: React.FC<MyHubProps> = ({ isSidebarOpen = false }) => {
                 {/* Getting Started */}
                 <section>
                     <Card className="bg-gradient-to-br from-indigo-50 to-purple-50 border-indigo-100">
-                        <div className="flex items-center justify-between">
+                        <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-center md:text-left">
                             <div>
                                 <h3 className="text-xl font-bold text-slate-900 mb-2">
                                     {stats.totalPrompts === 0
@@ -188,7 +188,7 @@ export const MyHub: React.FC<MyHubProps> = ({ isSidebarOpen = false }) => {
                                         : 'Continue crafting amazing prompts with our AI-powered tools.'}
                                 </p>
                             </div>
-                            <Button className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-lg shadow-indigo-500/30">
+                            <Button className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-lg shadow-indigo-500/30 whitespace-nowrap w-full md:w-auto justify-center">
                                 {stats.totalPrompts === 0 ? 'Get Started' : 'Create More'}
                             </Button>
                         </div>

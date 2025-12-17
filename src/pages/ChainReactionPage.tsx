@@ -17,7 +17,7 @@ import { PageTemplate } from '@/components/ui/PageTemplate';
 import { Button } from '@/components/ui/Button';
 import { PromptNode } from '@/components/chain/PromptNode';
 import { NodeConfigurationDrawer } from '@/components/chain/NodeConfigurationDrawer';
-import { Workflow, Plus, Play, Save, Loader2, X, Copy, Sparkles, LayoutList, FileText, FileJson, AlignLeft, FileType, Printer, Upload, Link, FolderOpen } from 'lucide-react';
+import { Workflow, Plus, Play, Save, Loader2, X, Copy, Sparkles, FileText, AlignLeft, FileType, Printer, Upload, Link, FolderOpen, BookOpen, ChevronRight, ArrowRight, Zap, Target, Layers } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import toast from 'react-hot-toast';
@@ -120,12 +120,152 @@ const initialEdges = [
     { id: 'e3-4', source: '3', target: '4', animated: true, style: { stroke: '#6366f1', strokeWidth: 2 }, markerEnd: { type: MarkerType.ArrowClosed, color: '#6366f1' } }
 ];
 
+const TUTORIAL_MODULES = [
+    {
+        id: 'concept',
+        title: 'Chain Reaction Logic',
+        icon: Workflow,
+        content: (
+            <div className="space-y-8 animate-in fade-in duration-500">
+                <div className="bg-gradient-to-br from-indigo-50 to-purple-50 p-8 rounded-2xl border border-indigo-100">
+                    <h2 className="text-2xl font-bold text-indigo-900 mb-4">Prompt Chaining & Automation</h2>
+                    <p className="text-lg text-slate-700 leading-relaxed mb-6">
+                        Complex tasks are rarely solved by a single prompt. <b>Chain Reaction</b> allows you to break down big goals (like writing a book or coding an app) into manageable, sequential steps.
+                        The output of one node becomes the input of the next.
+                    </p>
+                    <div className="grid md:grid-cols-2 gap-6 mt-8">
+                        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                            <div className="flex items-center gap-3 mb-4 text-slate-500 uppercase tracking-widest font-bold text-xs">
+                                <Zap size={16} /> Linear Prompting
+                            </div>
+                            <h3 className="text-xl font-bold text-slate-800 mb-2">The Old Way</h3>
+                            <p className="text-slate-600 text-sm mb-4">You manually copy the result of prompt 1 and paste it into prompt 2.</p>
+                            <div className="flex items-center gap-2 p-3 bg-slate-100 rounded-lg text-xs font-mono text-slate-600">
+                                Ctrl+C -&gt; Ctrl+V -&gt; Repeat
+                            </div>
+                        </div>
+                        <div className="bg-white p-6 rounded-xl shadow-sm border border-indigo-200 ring-1 ring-indigo-100">
+                            <div className="flex items-center gap-3 mb-4 text-indigo-600 uppercase tracking-widest font-bold text-xs">
+                                <Workflow size={16} /> The Chain Way
+                            </div>
+                            <h3 className="text-xl font-bold text-indigo-900 mb-2">Automated Flow</h3>
+                            <p className="text-indigo-700 text-sm mb-4">Variables pass data automatically.</p>
+                            <div className="flex items-center gap-2 p-3 bg-indigo-50 text-indigo-800 rounded-lg text-xs font-mono">
+                                {"{{input}} variable handles the data flow"}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        )
+    },
+    {
+        id: 'nodes',
+        title: 'Nodes & Edges',
+        icon: Target,
+        content: (
+            <div className="space-y-6 animate-in slide-in-from-right-4 duration-500">
+                <div className="flex items-start gap-4 p-6 bg-slate-50 rounded-xl border border-slate-200">
+                    <div className="p-3 bg-blue-100 rounded-lg text-blue-600 shrink-0">
+                        <Layers size={24} />
+                    </div>
+                    <div>
+                        <h3 className="text-xl font-bold text-slate-900 mb-2">The Building Blocks</h3>
+                        <p className="text-slate-600 leading-relaxed">
+                            Each <b>Node</b> represents a thinking step (e.g., "Draft Outline").<br />
+                            Each <b>Edge</b> (line) represents the flow of information.
+                        </p>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="p-4 bg-white border border-slate-200 rounded-lg shadow-sm">
+                        <div className="text-xs font-bold text-slate-400 uppercase mb-2">Inputs</div>
+                        <div className="text-sm font-mono text-slate-700">User prompts, Uploaded Files, Previous Node Outputs</div>
+                    </div>
+                    <div className="flex items-center justify-center text-slate-300">
+                        <ArrowRight size={24} />
+                    </div>
+                    <div className="p-4 bg-white border border-slate-200 rounded-lg shadow-sm">
+                        <div className="text-xs font-bold text-slate-400 uppercase mb-2">Process</div>
+                        <div className="text-sm font-mono text-slate-700">LLM Execution (OpenAI, Anthropic, Gemini)</div>
+                    </div>
+                </div>
+            </div>
+        )
+    },
+    {
+        id: 'magichandler',
+        title: 'The Magic Variable',
+        icon: Sparkles,
+        content: (
+            <div className="space-y-6 animate-in slide-in-from-right-4 duration-500">
+                <div className="flex items-start gap-4 p-6 bg-amber-50 rounded-xl border border-amber-100">
+                    <div className="p-3 bg-amber-100 rounded-lg text-amber-600 shrink-0">
+                        <Sparkles size={24} />
+                    </div>
+                    <div>
+                        <h3 className="text-xl font-bold text-amber-900 mb-2">{"{{input}}"}</h3>
+                        <p className="text-amber-800 leading-relaxed">
+                            To use the output from the previous step, simply type <code>{'{{input}}'}</code> anywhere in your prompt.
+                            When the chain runs, this variable is replaced with the combined text from all incoming connections.
+                        </p>
+                    </div>
+                </div>
+                <div className="bg-slate-900 rounded-xl overflow-hidden shadow-xl p-6">
+                    <div className="font-mono text-sm text-slate-300">
+                        <span className="text-purple-400">Step 2 Prompt:</span><br /><br />
+                        "Take the following outline and expand it into a full blog post:<br /><br />
+                        <span className="text-yellow-400">{'{{input}}'}</span>"<br /><br />
+                        <span className="text-slate-500"># The system auto-fills this with Step 1's result.</span>
+                    </div>
+                </div>
+            </div>
+        )
+    },
+    {
+        id: 'stitching',
+        title: 'Stitching Strategies',
+        icon: Link,
+        content: (
+            <div className="space-y-6 animate-in slide-in-from-right-4 duration-500">
+                <h2 className="text-2xl font-bold text-slate-800">Two Ways to Run</h2>
+                <div className="grid md:grid-cols-2 gap-6">
+                    <div className="p-5 bg-emerald-50 rounded-xl border border-emerald-100">
+                        <h4 className="font-bold text-emerald-900 mb-2 flex items-center gap-2">
+                            <Play size={16} /> Run Chain
+                        </h4>
+                        <p className="text-sm text-emerald-800 mb-2">Executes each node sequentially using the LLM.</p>
+                        <ul className="text-xs text-emerald-700 list-disc list-inside">
+                            <li>Costs tokens for every step</li>
+                            <li>Real-time generation</li>
+                            <li>Use for actual content creation</li>
+                        </ul>
+                    </div>
+                    <div className="p-5 bg-blue-50 rounded-xl border border-blue-100">
+                        <h4 className="font-bold text-blue-900 mb-2 flex items-center gap-2">
+                            <Link size={16} /> Stitch Prompts
+                        </h4>
+                        <p className="text-sm text-blue-800 mb-2">Compiles the entire chain into one MEGA-PROMPT document.</p>
+                        <ul className="text-xs text-blue-700 list-disc list-inside">
+                            <li>No LLM costs (just text processing)</li>
+                            <li>Creates a "Prompt Strategy" you can save</li>
+                            <li>Use for planning and templates</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        )
+    }
+];
+
 interface ChainReactionPageProps {
     isSidebarOpen: boolean;
 }
 
 export const ChainReactionPage: React.FC<ChainReactionPageProps> = ({ isSidebarOpen }) => {
     const { llmConfig } = usePrompt();
+    const [activeTab, setActiveTab] = useState<'tool' | 'tutorial'>('tool');
     const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
     const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
     const [isRunning, setIsRunning] = useState(false);
@@ -133,9 +273,9 @@ export const ChainReactionPage: React.FC<ChainReactionPageProps> = ({ isSidebarO
 
     const [finalResult, setFinalResult] = useState<{ isOpen: boolean, steps: { id: string, label: string, output: string, prompt: string }[], isCompiled: boolean } | null>(null);
     const [resultTab, setResultTab] = useState<'steps' | 'compiled' | 'document' | 'prompt'>('steps');
-    const [showFullHistory, setShowFullHistory] = useState(false);
+
     const [viewFormat, setViewFormat] = useState<'markdown' | 'text' | 'json'>('markdown');
-    const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
+
     const [isWorkflowSaveModalOpen, setIsWorkflowSaveModalOpen] = useState(false);
     const [isLoadWorkflowModalOpen, setIsLoadWorkflowModalOpen] = useState(false);
     const [savedWorkflows, setSavedWorkflows] = useState<SavedWorkflow[]>([]);
@@ -276,7 +416,7 @@ export const ChainReactionPage: React.FC<ChainReactionPageProps> = ({ isSidebarO
                 }]);
             }
 
-            setIsSaveModalOpen(false);
+
         } catch (error) {
             console.error(error);
             toast.error("Failed to save prompt");
@@ -447,7 +587,7 @@ export const ChainReactionPage: React.FC<ChainReactionPageProps> = ({ isSidebarO
                     isCompiled: true
                 });
                 setResultTab('compiled'); // Default to compiled view for "Stitching"
-                setShowFullHistory(true); // Force show full history for stitched view
+
             }
 
             toast.success("Chain Compiled Successfully!", { id: "chain-compile" });
@@ -548,8 +688,29 @@ export const ChainReactionPage: React.FC<ChainReactionPageProps> = ({ isSidebarO
                 let result = '';
                 if (finalPrompt.trim()) {
                     try {
+                        let sysPrompt = undefined;
+
+                        const GOLDEN_RULES = `
+***GOLDEN RULES OF PROMPTING (MUST FOLLOW)***
+1. **Tone**: Use a friendly, clear, and firm tone for better results.
+2. **Action-Oriented**: State requests as clear commands with necessary details.
+3. **Use Templates**: "Fill-in-the-box" structures produce more creative results than empty fields.
+4. **Plan First**: For complex tasks, generate an outline or rough version first.
+5. **Structured Output**: Demand specific formats (JSON, Markdown, Lists) beyond simple prose.
+6. **Explain Why**: Provide the "why" behind instructions to clarify intent.
+7. **Control Verbosity**: Explicitly define if the output should be verbose or concise.
+8. **Guide with Examples**: Provide templates or examples to guide structure and style.
+9. **Advanced Terminology**: Use precise prompting terms to trigger sophisticated behaviors.
+10. **Modular Synthesis**: For complex contexts, handle parts separately and then synthesize.
+`;
+                        // Basic system prompt for chain steps
+                        sysPrompt = `You are a helpful AI assistant executing a step in a larger workflow.
+                         
+${GOLDEN_RULES}`;
+
                         result = await LLMService.getInstance().getProvider(stepProviderId).generateCompletion({
                             userPrompt: finalPrompt,
+                            systemPrompt: sysPrompt,
                             config: effectiveConfig,
                             temperature: 0.7
                         });
@@ -606,6 +767,108 @@ export const ChainReactionPage: React.FC<ChainReactionPageProps> = ({ isSidebarO
 
     const selectedNodeData = selectedNodeId ? nodes.find(n => n.id === selectedNodeId)?.data : null;
 
+    const InteractiveTutorial = () => {
+        const [activeStep, setActiveStep] = useState(0);
+
+        return (
+            <div className="flex w-full h-full bg-slate-50 overflow-hidden">
+                {/* Sidebar Navigation */}
+                <div className="w-72 bg-white border-r border-slate-200 overflow-y-auto flex flex-col shrink-0 lg:block hidden">
+                    <div className="p-6 border-b border-slate-100">
+                        <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                            <BookOpen size={20} className="text-indigo-600" />
+                            Chain Masterclass
+                        </h2>
+                        <p className="text-xs text-slate-500 mt-1">Interactive guide to prompt chaining.</p>
+                    </div>
+                    <div className="p-4 space-y-2 flex-1">
+                        {TUTORIAL_MODULES.map((module, index) => {
+                            const Icon = module.icon;
+                            const isActive = activeStep === index;
+                            return (
+                                <button
+                                    key={module.id}
+                                    onClick={() => setActiveStep(index)}
+                                    className={`w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all ${isActive ? 'bg-indigo-50 text-indigo-700 font-semibold ring-1 ring-indigo-200 shadow-sm' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
+                                >
+                                    <div className={`p-2 rounded-md ${isActive ? 'bg-white shadow-sm ring-1 ring-indigo-100' : 'bg-slate-100'}`}>
+                                        <Icon size={16} />
+                                    </div>
+                                    <span className="text-sm">{module.title}</span>
+                                    {isActive && <ChevronRight size={14} className="ml-auto opacity-50" />}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                {/* Main Content Area */}
+                <div className="flex-1 overflow-y-auto w-full">
+                    <div className="max-w-4xl mx-auto p-4 md:p-12 w-full">
+                        {/* Header */}
+                        <div className="mb-8 border-b border-slate-200 pb-6 flex items-center justify-between">
+                            <div>
+                                <h1 className="text-3xl font-bold text-slate-900 mb-2">{TUTORIAL_MODULES[activeStep].title}</h1>
+                                <div className="flex items-center gap-2 text-sm text-slate-500">
+                                    <span>Module {activeStep + 1} of {TUTORIAL_MODULES.length}</span>
+                                    <span className="w-1 h-1 rounded-full bg-slate-300" />
+                                    <span>Quick Guide</span>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    disabled={activeStep === 0}
+                                    onClick={() => setActiveStep(prev => prev - 1)}
+                                    className="p-2 rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                >
+                                    <ChevronRight size={20} className="rotate-180" />
+                                </button>
+                                <button
+                                    disabled={activeStep === TUTORIAL_MODULES.length - 1}
+                                    onClick={() => setActiveStep(prev => prev + 1)}
+                                    className="p-2 rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                >
+                                    <ChevronRight size={20} />
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Content Body */}
+                        <div className="min-h-[400px]">
+                            {TUTORIAL_MODULES[activeStep].content}
+                        </div>
+
+                        {/* Footer Navigation */}
+                        <div className="mt-12 pt-8 border-t border-slate-200 flex justify-between">
+                            {activeStep > 0 && (
+                                <Button variant="ghost" onClick={() => setActiveStep(prev => prev - 1)}>
+                                    Previous Module
+                                </Button>
+                            )}
+                            {activeStep < TUTORIAL_MODULES.length - 1 ? (
+                                <Button
+                                    className="bg-indigo-600 hover:bg-indigo-700 text-white ml-auto"
+                                    onClick={() => setActiveStep(prev => prev + 1)}
+                                    rightIcon={<ArrowRight size={16} />}
+                                >
+                                    Next: {TUTORIAL_MODULES[activeStep + 1].title}
+                                </Button>
+                            ) : (
+                                <Button
+                                    className="bg-emerald-500 hover:bg-emerald-600 text-white ml-auto"
+                                    onClick={() => setActiveTab('tool')}
+                                    rightIcon={<Workflow size={16} />}
+                                >
+                                    Start Building Chains
+                                </Button>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
     return (
         <PageTemplate
             title="Chain Reaction"
@@ -619,119 +882,139 @@ export const ChainReactionPage: React.FC<ChainReactionPageProps> = ({ isSidebarO
             titleClassName="text-lg"
             subtitleClassName="text-xs"
             iconSize={20}
-        >
-            <div className="h-full flex flex-col relative">
-                {/* Visual Toolbar */}
-                <div className="bg-white border-b border-slate-200 p-3 flex justify-between items-center z-10">
-                    <div className="flex items-center gap-2">
-                        <Button onClick={addNode} variant="outline" size="sm" className="gap-2">
-                            <Plus className="w-4 h-4" /> Add Step
-                        </Button>
-                        <div className="w-px h-6 bg-slate-200 mx-1" />
-                        <Button
-                            onClick={() => fileInputRef.current?.click()}
-                            variant="outline"
-                            size="sm"
-                            className="gap-2 text-slate-600 border-dashed border-slate-300 hover:border-indigo-400 hover:text-indigo-600"
-                        >
-                            <Upload className="w-4 h-4" /> Add Context
-                        </Button>
-                        <input
-                            type="file"
-                            ref={fileInputRef}
-                            onChange={handleGlobalFileUpload}
-                            className="hidden"
-                            accept=".txt,.md,.json,.csv,.js,.ts,.tsx,.py,.docx,.pdf"
-                        />
-                        {globalFiles.map((file, idx) => (
-                            <div key={idx} className="flex items-center gap-1 bg-indigo-50 text-indigo-700 px-2 py-1 rounded text-xs border border-indigo-100 animate-in fade-in zoom-in">
-                                <span className="max-w-[100px] truncate" title={file.name}>{file.name}</span>
-                                <button
-                                    onClick={() => removeGlobalFile(idx)}
-                                    className="p-0.5 hover:bg-indigo-100 rounded-full text-indigo-400 hover:text-indigo-600"
-                                >
-                                    <X size={12} />
-                                </button>
-                            </div>
-                        ))}
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-slate-500 mr-2"
-                            onClick={() => {
-                                setNodes(initialNodes);
-                                setEdges(initialEdges);
-                                setGlobalFiles([]);
-                            }}
-                        >
-                            Reset
-                        </Button>
-                        <Button
-                            onClick={compileChain}
-                            disabled={isRunning}
-                            className="gap-2 bg-indigo-100 text-indigo-700 hover:bg-indigo-200 border border-indigo-200 mr-2"
-                        >
-                            <Link className="w-4 h-4" />
-                            Stitch Prompts
-                        </Button>
-                        <Button
-                            onClick={runChain}
-                            disabled={isRunning}
-                            className={`gap-2 ${isRunning ? 'bg-slate-100 text-slate-400' : 'bg-green-600 hover:bg-green-700 text-white'}`}
-                        >
-                            {isRunning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
-                            {isRunning ? 'Processing...' : 'Run Chain'}
-                        </Button>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            className="gap-2 mr-2"
-                            onClick={() => {
-                                fetchWorkflows();
-                                setIsLoadWorkflowModalOpen(true);
-                            }}
-                        >
-                            <FolderOpen className="w-4 h-4" /> Load
-                        </Button>
-                        <Button
-                            onClick={() => setIsWorkflowSaveModalOpen(true)}
-                            variant="outline"
-                            size="sm"
-                            className="gap-2"
-                        >
-                            <Save className="w-4 h-4" /> Save Workflow
-                        </Button>
-                    </div>
-                </div>
-
-                {/* ReactFlow Canvas */}
-                <div className="flex-1 bg-slate-50 relative">
-                    <ReactFlow
-                        nodes={nodes}
-                        edges={edges}
-                        onNodesChange={onNodesChange}
-                        onEdgesChange={onEdgesChange}
-                        onConnect={onConnect}
-                        nodeTypes={nodeTypes}
-                        fitView
-                        attributionPosition="bottom-right"
+            rightContent={
+                <div className="flex bg-slate-100 p-1 rounded-lg">
+                    <button
+                        onClick={() => setActiveTab('tool')}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-semibold transition-all ${activeTab === 'tool' ? 'bg-white text-orange-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                     >
-                        <Background color="#cbd5e1" gap={16} />
-                        <Controls />
-                    </ReactFlow>
+                        <Workflow size={16} /> Builder
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('tutorial')}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-semibold transition-all ${activeTab === 'tutorial' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                    >
+                        <BookOpen size={16} /> Tutorial
+                    </button>
                 </div>
+            }
+        >
+            {activeTab === 'tool' ? (
+                <div className="h-full flex flex-col relative">
+                    {/* Visual Toolbar */}
+                    <div className="bg-white border-b border-slate-200 p-3 flex justify-between items-center z-10 overflow-x-auto no-scrollbar shrink-0 gap-4">
+                        <div className="flex items-center gap-2">
+                            <Button onClick={addNode} variant="outline" size="sm" className="gap-2">
+                                <Plus className="w-4 h-4" /> Add Step
+                            </Button>
+                            <div className="w-px h-6 bg-slate-200 mx-1" />
+                            <Button
+                                onClick={() => fileInputRef.current?.click()}
+                                variant="outline"
+                                size="sm"
+                                className="gap-2 text-slate-600 border-dashed border-slate-300 hover:border-indigo-400 hover:text-indigo-600"
+                            >
+                                <Upload className="w-4 h-4" /> Add Context
+                            </Button>
+                            <input
+                                type="file"
+                                ref={fileInputRef}
+                                onChange={handleGlobalFileUpload}
+                                className="hidden"
+                                accept=".txt,.md,.json,.csv,.js,.ts,.tsx,.py,.docx,.pdf"
+                            />
+                            {globalFiles.map((file, idx) => (
+                                <div key={idx} className="flex items-center gap-1 bg-indigo-50 text-indigo-700 px-2 py-1 rounded text-xs border border-indigo-100 animate-in fade-in zoom-in">
+                                    <span className="max-w-[100px] truncate" title={file.name}>{file.name}</span>
+                                    <button
+                                        onClick={() => removeGlobalFile(idx)}
+                                        className="p-0.5 hover:bg-indigo-100 rounded-full text-indigo-400 hover:text-indigo-600"
+                                    >
+                                        <X size={12} />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-slate-500 mr-2"
+                                onClick={() => {
+                                    setNodes(initialNodes);
+                                    setEdges(initialEdges);
+                                    setGlobalFiles([]);
+                                }}
+                            >
+                                Reset
+                            </Button>
+                            <Button
+                                onClick={compileChain}
+                                disabled={isRunning}
+                                className="gap-2 bg-indigo-100 text-indigo-700 hover:bg-indigo-200 border border-indigo-200 mr-2"
+                            >
+                                <Link className="w-4 h-4" />
+                                Stitch Prompts
+                            </Button>
+                            <Button
+                                onClick={runChain}
+                                disabled={isRunning}
+                                className={`gap-2 ${isRunning ? 'bg-slate-100 text-slate-400' : 'bg-green-600 hover:bg-green-700 text-white'}`}
+                            >
+                                {isRunning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+                                {isRunning ? 'Processing...' : 'Run Chain'}
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="gap-2 mr-2"
+                                onClick={() => {
+                                    fetchWorkflows();
+                                    setIsLoadWorkflowModalOpen(true);
+                                }}
+                            >
+                                <FolderOpen className="w-4 h-4" /> Load
+                            </Button>
+                            <Button
+                                onClick={() => setIsWorkflowSaveModalOpen(true)}
+                                variant="outline"
+                                size="sm"
+                                className="gap-2"
+                            >
+                                <Save className="w-4 h-4" /> Save Workflow
+                            </Button>
+                        </div>
+                    </div>
 
-                {/* Properties Drawer */}
-                <NodeConfigurationDrawer
-                    isOpen={!!selectedNodeId}
-                    onClose={() => setSelectedNodeId(null)}
-                    nodeData={selectedNodeData ? { ...selectedNodeData, id: selectedNodeId } : null}
-                    onUpdate={handleDrawerUpdate}
-                    onSave={handleDrawerSave}
-                />
-            </div>
+                    {/* ReactFlow Canvas */}
+                    <div className="flex-1 bg-slate-50 relative">
+                        <ReactFlow
+                            nodes={nodes}
+                            edges={edges}
+                            onNodesChange={onNodesChange}
+                            onEdgesChange={onEdgesChange}
+                            onConnect={onConnect}
+                            nodeTypes={nodeTypes}
+                            fitView
+                            attributionPosition="bottom-right"
+                        >
+                            <Background color="#cbd5e1" gap={16} />
+                            <Controls />
+                        </ReactFlow>
+                    </div>
+
+                    {/* Properties Drawer */}
+                    <NodeConfigurationDrawer
+                        isOpen={!!selectedNodeId}
+                        onClose={() => setSelectedNodeId(null)}
+                        nodeData={selectedNodeData ? { ...selectedNodeData, id: selectedNodeId } : null}
+                        onUpdate={handleDrawerUpdate}
+                        onSave={handleDrawerSave}
+                    />
+                </div>
+            ) : (
+                <InteractiveTutorial />
+            )}
 
             <SavePromptModal
                 isOpen={isWorkflowSaveModalOpen}
@@ -799,252 +1082,92 @@ export const ChainReactionPage: React.FC<ChainReactionPageProps> = ({ isSidebarO
                                 </div>
                             </div>
                             <button
-                                onClick={() => setFinalResult(null)}
-                                className="p-2 hover:bg-slate-200 rounded-full text-slate-400 hover:text-slate-600 transition-colors"
+                                onClick={() => setFinalResult({ ...finalResult, isOpen: false })}
+                                className="text-slate-400 hover:text-slate-600 p-2 hover:bg-slate-100 rounded-full transition-colors"
                             >
                                 <X size={20} />
                             </button>
                         </div>
 
                         {/* Tabs */}
-                        <div className="flex items-center gap-1 p-2 bg-slate-50 border-b border-slate-100">
+                        <div className="flex items-center gap-1 px-4 pt-4 border-b border-slate-100 bg-white">
                             <button
                                 onClick={() => setResultTab('steps')}
-                                className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-sm font-medium transition-all ${resultTab === 'steps' ? 'bg-white text-indigo-600 shadow-sm border border-slate-200' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'}`}
+                                className={`px-4 py-2 text-sm font-semibold rounded-t-lg transition-colors border-b-2 ${resultTab === 'steps' ? 'text-indigo-600 border-indigo-600 bg-indigo-50/50' : 'text-slate-500 border-transparent hover:text-indigo-600 hover:bg-slate-50'}`}
                             >
-                                <LayoutList size={16} />
-                                {finalResult.isCompiled ? 'Step-by-Step Prompts' : 'Step-by-Step Variables'}
+                                Step-by-Step
                             </button>
-                            <button
-                                onClick={() => setResultTab('compiled')}
-                                className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-sm font-medium transition-all ${resultTab === 'compiled' ? 'bg-white text-indigo-600 shadow-sm border border-slate-200' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'}`}
-                            >
-                                <FileText size={16} />
-                                {finalResult.isCompiled ? 'Stitched Prompt Chain' : 'Master Prompt Format'}
-                            </button>
-                            {/* Hide Document and Prompt Preview for Stitched Mode */}
-                            {!finalResult.isCompiled && (
-                                <>
-                                    <button
-                                        onClick={() => setResultTab('document')}
-                                        className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-sm font-medium transition-all ${resultTab === 'document' ? 'bg-white text-indigo-600 shadow-sm border border-slate-200' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'}`}
-                                    >
-                                        <FileType size={16} />
-                                        Document Preview
-                                    </button>
-                                    <button
-                                        onClick={() => setResultTab('prompt')}
-                                        className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-sm font-medium transition-all ${resultTab === 'prompt' ? 'bg-white text-indigo-600 shadow-sm border border-slate-200' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'}`}
-                                    >
-                                        <Sparkles size={16} />
-                                        Prompt Preview
-                                    </button>
-                                </>
+                            {finalResult.isCompiled && (
+                                <button
+                                    onClick={() => setResultTab('compiled')}
+                                    className={`px-4 py-2 text-sm font-semibold rounded-t-lg transition-colors border-b-2 ${resultTab === 'compiled' ? 'text-indigo-600 border-indigo-600 bg-indigo-50/50' : 'text-slate-500 border-transparent hover:text-indigo-600 hover:bg-slate-50'}`}
+                                >
+                                    Compiled Strategy
+                                </button>
                             )}
+                            <button
+                                onClick={() => setResultTab('document')}
+                                className={`px-4 py-2 text-sm font-semibold rounded-t-lg transition-colors border-b-2 ${resultTab === 'document' ? 'text-indigo-600 border-indigo-600 bg-indigo-50/50' : 'text-slate-500 border-transparent hover:text-indigo-600 hover:bg-slate-50'}`}
+                            >
+                                Document View
+                            </button>
                         </div>
 
-                        {/* Options Bar for Compiled View */}
-                        {resultTab === 'compiled' && (
-                            <div className="px-6 py-2 bg-indigo-50/50 border-b border-indigo-100 flex items-center justify-between">
-                                {/* Conditional Toolbar: Simple for Stitched, Full for Executed */}
-                                {finalResult.isCompiled ? (
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-xs font-semibold text-indigo-700 px-2">Raw Text View</span>
-                                    </div>
-                                ) : (
-                                    <div className="flex items-center p-1 bg-white border border-slate-200 rounded-lg shadow-sm">
-                                        <button
-                                            onClick={() => setViewFormat('markdown')}
-                                            className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${viewFormat === 'markdown' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'}`}
-                                        >
-                                            <FileType size={14} />
-                                            Markdown
-                                        </button>
-                                        <div className="w-px h-4 bg-slate-200 mx-1" />
-                                        <button
-                                            onClick={() => setViewFormat('text')}
-                                            className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${viewFormat === 'text' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'}`}
-                                        >
-                                            <AlignLeft size={14} />
-                                            Text
-                                        </button>
-                                        <div className="w-px h-4 bg-slate-200 mx-1" />
-                                        <button
-                                            onClick={() => setViewFormat('json')}
-                                            className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${viewFormat === 'json' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'}`}
-                                        >
-                                            <FileJson size={14} />
-                                            JSON
-                                        </button>
-                                    </div>
-                                )}
+                        {/* Modal Body */}
+                        <div className="flex-1 overflow-y-auto p-6 bg-slate-50 custom-scrollbar">
 
-                                <div className="flex items-center gap-4">
-                                    <button
-                                        onClick={() => {
-                                            const content = (showFullHistory ? finalResult.steps : [finalResult.steps[finalResult.steps.length - 1]]).map((step, idx) => {
-                                                const header = `### ${showFullHistory ? `STEP ${idx + 1}: ` : 'FINAL RESULT: '}${step.label.toUpperCase()} ###`;
-                                                return `\n\n${header}\n${step.output}\n\n`;
-                                            }).join('\n==================================================\n');
-
-                                            navigator.clipboard.writeText(content);
-                                            toast.success("Copied to clipboard");
-                                        }}
-                                        className="flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium text-slate-500 hover:text-indigo-700 hover:bg-indigo-50 transition-colors"
-                                    >
-                                        <Copy size={14} />
-                                        Copy Content
-                                    </button>
-
-                                    {!finalResult.isCompiled && (
-                                        <label className="flex items-center gap-2 text-xs font-medium text-indigo-700 cursor-pointer select-none hover:text-indigo-900">
-                                            <input
-                                                type="checkbox"
-                                                checked={showFullHistory}
-                                                onChange={(e) => setShowFullHistory(e.target.checked)}
-                                                className="rounded border-indigo-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-                                            />
-                                            Include History
-                                        </label>
-                                    )}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Options Bar for Document View */}
-                        {resultTab === 'document' && (
-                            <div className="px-6 py-2 bg-indigo-50/50 border-b border-indigo-100 flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={handleExportWord}
-                                        className="h-8 text-xs gap-2 bg-white border-indigo-200 text-indigo-700 hover:bg-indigo-50"
-                                    >
-                                        <FileText size={14} /> Save as Word
-                                    </Button>
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={handlePrint}
-                                        className="h-8 text-xs gap-2 bg-white border-indigo-200 text-indigo-700 hover:bg-indigo-50"
-                                    >
-                                        <Printer size={14} /> Print / Save as PDF
-                                    </Button>
-                                </div>
-
-                                <label className="flex items-center gap-2 text-xs font-medium text-indigo-700 cursor-pointer select-none hover:text-indigo-900">
-                                    <input
-                                        type="checkbox"
-                                        checked={showFullHistory}
-                                        onChange={(e) => setShowFullHistory(e.target.checked)}
-                                        className="rounded border-indigo-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-                                    />
-                                    Include History
-                                </label>
-                            </div>
-                        )}
-
-                        {/* Content */}
-                        <div className="flex-1 overflow-y-auto p-0 bg-slate-50/50">
-                            {resultTab === 'steps' && (
-                                <div className="p-6 space-y-6">
-                                    {finalResult.steps.map((step, idx) => (
-                                        <div key={step.id} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden animate-in slide-in-from-bottom-2 duration-300" style={{ animationDelay: `${idx * 100}ms` }}>
-                                            <div className="px-4 py-3 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="flex items-center justify-center w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 text-xs font-bold border border-indigo-200">
-                                                        {idx + 1}
-                                                    </span>
-                                                    <span className="font-semibold text-slate-700">{step.label}</span>
+                            {resultTab === 'compiled' && (
+                                <div className="space-y-6">
+                                    <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                                        <h4 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                                            <Link size={16} className="text-indigo-500" />
+                                            Stitched Prompt Strategy
+                                        </h4>
+                                        <div className="prose prose-sm max-w-none text-slate-600 font-mono bg-slate-50 p-4 rounded-lg border border-slate-200">
+                                            {finalResult.steps.map((step, i) => (
+                                                <div key={i} className="mb-8 last:mb-0">
+                                                    <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 border-b border-slate-200 pb-1">
+                                                        Step {i + 1}: {step.label}
+                                                    </div>
+                                                    <div className="whitespace-pre-wrap">{step.output}</div>
                                                 </div>
-                                                <span className="text-[10px] font-mono text-slate-400 bg-slate-100 px-2 py-1 rounded">
-                                                    {`{{Output_${idx + 1}}}`}
-                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {resultTab === 'steps' && (
+                                <div className="space-y-6">
+                                    {finalResult.steps.map((step, index) => (
+                                        <div key={index} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden animate-in slide-in-from-bottom-2 duration-300" style={{ animationDelay: `${index * 100}ms` }}>
+                                            <div className="bg-slate-50 px-4 py-2 border-b border-slate-100 flex justify-between items-center">
+                                                <div className="font-semibold text-slate-700 text-sm">Step {index + 1}: {step.label}</div>
+                                                <div className="text-xs text-slate-400 font-mono">{step.id}</div>
                                             </div>
-                                            <div className="p-4 bg-white font-mono text-sm text-slate-600 whitespace-pre-wrap leading-relaxed">
-                                                {step.output}
+                                            <div className="p-4">
+                                                <div className="bg-slate-50 rounded-lg p-3 text-xs font-mono text-slate-500 mb-3 border border-slate-100 max-h-24 overflow-y-auto">
+                                                    <strong className="text-slate-400 block mb-1 uppercase tracking-wider text-[10px]">Input Prompt Used:</strong>
+                                                    {step.prompt}
+                                                </div>
+                                                <div className="prose prose-sm max-w-none text-slate-700 leading-relaxed">
+                                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                                        {step.output}
+                                                    </ReactMarkdown>
+                                                </div>
                                             </div>
                                         </div>
                                     ))}
-                                </div>
-                            )}
-
-                            {resultTab === 'compiled' && (
-                                <div className="p-8 min-h-full">
-                                    <div className={`mx-auto max-w-5xl rounded-xl border shadow-sm overflow-hidden ${finalResult.isCompiled ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-800'}`}>
-                                        <div className={`p-8 font-mono text-sm whitespace-pre-wrap leading-relaxed select-text ${finalResult.isCompiled ? 'text-slate-800' : 'text-indigo-100'}`}>
-                                            {finalResult.isCompiled ? (
-                                                /* Stitched Mode - ALWAYS show full history (ignore toggle) */
-                                                finalResult.steps.map((step, idx) => {
-                                                    const header = `### STEP ${idx + 1}: ${step.label.toUpperCase()} ###`;
-                                                    return `\n\n${header}\n${step.output}\n\n`;
-                                                }).join('\n==================================================\n')
-                                            ) : (
-                                                /* Executed Mode - respect viewFormat */
-                                                viewFormat === 'json' ? (
-                                                    JSON.stringify(showFullHistory ? finalResult.steps : finalResult.steps[finalResult.steps.length - 1], null, 2)
-                                                ) : (
-                                                    (showFullHistory ? finalResult.steps : [finalResult.steps[finalResult.steps.length - 1]]).map((step, idx) => {
-                                                        const header = viewFormat === 'markdown' ? `### ${showFullHistory ? `STEP ${idx + 1}: ` : 'FINAL RESULT: '}${step.label.toUpperCase()} ###` : `${showFullHistory ? `STEP ${idx + 1}: ` : 'FINAL RESULT: '}${step.label.toUpperCase()}`;
-                                                        return `\n\n${header}\n${step.output}\n\n`;
-                                                    }).join(viewFormat === 'markdown' ? '--------------------------------------------------\n' : '\n==================================================\n')
-                                                )
-                                            )}
-                                        </div>
-                                    </div>
                                 </div>
                             )}
 
                             {resultTab === 'document' && (
-                                <div className="p-8 bg-slate-200/50 h-full overflow-y-auto">
-                                    <div id="document-preview-content" className="max-w-[21cm] mx-auto bg-white shadow-xl rounded-sm p-[1.5cm] min-h-[29.7cm] text-slate-800 prose prose-slate">
-                                        {(showFullHistory ? finalResult.steps : [finalResult.steps[finalResult.steps.length - 1]]).map((step, idx) => (
-                                            <div key={step.id} className="mb-8">
-                                                {showFullHistory && (
-                                                    <div className="border-b-2 border-slate-100 pb-2 mb-4">
-                                                        <h2 className="text-xl font-bold text-slate-900 m-0">{step.label}</h2>
-                                                        <span className="text-xs font-mono text-slate-400">Section {idx + 1}</span>
-                                                    </div>
-                                                )}
+                                <div className="bg-white shadow-lg p-8 min-h-[600px] max-w-3xl mx-auto border border-slate-200" id="document-preview-content">
+                                    {finalResult.steps.map((step, index) => (
+                                        <div key={index} className="mb-8">
+                                            <h2 className="text-2xl font-bold text-slate-900 mb-4 pb-2 border-b border-slate-100">{step.label}</h2>
+                                            <div className="prose prose-slate max-w-none">
                                                 <ReactMarkdown remarkPlugins={[remarkGfm]}>{step.output}</ReactMarkdown>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-
-                            {resultTab === 'prompt' && (
-                                <div className="p-6 space-y-6">
-                                    {finalResult.steps.map((step, idx) => (
-                                        <div key={step.id} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden animate-in slide-in-from-bottom-2 duration-300" style={{ animationDelay: `${idx * 100}ms` }}>
-                                            <div className="px-4 py-3 bg-indigo-50 border-b border-indigo-100 flex items-center justify-between">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="flex items-center justify-center w-6 h-6 rounded-full bg-indigo-200 text-indigo-700 text-xs font-bold border border-indigo-300">
-                                                        {idx + 1}
-                                                    </span>
-                                                    <span className="font-semibold text-indigo-900">{step.label}</span>
-                                                    <span className="text-[10px] font-mono text-indigo-500 bg-indigo-100/50 px-2 py-1 rounded border border-indigo-200">
-                                                        COMPILED PROMPT
-                                                    </span>
-                                                </div>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() => {
-                                                        navigator.clipboard.writeText(step.prompt);
-                                                        toast.success("Prompt copied!");
-                                                    }}
-                                                    className="h-6 text-xs text-indigo-400 hover:text-indigo-700 hover:bg-indigo-100"
-                                                >
-                                                    <Copy size={12} className="mr-1" /> Copy
-                                                </Button>
-                                            </div>
-                                            <div className="px-4 py-2 bg-slate-50 text-xs text-slate-500 border-b border-indigo-100 italic">
-                                                Includes template instructions + injected context from previous steps
-                                            </div>
-                                            <div className="p-4 bg-slate-50 font-mono text-sm text-slate-700 whitespace-pre-wrap leading-relaxed border-b border-slate-100">
-                                                {step.prompt}
                                             </div>
                                         </div>
                                     ))}
@@ -1052,53 +1175,48 @@ export const ChainReactionPage: React.FC<ChainReactionPageProps> = ({ isSidebarO
                             )}
                         </div>
 
-                        {/* Footer */}
-                        <div className="p-4 border-t border-slate-100 flex justify-between items-center bg-white">
-                            <div className="text-xs text-slate-400">
-                                {resultTab === 'steps' ? 'Variables are passed sequentially efficiently.' :
-                                    resultTab === 'document' ? 'Use the toolbar above to export.' :
-                                        resultTab === 'prompt' ? 'These are the actual prompts sent to the LLM.' :
-                                            'Full context compiled for export.'}
-                            </div>
-                            <div className="flex gap-3">
-                                {resultTab !== 'document' && (
-                                    <Button
-                                        variant="outline"
-                                        onClick={() => {
-                                            const content = finalResult.steps.map(s => `### ${s.label} ###\n${s.output}`).join('\n\n');
-                                            navigator.clipboard.writeText(content);
-                                            toast.success("Copied to clipboard");
-                                        }}
-                                        leftIcon={<Copy size={16} />}
-                                    >
-                                        Copy All
-                                    </Button>
+                        {/* Modal Footer */}
+                        <div className="p-4 border-t border-slate-100 bg-white flex justify-between items-center z-10">
+                            <div className="flex gap-2">
+                                <Button variant="outline" size="sm" onClick={() => setViewFormat(viewFormat === 'markdown' ? 'text' : 'markdown')}>
+                                    {viewFormat === 'markdown' ? <AlignLeft size={16} /> : <FileText size={16} />}
+                                    <span className="ml-2 hidden sm:inline">{viewFormat === 'markdown' ? 'Raw Text' : 'Markdown'}</span>
+                                </Button>
+                                {resultTab === 'document' && (
+                                    <>
+                                        <Button variant="outline" size="sm" onClick={handleExportWord} className="gap-2">
+                                            <FileType size={16} className="text-blue-600" /> Word
+                                        </Button>
+                                        <Button variant="outline" size="sm" onClick={handlePrint} className="gap-2">
+                                            <Printer size={16} className="text-slate-600" /> Print
+                                        </Button>
+                                    </>
                                 )}
+                            </div>
+                            <div className="flex gap-2">
                                 <Button
                                     variant="outline"
-                                    onClick={() => setIsSaveModalOpen(true)}
-                                    leftIcon={<Save size={16} />}
+                                    onClick={() => {
+                                        const allText = finalResult.steps.map(s => `### ${s.label}\n${s.output}`).join('\n\n');
+                                        navigator.clipboard.writeText(allText);
+                                        toast.success("Copied to clipboard");
+                                    }}
                                 >
-                                    Save to Library
+                                    <Copy size={16} className="mr-2" /> Copy All
                                 </Button>
                                 <Button
-                                    onClick={() => setFinalResult(null)}
-                                    className="bg-slate-900 text-white hover:bg-slate-800"
+                                    onClick={() => handleSavePrompt(finalResult.isCompiled ? 'Chain Strategy' : 'Chain Results')}
+                                    className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/20"
                                 >
-                                    Close
+                                    <Save size={16} className="mr-2" /> Save to Library
                                 </Button>
                             </div>
                         </div>
+
                     </div>
                 </div>,
                 document.body
             )}
-
-            <SavePromptModal
-                isOpen={isSaveModalOpen}
-                onClose={() => setIsSaveModalOpen(false)}
-                onSave={handleSavePrompt}
-            />
         </PageTemplate>
     );
 };

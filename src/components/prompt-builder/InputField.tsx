@@ -8,6 +8,8 @@ import { Tooltip } from '@/components/ui/Tooltip';
 import { clsx } from 'clsx';
 import { TextStats } from '@/components/ui/TextStats';
 import { estimateTokens } from '@/utils/tokenEstimator';
+import { useRealtimeAssist } from '@/hooks/useRealtimeAssist';
+import { RealtimeSuggestions } from '@/components/ui/RealtimeSuggestions';
 
 export interface InputFieldProps {
     id: string;
@@ -29,6 +31,23 @@ export const InputField: React.FC<InputFieldProps> = ({ id, label, description, 
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [suggestions, setSuggestions] = useState<string[]>([]);
     const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+
+    // Realtime Assist
+    const {
+        suggestions: realtimeSuggestions,
+        isLoading: isRealtimeLoading,
+        clearSuggestions
+    } = useRealtimeAssist(value, {
+        fieldLabel: label,
+        context: description,
+        minChars: 15,
+        isEnabled: !isReadOnly
+    });
+
+    const handleApplyRealtime = (text: string) => {
+        setField(id, value + (value.endsWith(' ') ? '' : ' ') + text);
+        clearSuggestions();
+    };
 
     // Validation
     const getValidation = (text: string) => {
@@ -144,6 +163,15 @@ export const InputField: React.FC<InputFieldProps> = ({ id, label, description, 
                                 )
                             }
                         </div >
+
+                        {/* Realtime Suggestions Overlay */}
+                        <RealtimeSuggestions
+                            suggestions={realtimeSuggestions}
+                            isLoading={isRealtimeLoading}
+                            onApply={handleApplyRealtime}
+                            onDismiss={clearSuggestions}
+                            className="mt-2"
+                        />
 
                         {/* Suggestions Panel */}
                         {

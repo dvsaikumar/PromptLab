@@ -5,17 +5,18 @@ import { processFile } from '@/utils/fileProcessor';
 import toast from 'react-hot-toast';
 import { TextStats } from '@/components/ui/TextStats';
 import { estimateTokens } from '@/utils/tokenEstimator';
-
-
 import { Button } from '@/components/ui/Button';
+import { useRealtimeAssist } from '@/hooks/useRealtimeAssist';
+import { RealtimeSuggestions } from '@/components/ui/RealtimeSuggestions';
 
 export interface SimpleIdeaProps {
-    isOpen: boolean;
-    onToggle: () => void;
+    isOpen?: boolean;
+    onToggle?: () => void;
     isSidebarOpen?: boolean;
+    className?: string;
 }
 
-export const SimpleIdea: React.FC<SimpleIdeaProps> = () => {
+export const SimpleIdea: React.FC<SimpleIdeaProps> = ({ className }) => {
     const {
         simpleIdea, setSimpleIdea, selectedTones, attachments,
         addAttachment, removeAttachment, expandIdea, llmConfig, setActivePersonaId, generateSuggestions
@@ -26,6 +27,18 @@ export const SimpleIdea: React.FC<SimpleIdeaProps> = () => {
     const [templateSearch, setTemplateSearch] = useState('');
     const [suggestions, setSuggestions] = useState<string[]>([]);
     const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+
+    // Realtime Assist Hook
+    const { suggestions: realtimeSuggestions, isLoading: isRealtimeLoading, clearSuggestions } = useRealtimeAssist(simpleIdea, {
+        fieldLabel: 'Main Idea',
+        context: 'User is brainstorming a prompt idea.',
+        minChars: 10
+    });
+
+    const handleApplyRealtime = (text: string) => {
+        setSimpleIdea(prev => prev + (prev.endsWith(' ') ? '' : ' ') + text);
+        clearSuggestions();
+    };
 
     const handleSuggestion = async () => {
         setIsLoadingSuggestions(true);
@@ -142,29 +155,26 @@ export const SimpleIdea: React.FC<SimpleIdeaProps> = () => {
 
     return (
         <>
-            {/* Main Input Area - Styled to match ReversePromptPage and Configuration Grid */}
-            <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex flex-col min-h-[500px]">
+            <div className={`bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex flex-col ${className || 'min-h-[500px]'}`}>
                 <div className="flex items-center justify-between mb-2">
-
-
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 flex-wrap w-full md:w-auto">
                         <Button
                             variant="ghost"
                             size="sm"
                             onClick={handleSuggestion}
                             disabled={simpleIdea.length < 5 || isLoadingSuggestions}
-                            className="gap-1.5 text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700 font-bold"
+                            className="gap-1.5 text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700 font-bold flex-1 md:flex-none justify-center"
                             leftIcon={isLoadingSuggestions ? <RefreshCw size={14} className="animate-spin" /> : <Sparkles size={14} />}
                         >
                             AI Enhance
                         </Button>
-                        <div className="w-px h-6 bg-slate-200 mx-1 self-center"></div>
-                        <div className="relative">
+                        <div className="w-px h-6 bg-slate-200 mx-1 self-center hidden md:block"></div>
+                        <div className="relative flex-1 md:flex-none">
                             <Button
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => setShowTemplates(!showTemplates)}
-                                className="gap-2 text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700"
+                                className="gap-2 text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700 w-full justify-center"
                                 rightIcon={<BookTemplate size={14} />}
                             >
                                 Starters
@@ -207,25 +217,26 @@ export const SimpleIdea: React.FC<SimpleIdeaProps> = () => {
                                             </div>
                                         )}
                                     </div>
+                                    <>
+                                    </>
                                 </>
                             )}
                         </div>
 
-                        <div className="w-px h-6 bg-slate-200 mx-1 self-center"></div>
+                        <div className="w-px h-6 bg-slate-200 mx-1 self-center hidden md:block"></div>
 
                         <Button
                             variant="outline"
                             size="sm"
                             onClick={() => fileRef.current?.click()}
                             disabled={isProcessingFile}
-                            className="gap-2"
+                            className="gap-2 flex-1 md:flex-none justify-center"
                         >
                             {isProcessingFile ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />} Attach
                         </Button>
                     </div>
                 </div>
 
-                {/* Attachments List (Moved Top) */}
                 {attachments.length > 0 && (
                     <div className="flex flex-wrap gap-2 mb-3">
                         {attachments.map((file) => (
@@ -259,9 +270,15 @@ export const SimpleIdea: React.FC<SimpleIdeaProps> = () => {
 
                     <TextStats text={simpleIdea} tokenCount={estimateTokens(simpleIdea, llmConfig?.model || '')} className="bottom-3 left-4 border-slate-200/50 bg-slate-50/80 scale-90" />
 
-                    {/* AI Assistant Button (Moved to Header) */}
+                    {/* Realtime Suggestions Overlay */}
+                    <RealtimeSuggestions
+                        suggestions={realtimeSuggestions}
+                        isLoading={isRealtimeLoading}
+                        onApply={handleApplyRealtime}
+                        onDismiss={clearSuggestions}
+                        className="bottom-12 left-4 right-4 w-auto max-w-none"
+                    />
 
-                    {/* Suggestions Panel */}
                     {suggestions.length > 0 && (
                         <div className="absolute bottom-12 left-0 right-0 z-30 mx-4 mb-2 bg-white/95 backdrop-blur-md rounded-xl p-3 border border-indigo-100 shadow-xl animate-in fade-in slide-in-from-bottom-2">
                             <div className="flex justify-between items-center mb-2 px-1">
@@ -298,7 +315,6 @@ export const SimpleIdea: React.FC<SimpleIdeaProps> = () => {
                     onChange={handleFileUpload}
                 />
 
-                {/* Tip (Inside Container) */}
                 {!selectedTones.length && simpleIdea.length > 5 && (
                     <div className="mt-3 flex items-center gap-2 px-3 py-2 bg-amber-50 rounded-lg border border-amber-100 text-amber-700 animate-in fade-in">
                         <Sparkles size={14} className="text-amber-500" />
